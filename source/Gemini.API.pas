@@ -972,7 +972,7 @@ var
 begin
   CheckAPI;
   Headers := GetHeaders;
-  var FileStream := TFileStream.Create(FileName, fmOpenRead);
+  var FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
   Response := TStringStream.Create('', TEncoding.UTF8);
   try
     Code := FHTTPClient.Post(Path, FileStream, Response, Headers).StatusCode;
