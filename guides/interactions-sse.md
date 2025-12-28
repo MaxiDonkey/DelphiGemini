@@ -263,16 +263,17 @@ The `AsyncAwait`... variants return a `TPromise<TEventData>`. Beyond streaming, 
 - Example: chaining two asynchronous operations
 
   ```pascal
-  var P1 := Client.Interactions.AsyncAwaitCreateStream(Params1, SessionContext);
+  var Promesse1 := Client.Interactions.AsyncAwaitCreateStream(Params1, SessionContext);
 
-  P1
+  Promesse1
     .&Then<TPromise<TEventData>>(
       function (First: TEventData): TPromise<TEventData>
       begin
         var Params2: TProc<TInteractionParams> :=
-          procedure (P: TInteractionParams)
+          procedure (Params: TInteractionParams)
           begin
-            P.Model('gemini-3-flash-preview')
+            Params
+             .Model('gemini-3-flash-preview')
              .Input('Summarize the following answer in 3 points:' + First.Text)
              .Stream;
           end;
