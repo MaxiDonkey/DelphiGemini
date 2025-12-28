@@ -30,12 +30,10 @@ This section presents several ways to consume an SSE stream returned by `Client.
 
 ## Terminology
 
-- **Session callbacks** *(formerly “sequence callbacks”)*
-  “Global” stream tracking: start, progress (chunks), cancellation, completion.
+- **Session callbacks** "Global" stream tracking: start, progress (chunks), cancellation, completion.
 <br>
 
-- **Event callbacks** *(formerly “event callbacks”)*
-  Fine-grained interception by SSE event type: `interaction_start`, `content_delta`, `content_stop`, etc. 
+- **Event callbacks** Fine-grained interception by SSE event type: `interaction_start`, `content_delta`, `content_stop`, etc. 
 
 <br>
 
