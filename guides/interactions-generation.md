@@ -99,6 +99,8 @@ The asynchronous API:
 <br>
 
   ```pascal
+  // uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
@@ -183,3 +185,10 @@ This approach avoids nested callbacks and produces a linear, readable control fl
 - UI-friendly, non-blocking → `AsyncAwaitCreate`
 - Chained async workflows → `AsyncAwaitCreate` + `&Then`
 
+<br>
+
+## Practical notes
+- These methods produce non-streamed responses only.
+- Use streaming APIs if you need partial results or real-time rendering.
+- `TInteractionParams` can be reused across sync and async variants.
+- Promise-based APIs are recommended for VCL / FMX applications.

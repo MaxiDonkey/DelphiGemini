@@ -25,3 +25,132 @@ This part is essential, as it goes beyond text generation itself and defines how
 For text content generation, refer to the following sections:
 - [Non streamed](interactions-generation.md) 
 - [SSE Streaming](interactions-sse.md)
+
+We nonetheless provide two simple illustrative examples here.
+
+### Synchronous
+
+```pascal
+// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+
+//Synchronous example (non streamed)
+  var Value := Client.Interactions.Create(
+    procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('From which version of Delphi were multi-line strings introduced?' );
+          TutorialHub.JSONRequest := Params.ToFormat();
+        end);
+
+  try
+    Display(TutorialHub, Value);
+  finally
+    Value.Free;
+  end;
+```
+
+```pascal
+// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+
+//Synchronous example (streamed)
+Client.Interactions.CreateStream(
+      procedure (Params: TInteractionParams)
+      begin
+        Params
+          .Model('gemini-3-flash-preview')
+          .Input('From which version of Delphi were multi-line strings introduced?' )
+          .Stream;
+        TutorialHub.JSONRequest := Params.ToFormat();
+      end,
+      procedure (var Event: TInteractionStream; IsDone: Boolean; var Cancel: Boolean)
+      begin
+        if (not IsDone) and Assigned(Event) then
+          begin
+            DisplayStream(TutorialHub, Event);
+          end;
+      end);
+```
+
+<br>
+
+___
+
+### ASynchronous
+
+```pascal
+// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+
+//Asynchronous (non streamed)
+  var Promise := Client.Interactions.AsyncAwaitCreate(
+    procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('From which version of Delphi were multi-line strings introduced?' );
+          TutorialHub.JSONRequest := Params.ToFormat();
+        end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TInteraction): string
+      begin
+        Result := Value.Id;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+``` 
+
+```pascal
+// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+
+//Asynchronous (Streamed)
+  var Promise := Client.Interactions.AsyncAwaitCreateStream(
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('From which version of Delphi were multi-line strings introduced?' )
+            .GenerationConfig(
+              TGenerationConfigIxParams.Create
+                .ThinkingSummaries('auto') //Include "thougth"
+               )
+            .Stream;
+          TutorialHub.JSONRequest := Params.ToFormat();
+        end,
+        function : TStreamEventCallBack
+        begin
+          Result.Sender := TutorialHub;
+          Result.OnInteractionStart := DisplayInteractionStart;
+          Result.OnInteractionStatusUpdate := DisplayInteractionStatusUpdate;
+          Result.OnInteractionComplete := DisplayInteractionComplete;
+          Result.OnContentStart := DisplayContentStart;
+          Result.OnContentDelta := DisplayContentDelta;
+          Result.OnContentStop := DisplayContentStop;
+          Result.OnError := DisplayInteractionError;
+          Result.OnCancellation := Cancellation;
+          Result.OnDoCancel := DoCancellation;
+        end);
+
+  Promise
+    .&Then<TEventData>(
+      function (Value: TEventData): TEventData
+      begin
+        Result := Value;
+        ShowMessage(Value.Id);
+        ShowMessage(Value.Thought);
+        ShowMessage(Value.Text);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+```
+___
+
+<br>
