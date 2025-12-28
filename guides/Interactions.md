@@ -40,7 +40,6 @@ We nonetheless provide two simple illustrative examples here.
           Params
             .Model('gemini-3-flash-preview')
             .Input('From which version of Delphi were multi-line strings introduced?' );
-          TutorialHub.JSONRequest := Params.ToFormat();
         end);
 
   try
@@ -55,21 +54,20 @@ We nonetheless provide two simple illustrative examples here.
 
 //Synchronous example (streamed)
 Client.Interactions.CreateStream(
-      procedure (Params: TInteractionParams)
+  procedure (Params: TInteractionParams)
+  begin
+    Params
+      .Model('gemini-3-flash-preview')
+      .Input('From which version of Delphi were multi-line strings introduced?' )
+      .Stream;
+  end,
+  procedure (var Event: TInteractionStream; IsDone: Boolean; var Cancel: Boolean)
+  begin
+    if (not IsDone) and Assigned(Event) then
       begin
-        Params
-          .Model('gemini-3-flash-preview')
-          .Input('From which version of Delphi were multi-line strings introduced?' )
-          .Stream;
-        TutorialHub.JSONRequest := Params.ToFormat();
-      end,
-      procedure (var Event: TInteractionStream; IsDone: Boolean; var Cancel: Boolean)
-      begin
-        if (not IsDone) and Assigned(Event) then
-          begin
-            DisplayStream(TutorialHub, Event);
-          end;
-      end);
+        DisplayStream(TutorialHub, Event);
+      end;
+  end);
 ```
 
 <br>
@@ -88,7 +86,6 @@ ___
           Params
             .Model('gemini-3-flash-preview')
             .Input('From which version of Delphi were multi-line strings introduced?' );
-          TutorialHub.JSONRequest := Params.ToFormat();
         end);
 
   Promise
@@ -120,7 +117,6 @@ ___
                 .ThinkingSummaries('auto') //Include "thougth"
                )
             .Stream;
-          TutorialHub.JSONRequest := Params.ToFormat();
         end,
         function : TStreamEventCallBack
         begin
