@@ -216,11 +216,132 @@ To continue a conversation, provide the identifier from the previous interaction
 
 The Interactions API supports multimodal use cases, including image understanding and video generation.
 
-- [Multimodal understanding](#Multimodal understanding)
+- [Multimodal understanding](#multimodal-understanding)
 
+___
+
+<br>
 
 ### Multimodal understanding
 Multimodal data may be supplied inline as `base64-encoded` content or via the Files API for larger files.
 
+- [Image understanding](#image-understanding)
+- [Audio understanding](#audio-understanding)
+
+___
+
+<br>
+
+### Image understanding
+
 The wrapper provides full support for handling base64-encoded content as well as DATA URI formats. For more details, refer to the [`Gemini.Net.MediaCodec`](https://github.com/MaxiDonkey/DelphiGemini/blob/main/source/Gemini.Net.MediaCodec.pas) unit, which includes the `TMediaCodec` helper, or to the Codec management section.
 
+```pascal
+  var ImageLocation := 'Z:\Images\Invoice.png';
+
+
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input(
+              TInput.Create()
+                .AddText('Describe the image.')
+                .AddImage(TMediaCodec.EncodeBase64(ImageLocation), TMediaCodec.GetMimeType(ImageLocation))
+             );
+        end;
+```
+
+- The `TInput` helper class provides a convenient way to add various types of inputs, including images, documents, audio data, and video. It is also possible to supply only a document URI, without embedding the content itself.
+
+```pascal
+  var ImageUri := 'https://assets.visitorscoverage.com/production/wp-content/uploads/2024/04/AdobeStock_626542468-min-1024x683.jpeg'; 
+
+  ...
+    .Input(
+      TInput.Create()
+        .AddText('Compare the two images')
+        .AddImage(TMediaCodec.EncodeBase64(ImageLocation), TMediaCodec.GetMimeType(ImageLocation))
+        .AddImage(ImageUri)
+     )
+  ...
+```
+
+- The `TInput` helper class is available in the [`Gemini.Helpers`](https://github.com/MaxiDonkey/DelphiGemini/blob/main/source/Gemini.Helpers.pas) unit. This unit contains several helper classes designed to simplify the construction of JSON structures.
+
+<br>
+
+#### Delphi `version 12 or later`
+ 
+```pascal
+  var ImageLocation := 'Z:\Images\Invoice.png';
+  var Base64 := TMediaCodec.EncodeBase64(ImageLocation);
+
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input(
+              Format(
+                '''
+                [
+                    {"type": "text", "text": "Describe the image."},
+                    {"type": "image", "data": "%s", "mime_type": "image/png"}
+                ]
+                ''',
+                [Base64])
+             )
+            .Stream;
+        end;
+```
+
+___
+
+<br>
+
+### Audio understanding
+
+```pascal
+  var AudioLocation := 'Z:\Audio\VoiceRecorded.wav';
+
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input(
+              TInput.Create()
+                .AddText('What does this audio say?')
+                .AddAudio(TMediaCodec.EncodeBase64(AudioLocation), 'audio/wav')
+             );
+        end;
+```
+
+<br>
+
+#### Delphi `version 12 or later`
+ 
+```pascal
+  var AudioLocation := 'Z:\Audio\VoiceRecorded.wav';
+  var Base64 := TMediaCodec.EncodeBase64(AudioLocation);
+  var MimeType := TMediaCodec.GetMimeType(AudioLocation);
+
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input(
+              Format(
+                '''
+                [
+                    {"type": "text", "text": "What does this audio say?"},
+                    {"type": "audio", "data": "%s", "mime_type": "%s"}
+                ]
+                ''',
+                [Base64, Mimetype])
+             );
+        end;
+```
