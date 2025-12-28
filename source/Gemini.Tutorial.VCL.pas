@@ -528,6 +528,10 @@ begin
         Display(Sender);
       end;
 
+    TContentType.image:
+      begin
+        Display(Sender, 'Image generated successfully');
+      end;
   end;
 end;
 

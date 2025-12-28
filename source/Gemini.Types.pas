@@ -52,7 +52,9 @@ type
       /// <summary>
       /// Assistant message
       /// </summary>
-      model
+      model,
+
+      agent
     );
 
     {$SCOPEDENUMS OFF}
@@ -61,7 +63,8 @@ type
     const
       MessageRoles: array[TMessageRole] of string = (
         'user',
-        'model'
+        'model',
+        'agent'
       );
     public
       function ToString: string;
@@ -1519,6 +1522,7 @@ type
 
     TAudioMimeTypeOption = (
       audio_wav,
+      audio_x_wav,
       audio_mp3,
       audio_aiff,
       audio_aac,
@@ -1530,6 +1534,7 @@ type
     const
       AudioMimeTypeOptions: array[TAudioMimeTypeOption] of string = (
         'audio/wav',
+        'audio/x-wav',
         'audio/mp3',
         'audio/aiff',
         'audio/aac',
@@ -1765,6 +1770,7 @@ type
     public
       function ToString: string; inline;
       class function Parse(const S: string): TResponseModality; static;
+      class function ToStringArray(const Enums: TArray<TResponseModality>): TArray<string>; static;
     end;
 
   {$ENDREGION}
@@ -2588,6 +2594,14 @@ end;
 function TResponseModalityHelper.ToString: string;
 begin
   Result := ResponseModalities[Self];
+end;
+
+class function TResponseModalityHelper.ToStringArray(
+  const Enums: TArray<TResponseModality>): TArray<string>;
+begin
+  Result := [];
+  for var Item in Enums do
+    Result := Result + [Item.ToString];
 end;
 
 { TInteractionStatusTypeHelper }

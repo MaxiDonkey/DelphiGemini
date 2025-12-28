@@ -199,7 +199,7 @@ type
     /// <summary>
     /// The requested modalities of the response (TEXT, IMAGE, AUDIO).
     /// </summary>
-    function ResponseModalities(const Value: TResponseModality): TInteractionParams; overload;
+    function ResponseModalities(const Value: TArray<TResponseModality>): TInteractionParams; overload;
 
     /// <summary>
     /// The requested modalities of the response (TEXT, IMAGE, AUDIO).
@@ -365,14 +365,19 @@ end;
 
 function TInteractionParams.ResponseModalities(
   const Value: string): TInteractionParams;
+var
+  JSONArray: TJSONArray;
 begin
-  Result := Self.ResponseModalities(TResponseModality.Parse(Value));
+  if TJSONHelper.TryGetArray(Value, JSONArray) then
+    Exit(TInteractionParams(Add('response_modalities', JSONArray)));
+
+  raise EGeminiException.Create('Invalid JSON Array');
 end;
 
 function TInteractionParams.ResponseModalities(
-  const Value: TResponseModality): TInteractionParams;
+  const Value: TArray<TResponseModality>): TInteractionParams;
 begin
-  Result := TInteractionParams(Add('response_modalities', Value.ToString));
+  Result := TInteractionParams(Add('response_modalities', TResponseModality.ToStringArray(Value)));
 end;
 
 function TInteractionParams.Store(const Value: Boolean): TInteractionParams;
