@@ -172,8 +172,9 @@ To continue a conversation, provide the identifier from the previous interaction
 ```
 
 
-#### You can manage conversation history manually on the client side.
+#### You can manage conversation history manually on the client side. 
 
+(Delphi `version 12 or later`)
 ```pascal
  var Params: TProc<TInteractionParams> :=
     procedure (Params: TInteractionParams)
@@ -201,9 +202,10 @@ To continue a conversation, provide the identifier from the previous interaction
     end;
 ```
 
+<br>
 
 >[!NOTE]
->- If you are using Delphi version 12 or later, you can use multiline strings to define certain parts of the request directly as valid JSON strings. 
+>- If you are using Delphi `version 12 or later`, you can use multiline strings to define certain parts of the request directly as valid JSON strings. 
 >- This approach is fully supported by the wrapper.
 >- In the remainder of this document, examples will continue to use JSON strings to ensure consistency across illustrations.
 
