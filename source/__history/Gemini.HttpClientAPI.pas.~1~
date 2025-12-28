@@ -1,7 +1,0 @@
-unit Gemini.HttpClientAPI;
-
-interface
-
-implementation
-
-end.
