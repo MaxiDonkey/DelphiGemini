@@ -18,7 +18,8 @@ This section presents several ways to consume an SSE stream returned by `Client.
 4. **Asynchronous SSE with event callbacks:** fine-grained, event-by-event interception.
 5. **Promises and orchestration:** composition with &Then / &Catch to chain asynchronous operations.
 
->[!NOTE] **(tutorial support units)**
+>[!NOTE] 
+>**(tutorial support units)**
 >The `Display...` / `DisplayStream...` helper methods used in the examples are provided by `Gemini.Tutorial.VCL` or `Gemini.Tutorial.FMX` (depending on the target platform) to keep examples simple and readable.
 >They are not part of the core API—you can replace them with your own UI/logging routines.
 
@@ -180,7 +181,8 @@ Compared to the “mute” mode, this variant adds progressive tracking through 
       end);
   ```
 
->[!WARNING] **(Sender / TutorialHub dependency)**
+>[!WARNING] 
+>**(Sender / TutorialHub dependency)**
 > In these examples, `Result.Sender := TutorialHub;` is used because the tutorial relies on the `TTutorialHub` support class provided by `Gemini.Tutorial.VCL` or `Gemini.Tutorial.FMX`. This object is passed as the callback Sender so the helper procedures (such as `Display`... / `DisplayStream`...) can access the tutorial UI/log context.
 >
 > When integrating the library into your own project, you are not required to use `TTutorialHub`. You can set `Sender` to any object that makes sense for your application (for example, your main form, a view-model, a controller, or a custom context class), and implement your own display/log/cancellation handlers accordingly.
