@@ -6,6 +6,7 @@
   - [Non streamed](interactions-generation.md) 
   - [SSE Streaming](interactions-sse.md)
 - [Stateful conversation](#stateful-conversation)
+- [Multimodal capabilities](#multimodal-capabilities)
 
 
 ___
@@ -208,4 +209,18 @@ To continue a conversation, provide the identifier from the previous interaction
 >- If you are using Delphi `version 12 or later`, you can use multiline strings to define certain parts of the request directly as valid JSON strings. 
 >- This approach is fully supported by the wrapper.
 >- In the remainder of this document, examples will continue to use JSON strings to ensure consistency across illustrations.
+
+<br>
+
+## Multimodal capabilities
+
+The Interactions API supports multimodal use cases, including image understanding and video generation.
+
+- [Multimodal understanding](#Multimodal understanding)
+
+
+### Multimodal understanding
+Multimodal data may be supplied inline as `base64-encoded` content or via the Files API for larger files.
+
+The wrapper provides full support for handling base64-encoded content as well as DATA URI formats. For more details, refer to the [`Gemini.Net.MediaCodec`](https://github.com/MaxiDonkey/DelphiGemini/blob/main/source/Gemini.Net.MediaCodec.pas) unit, which includes the `TMediaCodec` helper, or to the Codec management section.
 
