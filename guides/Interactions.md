@@ -3,24 +3,12 @@
 
 - [Introduction](#introduction)
 - [Text generation](#text-generation)
-  - [Non streamed](#non-streamed) 
+  - [Non streamed](interactions-generation.md) 
   - [SSE Streaming](interactions-sse.md)
-  - [Multi-turn](#multi-turn)
+
 
 ___
 
 ## Introduction
 
-<br>
 
-## Text generation
-
-<br>
-
-### Non streamed
-
-<br>
-
-### Multi-turn conversations
-
-<br>

@@ -18,6 +18,8 @@ This section presents several ways to consume an SSE stream returned by `Client.
 4. **Asynchronous SSE with event callbacks:** fine-grained, event-by-event interception.
 5. **Promises and orchestration:** composition with &Then / &Catch to chain asynchronous operations.
 
+<br>
+
 >[!NOTE] 
 >**(tutorial support units)**
 >
@@ -36,7 +38,6 @@ This section presents several ways to consume an SSE stream returned by `Client.
 
 <br>
 
-___
 
 ## 1) Synchronous streaming (direct stream consumption)  
 
@@ -76,7 +77,6 @@ When you want a straightforward, immediate consumption of the SSE stream—no pr
 
 <br>
 
-___
 
 ## 2) “Mute” asynchronous streaming (aggregation only)
 
@@ -126,7 +126,6 @@ Consequence
 
 <br>
 
-___
 
 ## 3) Asynchronous streaming with session callbacks
 
@@ -193,7 +192,6 @@ Compared to the “mute” mode, this variant adds progressive tracking through 
 
 <br>
 
-___
 
 ## 4) Asynchronous streaming with event callbacks
 
@@ -252,7 +250,6 @@ ___
 
 <br>
 
-___
 
 ## 5) Promises and orchestration: chaining asynchronous operations
 
@@ -296,16 +293,12 @@ The `AsyncAwait`... variants return a `TPromise<TEventData>`. Beyond streaming, 
 
 <br>
 
-___
-
 ## Quick selection guide
 - **Get to the point / quick debugging** → (1) Synchronous
 - **Final result only** → (2) Async “mute”
 - **Simple incremental rendering** → (3) Session callbacks
 - **Fine-grained SSE event handling** → (4) Event callbacks
 - **Chaining / orchestration** → (5) Promises + `&Then`
-
-___
 
 <br>
 

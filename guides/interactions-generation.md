@@ -1,7 +1,11 @@
 # Text generation (non-streamed interactions)
 
 - [Overview](#overview)
-
+- [Synchronous text generation](#1-synchronous-text-generation)
+- [Asynchronous text generation (promise-based)](#2-asynchronous-text-generation-promise-based)
+- [Promises and orchestration](#3-promises-and-orchestration)
+- [Quick selection guide](#quick-selection-guide)
+- [Practical notes](#practical-notes)
 ___
 
 <br>
@@ -23,5 +27,159 @@ Two usage styles are available:
 
 <br>
 
->[!NOTE] **Tutorial support units**
+>[!NOTE] 
+>**Tutorial support units**
 >
+>The `Display(...)` helper procedures used in the examples are provided by `Gemini.Tutorial.VCL` or `Gemini.Tutorial.FMX`, depending on the target platform.
+>
+>These units exist solely to keep tutorial code concise and readable. They are not **part of the core API**.
+>In a real application, you are expected to replace them with your own UI, logging, or domain-specific logic.
+
+<br>
+
+
+## 1) Synchronous text generation
+
+### When to use it
+Use the synchronous API when:
+- you want the simplest possible usage,
+- blocking the current thread is acceptable,
+- you are running in a background thread or a console-style workflow.
+
+### How it works
+- `ParamProc` configures the interaction request.
+- `Create` performs a blocking HTTP call.
+- The returned `TInteraction` must be freed by the caller.
+<br>
+
+  ```pascal
+  // uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+
+  var Params: TProc<TInteractionParams> :=
+    procedure (Params: TInteractionParams)
+    begin
+      Params
+        .Model('gemini-3-flash-preview')
+        .Input('From which version of Delphi were multi-line strings introduced?' );
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end;
+
+  // Synchronous example
+  var Value := Client.Interactions.Create(Params);
+
+  try
+    Display(TutorialHub, Value);
+  finally
+    Value.Free;
+  end;
+
+  ```
+
+### Key points
+- The call blocks until the model response is fully received.
+- Memory ownership is explicit: you must free `TInteraction`.
+- Errors are raised as exceptions.
+
+<br>
+
+
+## 2) Asynchronous text generation (promise-based)
+
+### Why use the asynchronous variant
+The asynchronous API:
+- avoids blocking the calling thread,
+- integrates naturally with UI applications,
+- enables clean composition through promises.
+
+### How it works
+- `AsyncAwaitCreate` immediately returns a `TPromise<TInteraction>`.
+- The request runs in the background.
+- `&Then` is invoked on success.
+- `&Catch` centralizes error handling. 
+<br>
+
+  ```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('From which version of Delphi were multi-line strings introduced?' );
+          TutorialHub.JSONRequest := Params.ToFormat();
+        end;
+
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitCreate(Params);
+
+  Promise
+    .&Then<string>(
+      function (Value: TInteraction): string
+      begin
+        Result := Value.Id;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+  
+  ```
+
+### Key points
+- The returned `TInteraction` is owned by the promise chain.
+- You do not manually free the object.
+- The `&Then` handler may transform the result type.
+- Exceptions are propagated to `&Catch`. 
+
+<br>
+
+## 3) Promises and orchestration
+Because `AsyncAwaitCreate` returns a `TPromise<TInteraction>`, it can be used as a building block for **asynchronous orchestration**.
+
+### You can:
+- post-process results,
+- trigger dependent operations,
+- chain multiple interactions sequentially,
+- centralize error handling.
+
+<br>
+
+- Example: chaining two non-streamed requests
+
+  ```pascal
+  Client.Interactions.AsyncAwaitCreate(Params1)
+    .&Then<TPromise<TInteraction>>(
+      function (First: TInteraction): TPromise<TInteraction>
+      begin
+        var Params2: TProc<TInteractionParams> :=
+          procedure (Params: TInteractionParams)
+          begin
+            Params
+             .Model('gemini-3-flash-preview')
+             .Input('Summarize the following answer: ' + First.Outputs[0].Content[0].Text);
+          end;
+        
+        Result := Client.Interactions.AsyncAwaitCreate(Params2);
+      end)
+    .&Then(
+      procedure (Second: TInteraction)
+      begin
+        Display(TutorialHub, Second);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end); 
+  ``` 
+This approach avoids nested callbacks and produces a linear, readable control flow.
+
+<br>
+
+## Quick selection guide
+- Blocking call, simplest usage → `Create`
+- UI-friendly, non-blocking → `AsyncAwaitCreate`
+- Chained async workflows → `AsyncAwaitCreate` + `&Then`
+
