@@ -11,8 +11,7 @@ interface
 
 uses
   System.Classes, System.JSON, System.SysUtils, System.Types, System.RTTI,
-  REST.JsonReflect, REST.Json.Interceptors, System.Generics.Collections,
-  System.Threading;
+  REST.JsonReflect, REST.Json.Interceptors, System.Generics.Collections;
 
 type
   /// <summary>
@@ -32,11 +31,53 @@ type
     RTTI: TRttiContext;
   end;
 
+  TUrlParam = class
+  strict private
+    FMap: TDictionary<string,string>;
+  protected
+    function Encode(const S: string): string;
+  public
+    constructor Create; virtual;
+    destructor Destroy; override;
+
+    function Add(const Name, Value: string): TUrlParam; overload; virtual;
+    function Add(const Name: string; Value: Boolean): TUrlParam; overload; virtual;
+    function Add(const Name: string; Value: Integer): TUrlParam; overload; virtual;
+    function Add(const Name: string; Value: Int64): TUrlParam; overload; virtual;
+    function Add(const Name: string; Value: Double): TUrlParam; overload; virtual;
+    function Add(const Name: string; const Value: TArray<string>): TUrlParam; overload; virtual;
+
+    function Remove(const Name: string): TUrlParam; virtual;
+    function ToQueryString: string;
+  end;
+
+  /// <summary>
+  /// Represents a base class for all classes obtained after deserialization.
+  /// </summary>
+  /// <remarks>
+  /// This class is designed to store the raw JSON string returned by the API,
+  /// allowing applications to access the original JSON response if needed.
+  /// </remarks>
+  TJSONFingerprint = class
+  private
+    FJSONResponse: string;
+  public
+    /// <summary>
+    /// Gets or sets the raw JSON string returned by the API.
+    /// </summary>
+    /// <remarks>
+    /// Typically, the API returns a single JSON string, which is stored in this property.
+    /// </remarks>
+    property JSONResponse: string read FJSONResponse write FJSONResponse;
+
+  end;
+
   TJSONParam = class
   private
     FJSON: TJSONObject;
     procedure SetJSON(const Value: TJSONObject);
     function GetCount: Integer;
+    procedure EnsureJSONAllocated; inline;
 
   public
     constructor Create; virtual;
@@ -46,24 +87,61 @@ type
     function Add(const Key: string; const Value: Extended): TJSONParam; overload; virtual;
     function Add(const Key: string; const Value: Boolean): TJSONParam; overload; virtual;
     function Add(const Key: string; const Value: TDateTime; Format: string): TJSONParam; overload; virtual;
+
+    /// <summary>
+    /// Adds a JSON value and transfers ownership of Value to the internal JSONObject.
+    /// </summary>
     function Add(const Key: string; const Value: TJSONValue): TJSONParam; overload; virtual;
+
+    /// <summary>
+    /// Adds a clone of Value.JSON (does not transfer ownership of Value).
+    /// </summary>
     function Add(const Key: string; const Value: TJSONParam): TJSONParam; overload; virtual;
+
     function Add(const Key: string; Value: TArray<string>): TJSONParam; overload; virtual;
     function Add(const Key: string; Value: TArray<Integer>): TJSONParam; overload; virtual;
     function Add(const Key: string; Value: TArray<Extended>): TJSONParam; overload; virtual;
+
+    /// <summary>
+    /// Adds an array and transfers ownership of the array elements to the internal JSONObject.
+    /// </summary>
     function Add(const Key: string; Value: TArray<TJSONValue>): TJSONParam; overload; virtual;
+
+    /// <summary>
+    /// Adds an array and transfers ownership of each TJSONParam JSON object into the created array.
+    /// Each item is freed by this method.
+    /// </summary>
     function Add(const Key: string; Value: TArray<TJSONParam>): TJSONParam; overload; virtual;
+
     function GetOrCreateObject(const Name: string): TJSONObject;
     function GetOrCreate<T: TJSONValue, constructor>(const Name: string): T;
+
     procedure Delete(const Key: string); virtual;
     procedure Clear; virtual;
+
     property Count: Integer read GetCount;
-    function Detach: TJSONObject;
     property JSON: TJSONObject read FJSON write SetJSON;
+
     function ToJsonString(FreeObject: Boolean = False): string; virtual;
     function ToFormat(FreeObject: Boolean = False): string;
     function ToStringPairs: TArray<TPair<string, string>>;
     function ToStream: TStringStream;
+
+    /// <summary>
+    /// Return the JSON value in a TJSONObject and then release the TJSONParam instance.
+    /// Consuming/move semantics (internal wrapper usage).
+    /// </summary>
+    function Detach: TJSONObject;
+  end;
+
+  TJSONHelper = record
+    class function StringToJson(const Value: string): TJSONObject; static;
+    class function StringToJsonArray(const Value: string): TJSONArray; static;
+    class function ToJsonArray<T: TJSONParam>(const Value: TArray<T>): TJSONArray; static;
+
+    class function TryParse(const Value: string; out Json: TJSONValue): Boolean; static;
+    class function TryGetObject(const Value: string; out Obj: TJSONObject): Boolean; static;
+    class function TryGetArray(const Value: string; out Arr: TJSONArray): Boolean; static;
   end;
 
 const
@@ -74,7 +152,7 @@ const
 implementation
 
 uses
-  System.DateUtils;
+  System.DateUtils, System.NetEncoding;
 
 { TJSONInterceptorStringToString }
 
@@ -108,6 +186,7 @@ end;
 
 function TJSONParam.Add(const Key, Value: string): TJSONParam;
 begin
+  EnsureJSONAllocated;
   Delete(Key);
   FJSON.AddPair(Key, Value);
   Result := Self;
@@ -115,6 +194,7 @@ end;
 
 function TJSONParam.Add(const Key: string; const Value: TJSONValue): TJSONParam;
 begin
+  EnsureJSONAllocated;
   Delete(Key);
   FJSON.AddPair(Key, Value);
   Result := Self;
@@ -122,6 +202,15 @@ end;
 
 function TJSONParam.Add(const Key: string; const Value: TJSONParam): TJSONParam;
 begin
+  {--- Clone semantics for single TJSONParam to avoid consuming the argument }
+  EnsureJSONAllocated;
+  if Value = nil then
+    begin
+      Delete(Key);
+      FJSON.AddPair(Key, TJSONNull.Create);
+      Exit(Self);
+    end;
+
   Add(Key, TJSONValue(Value.JSON.Clone));
   Result := Self;
 end;
@@ -153,65 +242,94 @@ begin
 end;
 
 function TJSONParam.Add(const Key: string; Value: TArray<TJSONValue>): TJSONParam;
-var
-  JArr: TJSONArray;
 begin
-  JArr := TJSONArray.Create;
-  Fetch<TJSONValue>.All(Value, JArr.AddElement);
-  Add(Key, JArr);
+  EnsureJSONAllocated;
+  var JArr := TJSONArray.Create;
+  try
+    Fetch<TJSONValue>.All(Value, JArr.AddElement);
+    Add(Key, JArr);
+  except
+    JArr.Free;
+    raise;
+  end;
   Result := Self;
 end;
 
 function TJSONParam.Add(const Key: string; Value: TArray<TJSONParam>): TJSONParam;
-var
-  JArr: TJSONArray;
-  Item: TJSONParam;
 begin
-  JArr := TJSONArray.Create;
-  for Item in Value do
+  EnsureJSONAllocated;
+  var JArr := TJSONArray.Create;
   try
-    JArr.AddElement(Item.JSON);
-    Item.JSON := nil;
-  finally
-    Item.Free;
+    for var Item in Value do
+    try
+      if Item = nil then
+      begin
+        JArr.AddElement(TJSONNull.Create);
+        Continue;
+      end;
+
+      {--- Transfer ownership of Item.JSON into the array:
+           - if Item.JSON is nil, treat it as empty object. }
+      if Item.FJSON = nil then
+        Item.FJSON := TJSONObject.Create;
+
+      JArr.AddElement(Item.FJSON);
+      Item.FJSON := nil;
+    finally
+      Item.Free;
+    end;
+
+    {--- transfers ownership of JArr to FJSON }
+    Add(Key, JArr);
+  except
+    JArr.Free;
+    raise;
   end;
-  Add(Key, JArr);
   Result := Self;
 end;
 
 function TJSONParam.Add(const Key: string; Value: TArray<Extended>): TJSONParam;
-var
-  JArr: TJSONArray;
-  Item: Extended;
 begin
-  JArr := TJSONArray.Create;
-  for Item in Value do
-    JArr.Add(Item);
-  Add(Key, JArr);
+  EnsureJSONAllocated;
+  var JArr := TJSONArray.Create;
+  try
+    for var Item in Value do
+      JArr.Add(Item);
+    Add(Key, JArr);
+  except
+    JArr.Free;
+    raise;
+  end;
   Result := Self;
 end;
 
 function TJSONParam.Add(const Key: string; Value: TArray<Integer>): TJSONParam;
-var
-  JArr: TJSONArray;
-  Item: Integer;
 begin
-  JArr := TJSONArray.Create;
-  for Item in Value do
-    JArr.Add(Item);
-  Add(Key, JArr);
+  EnsureJSONAllocated;
+  var JArr := TJSONArray.Create;
+  try
+    for var Item in Value do
+      JArr.Add(Item);
+    Add(Key, JArr);
+  except
+    JArr.Free;
+    raise;
+  end;
   Result := Self;
 end;
 
 function TJSONParam.Add(const Key: string; Value: TArray<string>): TJSONParam;
-var
-  JArr: TJSONArray;
-  Item: string;
 begin
-  JArr := TJSONArray.Create;
-  for Item in Value do
-    JArr.Add(Item);
-  Add(Key, JArr);
+  EnsureJSONAllocated;
+  var JArr := TJSONArray.Create;
+  try
+    for var Item in Value do
+      JArr.Add(Item);
+    Add(Key, JArr);
+  except
+    JArr.Free;
+    raise;
+  end;
   Result := Self;
 end;
 
@@ -227,10 +345,9 @@ begin
 end;
 
 procedure TJSONParam.Delete(const Key: string);
-var
-  Item: TJSONPair;
 begin
-  Item := FJSON.RemovePair(Key);
+  EnsureJSONAllocated;
+  var Item := FJSON.RemovePair(Key);
   if Assigned(Item) then
     Item.Free;
 end;
@@ -244,16 +361,26 @@ end;
 
 function TJSONParam.GetCount: Integer;
 begin
+  EnsureJSONAllocated;
   Result := FJSON.Count;
 end;
 
 function TJSONParam.GetOrCreate<T>(const Name: string): T;
+var
+  ExistingValue: TJSONValue;
 begin
-  if not FJSON.TryGetValue<T>(Name, Result) then
-  begin
-    Result := T.Create;
-    FJSON.AddPair(Name, Result);
-  end;
+  EnsureJSONAllocated;
+
+  {--- Fast path: correct typed value exists }
+  if FJSON.TryGetValue<T>(Name, Result) then
+    Exit;
+
+  {--- If key exists but is wrong type (or null), replace cleanly (avoid duplicate keys) }
+  if FJSON.TryGetValue<TJSONValue>(Name, ExistingValue) then
+    Delete(Name);
+
+  Result := T.Create;
+  FJSON.AddPair(Name, Result);
 end;
 
 function TJSONParam.GetOrCreateObject(const Name: string): TJSONObject;
@@ -262,30 +389,38 @@ begin
 end;
 
 function TJSONParam.Detach: TJSONObject;
+{--- consuming semantics (internal usage) }
 begin
-  Result := JSON;
-  JSON := nil;
-  var Task: ITask := TTask.Create(
-    procedure()
-    begin
-      Sleep(30);
-      TThread.Queue(nil,
-      procedure
-      begin
-        Self.Free;
-      end);
-    end
-  );
-  Task.Start;
+  EnsureJSONAllocated;
+  Result := FJSON;
+  FJSON := nil;
+  Free;
+end;
+
+procedure TJSONParam.EnsureJSONAllocated;
+begin
+  if FJSON = nil then
+    FJSON := TJSONObject.Create;
 end;
 
 procedure TJSONParam.SetJSON(const Value: TJSONObject);
 begin
-  FJSON := Value;
+  {--- Preserve ownership invariant: TJSONParam owns FJSON.
+       If Value = nil -> reset to empty object.}
+  if FJSON = Value then
+    Exit;
+
+  FJSON.Free;
+
+  if Value <> nil then
+    FJSON := Value
+  else
+    FJSON := TJSONObject.Create;
 end;
 
 function TJSONParam.ToFormat(FreeObject: Boolean): string;
 begin
+  EnsureJSONAllocated;
   Result := FJSON.Format(4);
   if FreeObject then
     Free;
@@ -293,6 +428,7 @@ end;
 
 function TJSONParam.ToJsonString(FreeObject: Boolean): string;
 begin
+  EnsureJSONAllocated;
   Result := FJSON.ToJSON;
   if FreeObject then
     Free;
@@ -302,7 +438,7 @@ function TJSONParam.ToStream: TStringStream;
 begin
   Result := TStringStream.Create;
   try
-    Result.WriteString(ToJsonString);
+    Result.WriteString(ToJsonString(False));
     Result.Position := 0;
   except
     Result.Free;
@@ -312,8 +448,194 @@ end;
 
 function TJSONParam.ToStringPairs: TArray<TPair<string, string>>;
 begin
+  EnsureJSONAllocated;
+  SetLength(Result, 0);
   for var Pair in FJSON do
     Result := Result + [TPair<string, string>.Create(Pair.JsonString.Value, Pair.JsonValue.AsType<string>)];
+end;
+
+{ TJSONHelper }
+
+class function TJSONHelper.StringToJson(const Value: string): TJSONObject;
+begin
+  var JSON := TJSONObject.ParseJSONValue(Value);
+  if not Assigned(JSON) then
+    raise Exception.CreateFmt('Invalid JSON: %s', [Value]);
+
+  if not (JSON is TJSONObject) then
+    begin
+      JSON.Free;
+      raise Exception.Create('JSON is not an object');
+    end;
+
+  Result := TJSONObject(JSON);
+end;
+
+class function TJSONHelper.StringToJsonArray(const Value: string): TJSONArray;
+begin
+  var JSON := TJSONObject.ParseJSONValue(Value);
+  if not Assigned(JSON) then
+    raise Exception.CreateFmt('Invalid JSON: %s', [Value]);
+
+  if not (JSON is TJSONArray) then
+    begin
+      JSON.Free;
+      raise Exception.Create('JSON is not an array');
+    end;
+
+  Result := TJSONArray(JSON);
+end;
+
+class function TJSONHelper.ToJsonArray<T>(const Value: TArray<T>): TJSONArray;
+begin
+  Result := TJSONArray.Create;
+  try
+  for var Item in Value do
+    begin
+      if Item = nil then
+        Continue;
+
+      Result.Add(Item.Detach);
+    end;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+class function TJSONHelper.TryGetArray(const Value: string;
+  out Arr: TJSONArray): Boolean;
+var
+  JSONValue: TJSONValue;
+begin
+  Arr := nil;
+  if not TryParse(Value, JSONValue) then
+    Exit(False);
+
+  if JSONValue is TJSONArray then
+    begin
+      Arr := TJSONArray(JSONValue);
+      Exit(True);
+    end;
+
+  JSONValue.Free;
+  Result := False;
+end;
+
+class function TJSONHelper.TryGetObject(const Value: string;
+  out Obj: TJSONObject): Boolean;
+var
+  JSONValue: TJSONValue;
+begin
+  Obj := nil;
+  if not TryParse(Value, JSONValue) then
+    Exit(False);
+
+  if JSONValue is TJSONObject then
+    begin
+      Obj := TJSONObject(JSONValue);
+      Exit(True);
+    end;
+
+  JSONValue.Free;
+  Result := False;
+end;
+
+class function TJSONHelper.TryParse(const Value: string;
+  out Json: TJSONValue): Boolean;
+begin
+  Json := nil;
+  try
+    Json := TJSONObject.ParseJSONValue(Value);
+    Result := Json <> nil;
+  except
+    Json.Free;
+    Json := nil;
+    Result := False;
+  end;
+end;
+
+{ TUrlParam }
+
+constructor TUrlParam.Create;
+begin
+  inherited;
+  FMap := TDictionary<string,string>.Create;
+end;
+
+destructor TUrlParam.Destroy;
+begin
+  FMap.Free;
+  inherited;
+end;
+
+function TUrlParam.Encode(const S: string): string;
+begin
+  Result := TNetEncoding.URL.Encode(S).Replace('+','%20');
+end;
+
+function TUrlParam.Add(const Name, Value: string): TUrlParam;
+begin
+  if Value.IsEmpty then
+    Exit(Self);
+
+  FMap.AddOrSetValue(Name, Encode(Value));
+  Result := Self;
+end;
+
+function TUrlParam.Add(const Name: string; Value: Boolean): TUrlParam;
+begin
+  Result := Add(Name, BoolToStr(Value, True).ToLower);
+end;
+
+function TUrlParam.Add(const Name: string; Value: Integer): TUrlParam;
+begin
+  Result := Add(Name, Value.ToString);
+end;
+
+function TUrlParam.Add(const Name: string; Value: Int64): TUrlParam;
+begin
+  Result := Add(Name, Value.ToString);
+end;
+
+function TUrlParam.Add(const Name: string; Value: Double): TUrlParam;
+begin
+  Result := Add(Name, Value.ToString);
+end;
+
+function TUrlParam.Add(const Name: string; const Value: TArray<string>): TUrlParam;
+begin
+  Result := Add(Name, string.Join(',', Value).Trim);
+end;
+
+function TUrlParam.Remove(const Name: string): TUrlParam;
+begin
+  FMap.Remove(Name);
+  Result := Self;
+end;
+
+function TUrlParam.ToQueryString: string;
+begin
+  var StringBuilder := TStringBuilder.Create;
+  try
+    var First := True;
+    for var Item in FMap.Keys do
+      begin
+        if not First then
+          StringBuilder.Append('&')
+        else
+          First := False;
+
+        StringBuilder.Append(
+          Encode(Item))
+            .Append('=')
+            .Append(FMap[Item]
+        );
+      end;
+    Result := StringBuilder.ToString;
+  finally
+    StringBuilder.Free;
+  end;
 end;
 
 end.

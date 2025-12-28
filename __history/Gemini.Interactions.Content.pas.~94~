@@ -1,0 +1,368 @@
+unit Gemini.Interactions.Content;
+
+interface
+
+uses
+  System.SysUtils, System.JSON,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Exceptions, Gemini.Types.EnumWire,
+  Gemini.Async.Support, Gemini.Async.Promise;
+
+type
+  TContentParams = class(TJSONParam);
+
+  {$REGION 'TextContent'}
+
+  TAnnotationsParams = class(TJSONParam)
+    /// <summary>
+    /// Start of segment of the response that is attributed to this source.
+    /// </summary>
+    /// <remarks>
+    /// Index indicates the start of the segment, measured in bytes.
+    /// </remarks>
+    function StartIndex(const Value: Integer): TAnnotationsParams;
+
+    /// <summary>
+    /// End of the attributed segment, exclusive.
+    /// </summary>
+    function EndIndex(const Value: Integer): TAnnotationsParams;
+
+    /// <summary>
+    /// Source attributed for a portion of the text. Could be a URL, title, or other identifier.
+    /// </summary>
+    function Source(const Value: string): TAnnotationsParams;
+  end;
+
+  TTextContentParams = class(TContentParams)
+    /// <summary>
+    /// Always set to "text".
+    /// </summary>
+    function &Type(const Value: TContentType = TContentType.text): TTextContentParams;
+
+    /// <summary>
+    /// The text content.
+    /// </summary>
+    function Text(const Value: string): TTextContentParams;
+
+    /// <summary>
+    /// Citation information for model-generated content.
+    /// </summary>
+    function Annotations(const Value: TAnnotationsParams): TTextContentParams;
+
+    class function New(const Text: string): TTextContentParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'ImageContent'}
+
+  TImageContentParams = class(TContentParams)
+    /// <summary>
+    /// Always set to "image".
+    /// </summary>
+    function &Type(const Value: TContentType = TContentType.image): TImageContentParams;
+
+    /// <summary>
+    /// Base64 encoded image
+    /// </summary>
+    function Data(const Value: string): TImageContentParams;
+
+    /// <summary>
+    /// Image from uri
+    /// </summary>
+    function Uri(const Value: string): TImageContentParams;
+
+    /// <summary>
+    /// Type mime of the image
+    /// </summary>
+    /// <remarks>
+    /// Only image/png, image/jpeg, image/webp, image/heic, image/heif
+    /// </remarks>
+    function MimeType(const Value: TImageMimeTypeOption): TImageContentParams; overload;
+
+    /// <summary>
+    /// Type mime of the image
+    /// </summary>
+    /// <remarks>
+    /// Only image/png, image/jpeg, image/webp, image/heic, image/heif
+    /// </remarks>
+    function MimeType(const Value: string): TImageContentParams; overload;
+
+    /// <summary>
+    /// The resolution of the media.
+    /// </summary>
+    /// <remarks>
+    /// Only TMediaResolution.low, TMediaResolution.medium, TMediaResolution.high, TMediaResolution.ultra_high
+    /// </remarks>
+    function Resolution(const Value: TMediaResolution): TImageContentParams; overload;
+
+    /// <summary>
+    /// The resolution of the media.
+    /// </summary>
+    /// <remarks>
+    /// Only low, medium, high, ultra_high
+    /// </remarks>
+    function Resolution(const Value: string): TImageContentParams; overload;
+
+    class function New: TImageContentParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'AudioContent'}
+
+  TAudioContentParams = class(TContentParams)
+    /// <summary>
+    /// Always set to "audio".
+    /// </summary>
+    function &Type(const Value: TContentType = TContentType.audio): TAudioContentParams;
+
+    /// <summary>
+    /// Base64 encoded audio
+    /// </summary>
+    function Data(const Value: string): TAudioContentParams;
+
+    /// <summary>
+    /// Audio from uri
+    /// </summary>
+    function Uri(const Value: string): TAudioContentParams;
+
+    /// <summary>
+    /// Type mime of the audio
+    /// </summary>
+    /// <remarks>
+    /// Only iaudio/wav, audio/mp3, audio/aiff, audio/aac, audio/ogg, audio/flac
+    /// </remarks>
+    function MimeType(const Value: TAudioMimeTypeOption): TAudioContentParams; overload;
+
+    /// <summary>
+    /// Type mime of the audio
+    /// </summary>
+    /// <remarks>
+    /// Only iaudio/wav, audio/mp3, audio/aiff, audio/aac, audio/ogg, audio/flac
+    /// </remarks>
+    function MimeType(const Value: string): TAudioContentParams; overload;
+
+    class function New: TAudioContentParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'DocumentContent'}
+
+  TDocumentContent = class(TContentParams)
+    /// <summary>
+    /// Always set to "document".
+    /// </summary>
+    function &Type(const Value: TContentType = TContentType.document): TDocumentContent;
+
+    /// <summary>
+    /// Base64 encoded document
+    /// </summary>
+    function Data(const Value: string): TDocumentContent;
+
+    /// <summary>
+    /// Document from uri
+    /// </summary>
+    function Uri(const Value: string): TDocumentContent;
+
+    /// <summary>
+    /// Type mime of the document
+    /// </summary>
+    /// <remarks>
+    /// Only audio/wav, audio/mp3, audio/aiff, audio/aac, audio/ogg, audio/flac
+    /// </remarks>
+    function MimeType(const Value: TDocumentMimeTypeOption): TDocumentContent; overload;
+
+    /// <summary>
+    /// Type mime of the document
+    /// </summary>
+    /// <remarks>
+    /// Only audio/wav, audio/mp3, audio/aiff, audio/aac, audio/ogg, audio/flac
+    /// </remarks>
+    function MimeType(const Value: string): TDocumentContent; overload;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'Turn'}
+
+  TTurnParams = class(TJSONParam)
+    /// <summary>
+    /// The originator of this turn. Must be user for input or model for model output.
+    /// </summary>
+    function Role(const Value: TMessageRole): TTurnParams;
+
+    /// <summary>
+    /// The content of the turn.
+    /// </summary>
+    function Content(const Value: TArray<TContentParams>): TTurnParams;
+  end;
+
+  {$ENDREGION}
+
+implementation
+
+{ TTextContentParams }
+
+function TTextContentParams.&Type(
+  const Value: TContentType): TTextContentParams;
+begin
+  Result := TTextContentParams(Add('type', Value.ToString));
+end;
+
+function TTextContentParams.Annotations(
+  const Value: TAnnotationsParams): TTextContentParams;
+begin
+  Result := TTextContentParams(Add('annotations', Value.Detach));
+end;
+
+class function TTextContentParams.New(const Text: string): TTextContentParams;
+begin
+  Result := TTextContentParams.Create.&Type().Text(Text);
+end;
+
+function TTextContentParams.Text(const Value: string): TTextContentParams;
+begin
+  Result := TTextContentParams(Add('text', Value));
+end;
+
+{ TAnnotationsParams }
+
+function TAnnotationsParams.EndIndex(const Value: Integer): TAnnotationsParams;
+begin
+  Result := TAnnotationsParams(Add('end_index', Value));
+end;
+
+function TAnnotationsParams.Source(const Value: string): TAnnotationsParams;
+begin
+  Result := TAnnotationsParams(Add('source', Value));
+end;
+
+function TAnnotationsParams.StartIndex(
+  const Value: Integer): TAnnotationsParams;
+begin
+  Result := TAnnotationsParams(Add('start_index', Value));
+end;
+
+{ TTurnParams }
+
+function TTurnParams.Content(const Value: TArray<TContentParams>): TTurnParams;
+begin
+  Result := TTurnParams(Add('content', TJSONParam.ToJsonArray<TContentParams>(Value)));
+end;
+
+function TTurnParams.Role(const Value: TMessageRole): TTurnParams;
+begin
+  Result := TTurnParams(Add('role', Value.ToString));
+end;
+
+{ TImageContentParams }
+
+function TImageContentParams.Data(const Value: string): TImageContentParams;
+begin
+  Result := TImageContentParams(Add('data', Value));
+end;
+
+function TImageContentParams.MimeType(
+  const Value: TImageMimeTypeOption): TImageContentParams;
+begin
+  Result := TImageContentParams(Add('mime_type', Value.ToString));
+end;
+
+function TImageContentParams.MimeType(const Value: string): TImageContentParams;
+begin
+  Result := TImageContentParams(Add('mime_type', TImageMimeTypeOption.Parse(Value).ToString));
+end;
+
+class function TImageContentParams.New: TImageContentParams;
+begin
+  Result := TImageContentParams.Create.&Type();
+end;
+
+function TImageContentParams.Resolution(
+  const Value: string): TImageContentParams;
+begin
+  Result := TImageContentParams(Add('resolution', TMediaResolution.Parse(Value).ToString));
+end;
+
+function TImageContentParams.Resolution(
+  const Value: TMediaResolution): TImageContentParams;
+begin
+  Result := TImageContentParams(Add('resolution', Value.ToString));
+end;
+
+function TImageContentParams.&Type(
+  const Value: TContentType): TImageContentParams;
+begin
+  Result := TImageContentParams(Add('type', Value.ToString));
+end;
+
+function TImageContentParams.Uri(const Value: string): TImageContentParams;
+begin
+  Result := TImageContentParams(Add('uri', Value));
+end;
+
+{ TAudioContentParams }
+
+function TAudioContentParams.Data(const Value: string): TAudioContentParams;
+begin
+  Result := TAudioContentParams(Add('data', Value));
+end;
+
+function TAudioContentParams.MimeType(
+  const Value: TAudioMimeTypeOption): TAudioContentParams;
+begin
+  Result := TAudioContentParams(Add('mime_type', Value.ToString));
+end;
+
+function TAudioContentParams.MimeType(const Value: string): TAudioContentParams;
+begin
+  Result := TAudioContentParams(Add('mime_type', TAudioMimeTypeOption.Parse(Value).ToString));
+end;
+
+class function TAudioContentParams.New: TAudioContentParams;
+begin
+  Result := TAudioContentParams.Create.&Type();
+end;
+
+function TAudioContentParams.&Type(
+  const Value: TContentType): TAudioContentParams;
+begin
+  Result := TAudioContentParams(Add('type', Value.ToString));
+end;
+
+function TAudioContentParams.Uri(const Value: string): TAudioContentParams;
+begin
+  Result := TAudioContentParams(Add('uri', Value));
+end;
+
+{ TDocumentContent }
+
+function TDocumentContent.Data(const Value: string): TDocumentContent;
+begin
+  Result := TDocumentContent(Add('data', Value));
+end;
+
+function TDocumentContent.MimeType(
+  const Value: TDocumentMimeTypeOption): TDocumentContent;
+begin
+  Result := TDocumentContent(Add('mime_type', Value.ToString));
+end;
+
+function TDocumentContent.MimeType(const Value: string): TDocumentContent;
+begin
+  Result := TDocumentContent(Add('mime_type', TDocumentMimeTypeOption.Parse(Value).ToString));
+end;
+
+function TDocumentContent.&Type(const Value: TContentType): TDocumentContent;
+begin
+  Result := TDocumentContent(Add('type', Value.ToString));
+end;
+
+function TDocumentContent.Uri(const Value: string): TDocumentContent;
+begin
+  Result := TDocumentContent(Add('uri', Value));
+end;
+
+end.

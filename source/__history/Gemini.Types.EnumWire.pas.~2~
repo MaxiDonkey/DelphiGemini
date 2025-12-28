@@ -1,0 +1,26 @@
+unit Gemini.Types.EnumWire;
+
+interface
+
+uses
+  System.SysUtils, System.TypInfo;
+
+type
+  EEnumWireError = class(Exception);
+
+  TEnumWire = record
+  private
+    class function TypeName<T>: string; static;
+    class procedure ValidateEnumMap<T>(const Map: array of string); static;
+    class function EnumMin<T>: Integer; static;
+    class function EnumMax<T>: Integer; static;
+    class function EnumOrdinal<T>(const V: T): Integer; static;
+  public
+    class function TryParse<T>(const S: string; const Map: array of string; out V: T): Boolean; static;
+    class function Parse<T>(const S: string; const Map: array of string): T; static;
+    class function ToWire<T>(const V: T; const Map: array of string): string; static;
+  end;
+
+implementation
+
+end.

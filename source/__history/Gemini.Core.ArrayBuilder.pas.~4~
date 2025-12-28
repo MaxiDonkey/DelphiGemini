@@ -1,0 +1,56 @@
+unit Gemini.Core.ArrayBuilder;
+
+interface
+
+type
+  TArrayBuilder<T> = record
+  private
+    FItems: TArray<T>;
+    FCount: Integer;
+    procedure Append(const Item: T); inline;
+  public
+    class function Create(const Capacity: Integer = 2): TArrayBuilder<T>; static;
+
+    function Reserve(const Capacity: Integer): TArrayBuilder<T>;
+
+    function Add(const Item: T): TArrayBuilder<T>;
+
+    class operator Implicit(const Value: TArrayBuilder<T>): TArray<T>;
+  end;
+
+implementation
+
+{ TArrayBuilder<T> }
+
+function TArrayBuilder<T>.Add(const Item: T): TArrayBuilder<T>;
+begin
+
+end;
+
+procedure TArrayBuilder<T>.Append(const Item: T);
+begin
+
+end;
+
+class function TArrayBuilder<T>.Create(
+  const Capacity: Integer): TArrayBuilder<T>;
+begin
+  Result.FItems := nil;
+  Result.FCount := 0;
+
+  if Capacity > 0 then
+    SetLength(Result.FItems, Capacity);
+end;
+
+class operator TArrayBuilder<T>.Implicit(
+  const Value: TArrayBuilder<T>): TArray<T>;
+begin
+
+end;
+
+function TArrayBuilder<T>.Reserve(const Capacity: Integer): TArrayBuilder<T>;
+begin
+
+end;
+
+end.

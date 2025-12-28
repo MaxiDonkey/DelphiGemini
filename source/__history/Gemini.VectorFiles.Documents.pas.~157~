@@ -1,0 +1,709 @@
+unit Gemini.VectorFiles.Documents;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.JSON,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Exceptions,
+  Gemini.VectorFiles, Gemini.Vectors.Endpoints,
+  Gemini.Async.Support, Gemini.Async.Promise;
+
+type
+  TDocument = class(TJSONFingerprint)
+  private
+    FName: string;
+    FDisplayName: string;
+    FCustomMetadata: TArray<TCustomMetadata>;
+    FCreateTime: string;
+    FUpdateTime: string;
+    [JsonReflectAttribute(ctString, rtString, TDocumentStateInterceptor)]
+    FState: TDocumentState;
+    FSizeBytes: Int64;
+    FMimeType: string;
+  public
+    /// <summary>
+    /// Immutable. Identifier. The Document resource name.
+    /// </summary>
+    /// <remarks>
+    /// The ID (name excluding the "fileSearchStores/*/documents/" prefix) can contain up to 40 characters
+    /// that are lowercase alphanumeric or dashes (-). The ID cannot start or end with a dash. If the name
+    /// is empty on create, a unique name will be derived from displayName along with a 12 character random
+    /// suffix.
+    /// <para>
+    /// • Example: fileSearchStores/{file_search_store_id}/documents/my-awesome-doc-123a456b789c
+    /// </para>
+    /// </remarks>
+    property Name: string read FName write FName;
+
+    /// <summary>
+    /// Optional. The human-readable display name for the Document.
+    /// </summary>
+    /// <remarks>
+    /// The display name must be no more than 512 characters in length, including spaces.
+    /// <para>
+    /// • Example: "Semantic Retriever Documentation"
+    /// </para>
+    /// </remarks>
+    property DisplayName: string read FDisplayName write FDisplayName;
+
+    /// <summary>
+    /// Optional. User provided custom metadata stored as key-value pairs used for querying.
+    /// </summary>
+    /// <remarks>
+    /// A Document can have a maximum of 20 CustomMetadata.
+    /// </remarks>
+    property CustomMetadata: TArray<TCustomMetadata> read FCustomMetadata write FCustomMetadata;
+
+    /// <summary>
+    /// The Timestamp of when the Document was created.
+    /// </summary>
+    /// <remarks>
+    /// Uses RFC 3339, where generated output will always be Z-normalized and use 0, 3, 6 or 9 fractional
+    /// digits. Offsets other than "Z" are also accepted.
+    /// <para>
+    /// • Examples: "2014-10-02T15:01:23Z", "2014-10-02T15:01:23.045123456Z" or "2014-10-02T15:01:23+05:30".
+    /// </para>
+    /// </remarks>
+    property CreateTime: string read FCreateTime write FCreateTime;
+
+    /// <summary>
+    /// The Timestamp of when the Document was last updated.
+    /// </summary>
+    /// <remarks>
+    /// Uses RFC 3339, where generated output will always be Z-normalized and use 0, 3, 6 or 9 fractional
+    /// digits. Offsets other than "Z" are also accepted.
+    /// <para>
+    /// • Examples: "2014-10-02T15:01:23Z", "2014-10-02T15:01:23.045123456Z" or "2014-10-02T15:01:23+05:30".
+    /// </para>
+    /// </remarks>
+    property UpdateTime: string read FUpdateTime write FUpdateTime;
+
+    /// <summary>
+    /// Output only. Current state of the Document.
+    /// </summary>
+    property State: TDocumentState read FState write FState;
+
+    /// <summary>
+    /// Output only. The size of raw bytes ingested into the Document.
+    /// </summary>
+    property SizeBytes: Int64 read FSizeBytes write FSizeBytes;
+
+    /// <summary>
+    /// Output only. The mime type of the Document.
+    /// </summary>
+    property MimeType: string read FMimeType write FMimeType;
+
+    destructor Destroy; override;
+  end;
+
+  TDocumentList = class(TJSONFingerprint)
+  private
+    FDocuments: TArray<TDocument>;
+    FNextPageToken: string;
+  public
+    /// <summary>
+    /// The returned Documents.
+    /// </summary>
+    property Documents: TArray<TDocument> read FDocuments write FDocuments;
+
+    /// <summary>
+    /// A token, which can be sent as pageToken to retrieve the next page. If this field is omitted,
+    /// there are no more pages.
+    /// </summary>
+    property NextPageToken: string read FNextPageToken write FNextPageToken;
+
+    destructor Destroy; override;
+  end;
+
+  TDocumentDelete = class end;
+
+  /// <summary>
+  /// Asynchronous callback container for operations that return a <c>TDocument</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TAsynDocument</c> is an alias of <c>TAsynCallBack&lt;TDocument&gt;</c> and is used to configure
+  /// the lifecycle callbacks for asynchronous Document requests (for example, <c>Retrieve</c>).
+  /// <para>
+  /// • Common handlers are <c>OnStart</c> (invoked when the asynchronous work begins), <c>OnSuccess</c>
+  /// (invoked with the resulting <c>TDocument</c> instance), and <c>OnError</c> (invoked with an error message
+  /// if the call fails).
+  /// </para>
+  /// <para>
+  /// • The resolved <c>TDocument</c> provides document metadata such as <c>Name</c>, <c>DisplayName</c>,
+  /// timestamps, state, and ingested size.
+  /// </para>
+  /// </remarks>
+  TAsynDocument = TAsynCallBack<TDocument>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TDocument</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseDocument</c> is an alias of <c>TPromiseCallback&lt;TDocument&gt;</c> and is intended for
+  /// promise-based Document endpoints (for example, async/await wrappers around <c>Retrieve</c>).
+  /// <para>
+  /// • It allows callers to register lifecycle callbacks that may be invoked while the promise is pending
+  /// and when it settles, either resolved with a <c>TDocument</c> instance or rejected with an error.
+  /// </para>
+  /// <para>
+  /// • The resolved <c>TDocument</c> instance typically contains document metadata such as <c>Name</c>,
+  /// <c>DisplayName</c>, timestamps, state, and ingested size.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseDocument = TPromiseCallback<TDocument>;
+
+  /// <summary>
+  /// Asynchronous callback container for operations that return a <c>TDocumentList</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TAsynDocumentList</c> is an alias of <c>TAsynCallBack&lt;TDocumentList&gt;</c> and is used to configure
+  /// the lifecycle callbacks for asynchronous Document listing requests (for example, <c>List</c> with or without
+  /// pagination parameters).
+  /// <para>
+  /// • Common handlers are <c>OnStart</c> (invoked when the asynchronous work begins), <c>OnSuccess</c>
+  /// (invoked with the resulting <c>TDocumentList</c> instance), and <c>OnError</c> (invoked with an error message
+  /// if the call fails).
+  /// </para>
+  /// <para>
+  /// • The returned <c>TDocumentList</c> typically contains an array of <c>TDocument</c> items and may include a
+  /// <c>NextPageToken</c> to continue pagination.
+  /// </para>
+  /// </remarks>
+  TAsynDocumentList = TAsynCallBack<TDocumentList>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TDocumentList</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseDocumentList</c> is an alias of <c>TPromiseCallback&lt;TDocumentList&gt;</c> and is intended for
+  /// promise-based Document listing endpoints (for example, async/await wrappers around <c>List</c> operations
+  /// with or without pagination parameters).
+  /// <para>
+  /// • It allows callers to register lifecycle callbacks that may be invoked while the promise is pending
+  /// and when it settles, either resolved with a <c>TDocumentList</c> instance or rejected with an error.
+  /// </para>
+  /// <para>
+  /// • The resolved <c>TDocumentList</c> typically contains a collection of <c>TDocument</c> items and may include a
+  /// <c>NextPageToken</c> to retrieve the next page of results.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseDocumentList = TPromiseCallback<TDocumentList>;
+
+  /// <summary>
+  /// Asynchronous callback container for operations that return a <c>TDocumentDelete</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TAsynDocumentDelete</c> is an alias of <c>TAsynCallBack&lt;TDocumentDelete&gt;</c> and is used to configure
+  /// the lifecycle callbacks for asynchronous Document deletion requests (for example, <c>Delete</c> or
+  /// <c>DeleteForced</c>).
+  /// <para>
+  /// • Common handlers are <c>OnStart</c> (invoked when the asynchronous work begins), <c>OnSuccess</c>
+  /// (invoked when the delete request completes successfully and yields a <c>TDocumentDelete</c> marker instance),
+  /// and <c>OnError</c> (invoked with an error message if the call fails).
+  /// </para>
+  /// <para>
+  /// • <c>TDocumentDelete</c> is a compatibility/result marker type and typically carries no payload.
+  /// </para>
+  /// </remarks>
+  TAsynDocumentDelete = TAsynCallBack<TDocumentDelete>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TDocumentDelete</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseDocumentDelete</c> is an alias of <c>TPromiseCallback&lt;TDocumentDelete&gt;</c> and is intended for
+  /// promise-based Document deletion endpoints (for example, async/await wrappers around <c>Delete</c> or
+  /// <c>DeleteForced</c>).
+  /// <para>
+  /// • It allows callers to register lifecycle callbacks that may be invoked while the promise is pending
+  /// and when it settles, either resolved with a <c>TDocumentDelete</c> marker instance or rejected with an error.
+  /// </para>
+  /// <para>
+  /// • <c>TDocumentDelete</c> is a compatibility/result marker type and typically carries no payload.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseDocumentDelete = TPromiseCallback<TDocumentDelete>;
+
+  TAbstractSupport = class(TGeminiAPIRoute)
+  protected
+    function Delete(const Parent: string): TDocumentDelete; virtual; abstract;
+
+    function DeleteForced(const Parent: string): TDocumentDelete; virtual; abstract;
+
+    function List(const Parent: string): TDocumentList; overload; virtual; abstract;
+
+    function List(const Parent: string;
+      const PageSize: Integer;
+      const PageToken: string): TDocumentList; overload; virtual; abstract;
+
+    function Retrieve(const Parent: string): TDocument;  virtual; abstract;
+  end;
+
+  TAsynchronousSupport = class(TAbstractSupport)
+  protected
+    procedure AsynDelete(const Parent: string;
+      const CallBacks: TFunc<TAsynDocumentDelete>);
+
+    procedure AsynDeleteForced(const Parent: string;
+      const CallBacks: TFunc<TAsynDocumentDelete>);
+
+    procedure AsynList(const Parent: string;
+      const CallBacks: TFunc<TAsynDocumentList>); overload;
+
+    procedure AsynList(const Parent: string;
+      const PageSize: Integer;
+      const PageToken: string;
+      const CallBacks: TFunc<TAsynDocumentList>); overload;
+
+    procedure AsynRetrieve(const Parent: string;
+      const CallBacks: TFunc<TAsynDocument>);
+  end;
+
+  TDocumentsRoute = class(TAsynchronousSupport)
+    /// <summary>
+    /// Synchronously deletes a <c>Document</c>.
+    /// </summary>
+    /// <param name="Parent">
+    /// The Document resource name to delete (for example,
+    /// <c>fileSearchStores/{storeId}/documents/{documentId}</c>).
+    /// </param>
+    /// <returns>
+    /// A <c>TDocumentDelete</c> marker instance returned on successful deletion.
+    /// </returns>
+    /// <remarks>
+    /// This is a synchronous (blocking) call. This method performs a standard delete. If the Document contains
+    /// Chunks, the service may reject the request (for example, with a precondition failure). Use
+    /// <c>DeleteForced</c> to delete a Document and its related Chunks, if supported by the service.
+    /// </remarks>
+    function Delete(const DocumentName: string): TDocumentDelete; overload; override;
+
+    /// <summary>
+    /// Synchronously deletes a <c>Document</c> and its related resources.
+    /// </summary>
+    /// <param name="Parent">
+    /// The Document resource name to delete (for example,
+    /// <c>fileSearchStores/{storeId}/documents/{documentId}</c>).
+    /// </param>
+    /// <returns>
+    /// A <c>TDocumentDelete</c> marker instance returned on successful deletion.
+    /// </returns>
+    /// <remarks>
+    /// This is a synchronous (blocking) call. This method performs a forced delete (typically equivalent to
+    /// <c>force=true</c>), meaning that any Chunks contained in the Document and associated objects are also
+    /// deleted. Use with care, as the operation is destructive.
+    /// </remarks>
+    function DeleteForced(const DocumentName: string): TDocumentDelete; overload; override;
+
+    /// <summary>
+    /// Synchronously retrieves the list of <c>Document</c> resources in a <c>FileSearchStore</c>.
+    /// </summary>
+    /// <param name="Parent">
+    /// The File Search Store resource name that contains the Documents (for example,
+    /// <c>fileSearchStores/{storeId}</c>).
+    /// </param>
+    /// <returns>
+    /// A <c>TDocumentList</c> instance containing the returned Documents and possibly a <c>NextPageToken</c>.
+    /// </returns>
+    /// <remarks>
+    /// This is a synchronous (blocking) call. This overload retrieves the default (non-paginated) list of Documents.
+    /// If the service returns a <c>NextPageToken</c>, call the paginated overload to continue listing subsequent pages.
+    /// </remarks>
+    function List(const Parent: string): TDocumentList; overload; override;
+
+    /// <summary>
+    /// Synchronously retrieves a paginated list of <c>Document</c> resources in a <c>FileSearchStore</c>.
+    /// </summary>
+    /// <param name="Parent">
+    /// The File Search Store resource name that contains the Documents (for example,
+    /// <c>fileSearchStores/{storeId}</c>).
+    /// </param>
+    /// <param name="PageSize">
+    /// The maximum number of Documents to return in the response (per page).
+    /// </param>
+    /// <param name="PageToken">
+    /// A token identifying the page of results to retrieve. This is typically obtained from a previous
+    /// <c>TDocumentList</c> result via <c>NextPageToken</c>.
+    /// </param>
+    /// <returns>
+    /// A <c>TDocumentList</c> instance containing the requested page of Documents and possibly a
+    /// <c>NextPageToken</c>.
+    /// </returns>
+    /// <remarks>
+    /// This is a synchronous (blocking) call. Use this overload to page through Document listings. Pass the
+    /// <c>NextPageToken</c> from a previous response as <paramref name="PageToken"/> to retrieve the next page.
+    /// </remarks>
+    function List(const Parent: string;
+      const PageSize: Integer;
+      const PageToken: string): TDocumentList; overload; override;
+
+    /// <summary>
+    /// Synchronously retrieves a <c>Document</c> by resource name.
+    /// </summary>
+    /// <param name="Parent">
+    /// The Document resource name to retrieve (for example,
+    /// <c>fileSearchStores/{storeId}/documents/{documentId}</c>).
+    /// </param>
+    /// <returns>
+    /// The retrieved <c>TDocument</c> instance returned by the service.
+    /// </returns>
+    /// <remarks>
+    /// This is a synchronous (blocking) call. The returned <c>TDocument</c> typically includes document metadata
+    /// such as <c>Name</c>, <c>DisplayName</c>, timestamps, state, and ingested size.
+    /// For non-blocking alternatives, use <c>AsyncAwaitRetrieve</c> or <c>AsynRetrieve</c>.
+    /// </remarks>
+    function Retrieve(const DocumentName: string): TDocument; override;
+
+    /// <summary>
+    /// Asynchronously deletes a <c>Document</c> using a promise-based interface.
+    /// </summary>
+    /// <param name="Parent">
+    /// The Document resource name to delete (for example,
+    /// <c>fileSearchStores/{storeId}/documents/{documentId}</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseDocumentDelete</c> record containing lifecycle callbacks
+    /// that may be invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TDocumentDelete&gt;</c> that resolves when the delete request completes successfully,
+    /// or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This method performs a standard delete. If the Document contains Chunks, the service may reject the
+    /// request (for example, with a precondition failure). Use <c>AsyncAwaitDeleteForced</c> to delete a
+    /// Document and its related Chunks, if supported by the service.
+    /// </remarks>
+    function AsyncAwaitDelete(const Parent: string;
+      const Callbacks: TFunc<TPromiseDocumentDelete> = nil): TPromise<TDocumentDelete>;
+
+    /// <summary>
+    /// Asynchronously deletes a <c>Document</c> and its related resources using a promise-based interface.
+    /// </summary>
+    /// <param name="Parent">
+    /// The Document resource name to delete (for example,
+    /// <c>fileSearchStores/{storeId}/documents/{documentId}</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseDocumentDelete</c> record containing lifecycle callbacks
+    /// that may be invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TDocumentDelete&gt;</c> that resolves when the forced delete request completes successfully,
+    /// or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This method performs a forced delete (typically equivalent to <c>force=true</c>), meaning that any Chunks
+    /// contained in the Document and associated objects are also deleted. Use with care, as the operation is
+    /// destructive.
+    /// </remarks>
+    function AsyncAwaitDeleteForced(const Parent: string;
+      const Callbacks: TFunc<TPromiseDocumentDelete> = nil): TPromise<TDocumentDelete>;
+
+    /// <summary>
+    /// Asynchronously retrieves the list of <c>Document</c> resources in a <c>FileSearchStore</c> using a
+    /// promise-based interface.
+    /// </summary>
+    /// <param name="Parent">
+    /// The File Search Store resource name that contains the Documents (for example,
+    /// <c>fileSearchStores/{storeId}</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseDocumentList</c> record containing lifecycle callbacks
+    /// that may be invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TDocumentList&gt;</c> that resolves with a <c>TDocumentList</c> instance containing the returned
+    /// Documents (and possibly a <c>NextPageToken</c>), or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This overload retrieves the default (non-paginated) list of Documents. If the service returns a
+    /// <c>NextPageToken</c>, use the paginated overload to continue listing subsequent pages.
+    /// </remarks>
+    function AsyncAwaitList(const Parent: string;
+      const Callbacks: TFunc<TPromiseDocumentList> = nil): TPromise<TDocumentList>; overload;
+
+    /// <summary>
+    /// Asynchronously retrieves a paginated list of <c>Document</c> resources in a <c>FileSearchStore</c> using a
+    /// promise-based interface.
+    /// </summary>
+    /// <param name="Parent">
+    /// The File Search Store resource name that contains the Documents (for example,
+    /// <c>fileSearchStores/{storeId}</c>).
+    /// </param>
+    /// <param name="PageSize">
+    /// The maximum number of Documents to return in the response (per page).
+    /// </param>
+    /// <param name="PageToken">
+    /// A token identifying the page of results to retrieve. This is typically obtained from a previous
+    /// <c>TDocumentList</c> result via <c>NextPageToken</c>.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseDocumentList</c> record containing lifecycle callbacks
+    /// that may be invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TDocumentList&gt;</c> that resolves with a <c>TDocumentList</c> instance containing the requested
+    /// page of Documents (and possibly a <c>NextPageToken</c>), or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// Use this overload to page through Document listings. Pass the <c>NextPageToken</c> from a previous response as
+    /// <paramref name="PageToken"/> to retrieve the next page.
+    /// </remarks>
+    function AsyncAwaitList(const Parent: string;
+      const PageSize: Integer;
+      const PageToken: string;
+      const Callbacks: TFunc<TPromiseDocumentList> = nil): TPromise<TDocumentList>; overload;
+
+    /// <summary>
+    /// Asynchronously retrieves a <c>Document</c> by resource name using a promise-based interface.
+    /// </summary>
+    /// <param name="Parent">
+    /// The Document resource name to retrieve (for example,
+    /// <c>fileSearchStores/{storeId}/documents/{documentId}</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseDocument</c> record containing lifecycle callbacks
+    /// that may be invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TDocument&gt;</c> that resolves with the retrieved <c>TDocument</c> instance,
+    /// or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// The resolved <c>TDocument</c> typically includes document metadata such as <c>Name</c>, <c>DisplayName</c>,
+    /// timestamps, state, and ingested size.
+    /// </remarks>
+    function AsyncAwaitRetrieve(const Parent: string;
+      const Callbacks: TFunc<TPromiseDocument> = nil): TPromise<TDocument>;
+
+  end;
+
+implementation
+
+{ TDocument }
+
+destructor TDocument.Destroy;
+begin
+  for var Item in FCustomMetadata do
+    Item.Free;
+  inherited;
+end;
+
+{ TDocumentList }
+
+destructor TDocumentList.Destroy;
+begin
+  for var Item in FDocuments do
+    Item.Free;
+  inherited;
+end;
+
+{ TDocumentsRoute }
+
+
+function TDocumentsRoute.AsyncAwaitDelete(const Parent: string;
+  const Callbacks: TFunc<TPromiseDocumentDelete>): TPromise<TDocumentDelete>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TDocumentDelete>(
+    procedure(const CallbackParams: TFunc<TAsynDocumentDelete>)
+    begin
+      Self.AsynDelete(Parent, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TDocumentsRoute.AsyncAwaitDeleteForced(const Parent: string;
+  const Callbacks: TFunc<TPromiseDocumentDelete>): TPromise<TDocumentDelete>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TDocumentDelete>(
+    procedure(const CallbackParams: TFunc<TAsynDocumentDelete>)
+    begin
+      Self.AsynDeleteForced(Parent, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TDocumentsRoute.AsyncAwaitList(const Parent: string;
+  const PageSize: Integer; const PageToken: string;
+  const Callbacks: TFunc<TPromiseDocumentList>): TPromise<TDocumentList>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TDocumentList>(
+    procedure(const CallbackParams: TFunc<TAsynDocumentList>)
+    begin
+      Self.AsynList(Parent, PageSize, PageToken, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TDocumentsRoute.AsyncAwaitList(const Parent: string;
+  const Callbacks: TFunc<TPromiseDocumentList>): TPromise<TDocumentList>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TDocumentList>(
+    procedure(const CallbackParams: TFunc<TAsynDocumentList>)
+    begin
+      Self.AsynList(Parent, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TDocumentsRoute.AsyncAwaitRetrieve(const Parent: string;
+  const Callbacks: TFunc<TPromiseDocument>): TPromise<TDocument>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TDocument>(
+    procedure(const CallbackParams: TFunc<TAsynDocument>)
+    begin
+      Self.AsynRetrieve(Parent, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TDocumentsRoute.Delete(const DocumentName: string): TDocumentDelete;
+begin
+  Result := API.Delete<TDocumentDelete>(
+    TVectorEndpoints.RequireDocumentName(DocumentName)
+  );
+end;
+
+function TDocumentsRoute.DeleteForced(const DocumentName: string): TDocumentDelete;
+begin
+  TVectorEndpoints.RequireDocumentName(DocumentName);
+  Result := API.Delete<TDocumentDelete>(DocumentName, ParamsBuilder(True));
+end;
+
+function TDocumentsRoute.List(const Parent: string; const PageSize: Integer;
+  const PageToken: string): TDocumentList;
+begin
+  Result := API.Get<TDocumentList>(
+    TVectorEndpoints.DocumentsCollectionOf(Parent),
+    ParamsBuilder(PageSize, PageToken)
+  );
+end;
+
+function TDocumentsRoute.List(const Parent: string): TDocumentList;
+begin
+  {--- Accept either a store name or a document name; normalize to .../documents }
+  Result := API.Get<TDocumentList>(TVectorEndpoints.DocumentsCollectionOf(Parent));
+end;
+
+function TDocumentsRoute.Retrieve(const DocumentName: string): TDocument;
+begin
+
+  Result := API.Get<TDocument>(TVectorEndpoints.RequireDocumentName(DocumentName));
+end;
+
+{ TAsynchronousSupport }
+
+procedure TAsynchronousSupport.AsynDelete(const Parent: string;
+  const CallBacks: TFunc<TAsynDocumentDelete>);
+begin
+  with TAsynCallBackExec<TAsynDocumentDelete, TDocumentDelete>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TDocumentDelete
+      begin
+        Result := Self.Delete(Parent);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynDeleteForced(const Parent: string;
+  const CallBacks: TFunc<TAsynDocumentDelete>);
+begin
+  with TAsynCallBackExec<TAsynDocumentDelete, TDocumentDelete>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TDocumentDelete
+      begin
+        Result := Self.DeleteForced(Parent);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynList(const Parent: string;
+  const CallBacks: TFunc<TAsynDocumentList>);
+begin
+  with TAsynCallBackExec<TAsynDocumentList, TDocumentList>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TDocumentList
+      begin
+        Result := Self.List(Parent);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynList(const Parent: string;
+  const PageSize: Integer; const PageToken: string;
+  const CallBacks: TFunc<TAsynDocumentList>);
+begin
+  with TAsynCallBackExec<TAsynDocumentList, TDocumentList>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TDocumentList
+      begin
+        Result := Self.List(Parent, PageSize, PageToken);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynRetrieve(const Parent: string;
+  const CallBacks: TFunc<TAsynDocument>);
+begin
+  with TAsynCallBackExec<TAsynDocument, TDocument>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TDocument
+      begin
+        Result := Self.Retrieve(Parent);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+end.

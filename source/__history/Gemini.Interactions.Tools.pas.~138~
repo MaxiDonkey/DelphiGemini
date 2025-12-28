@@ -1,0 +1,411 @@
+unit Gemini.Interactions.Tools;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils, System.JSON,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Exceptions, Gemini.Types.EnumWire,
+  Gemini.Schema, Gemini.Interactions.Common;
+
+type
+  TCustomToolIxParams = class(TJSONParam);
+
+  {$REGION 'Function'}
+
+  TFunctionIxParams = class(TCustomToolIxParams)
+    /// <summary>
+    /// Always set to "function".
+    /// </summary>
+    function &Type(const Value: TToolType = TToolType.function): TFunctionIxParams;
+
+    /// <summary>
+    /// The name of the function.
+    /// </summary>
+    function Name(const Value: string): TFunctionIxParams;
+
+    /// <summary>
+    /// A description of the function.
+    /// </summary>
+    function Description(const Value: string): TFunctionIxParams;
+
+    /// <summary>
+    /// The JSON Schema for the function's parameters.
+    /// </summary>
+    function Parameters(const Value: TJSONObject): TFunctionIxParams; overload;
+
+    /// <summary>
+    /// The JSON Schema for the function's parameters.
+    /// </summary>
+    function Parameters(const Value: TSchemaParams): TFunctionIxParams; overload;
+
+    /// <summary>
+    /// The JSON Schema for the function's parameters.
+    /// </summary>
+    function Parameters(const Value: string): TFunctionIxParams; overload;
+
+    class function New: TFunctionIxParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'GoogleSearch'}
+
+  TGoogleSearchIxParams = class(TCustomToolIxParams)
+    /// <summary>
+    /// Always set to "google_search".
+    /// </summary>
+    function &Type(const Value: TToolType = TToolType.google_search): TGoogleSearchIxParams;
+
+    class function New: TGoogleSearchIxParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'CodeExecution'}
+
+  TCodeExecutionIxParams = class(TCustomToolIxParams)
+    /// <summary>
+    /// Always set to "code_execution".
+    /// </summary>
+    function &Type(const Value: TToolType = TToolType.code_execution): TCodeExecutionIxParams;
+
+    class function New: TCodeExecutionIxParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'UrlContext'}
+
+  TUrlContextIxParams = class(TCustomToolIxParams)
+    /// <summary>
+    /// Always set to "url_context".
+    /// </summary>
+    function &Type(const Value: TToolType = TToolType.url_context): TUrlContextIxParams;
+
+    class function New: TUrlContextIxParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'ComputerUse'}
+
+  TComputerUseIxParams = class(TCustomToolIxParams)
+    /// <summary>
+    /// Always set to "computer_use".
+    /// </summary>
+    function &Type(const Value: TToolType = TToolType.computer_use): TComputerUseIxParams;
+
+    /// <summary>
+    /// The environment being operated.
+    /// </summary>
+    function Environment(const Value: TComputerEnvironmentType): TComputerUseIxParams;
+
+    /// <summary>
+    /// The list of predefined functions that are excluded from the model call.
+    /// </summary>
+    function ExcludedPredefinedFunctions(const Value: TArray<string>): TComputerUseIxParams;
+
+    class function New: TComputerUseIxParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'McpServer'}
+
+  TMcpServerIxParams = class(TCustomToolIxParams)
+    /// <summary>
+    /// Always set to "mcp_server".
+    /// </summary>
+    function &Type(const Value: TToolType = TToolType.mcp_server): TMcpServerIxParams;
+
+    /// <summary>
+    /// The name of the MCPServer.
+    /// </summary>
+    function Name(const Value: string): TMcpServerIxParams;
+
+    /// <summary>
+    /// The full URL for the MCPServer endpoint.
+    /// </summary>
+    /// <remarks>
+    /// Example: "https://api.example.com/mcp"
+    /// </remarks>
+    function Url(const Value: string): TMcpServerIxParams;
+
+    /// <summary>
+    /// Optional: Fields for authentication headers, timeouts, etc., if needed.
+    /// </summary>
+    function Headers(const Value: TJSONObject): TMcpServerIxParams; overload;
+
+    /// <summary>
+    /// Optional: Fields for authentication headers, timeouts, etc., if needed.
+    /// </summary>
+    function Headers(const Value: string): TMcpServerIxParams; overload;
+
+    function AllowedTools(const Value: TJSONObject): TMcpServerIxParams; overload;
+
+    function AllowedTools(const Value: TAllowedToolsIxParams): TMcpServerIxParams; overload;
+
+    class function New: TMcpServerIxParams;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'FileSearch'}
+
+  TFileSearchIxParams = class(TCustomToolIxParams)
+    /// <summary>
+    /// Always set to "file_search".
+    /// </summary>
+    function &Type(const Value: TToolType = TToolType.file_search): TFileSearchIxParams;
+
+    /// <summary>
+    /// The file search store names to search.
+    /// </summary>
+    function FileSearchStoreNames(const Value: TArray<string>): TFileSearchIxParams;
+
+    /// <summary>
+    /// The number of semantic retrieval chunks to retrieve.
+    /// </summary>
+    function Topk(const Value: Integer): TFileSearchIxParams;
+
+    /// <summary>
+    /// Metadata filter to apply to the semantic retrieval documents and chunks.
+    /// </summary>
+    function MetadataFilter(const Value: string): TFileSearchIxParams;
+
+    class function New: TFileSearchIxParams;
+  end;
+
+  {$ENDREGION}
+
+  TToolIxParams = class(TJSONParam)
+    class function AddFunction(const Value: TFunctionIxParams): TToolIxParams;
+    class function AddGoogleSearch(const Value: TGoogleSearchIxParams): TToolIxParams;
+    class function AddCodeExecution(const Value: TCodeExecutionIxParams): TToolIxParams;
+    class function AddUrlContext(const Value: TUrlContextIxParams): TToolIxParams;
+    class function AddComputerUse(const Value: TComputerUseIxParams): TToolIxParams;
+    class function AddMcpServer(const Value: TMcpServerIxParams): TToolIxParams;
+    class function AddFileSearch(const Value: TFileSearchIxParams): TToolIxParams;
+  end;
+
+implementation
+
+{ TFunctionIxParams }
+
+function TFunctionIxParams.&Type(const Value: TToolType): TFunctionIxParams;
+begin
+  Result := TFunctionIxParams(Add('type', Value.ToString));
+end;
+
+function TFunctionIxParams.Description(const Value: string): TFunctionIxParams;
+begin
+  Result := TFunctionIxParams(Add('description', Value));
+end;
+
+function TFunctionIxParams.Name(const Value: string): TFunctionIxParams;
+begin
+  Result := TFunctionIxParams(Add('name', Value));
+end;
+
+class function TFunctionIxParams.New: TFunctionIxParams;
+begin
+  Result := TFunctionIxParams.Create.&Type();
+end;
+
+function TFunctionIxParams.Parameters(const Value: string): TFunctionIxParams;
+begin
+  Result := Self.Parameters(TJSONHelper.StringToJson(Value));
+end;
+
+function TFunctionIxParams.Parameters(
+  const Value: TSchemaParams): TFunctionIxParams;
+begin
+  Result := TFunctionIxParams(Add('parameters', Value.Detach));
+end;
+
+function TFunctionIxParams.Parameters(
+  const Value: TJSONObject): TFunctionIxParams;
+begin
+  Result := TFunctionIxParams(Add('parameters', Value));
+end;
+
+{ TGoogleSearchIxParams }
+
+class function TGoogleSearchIxParams.New: TGoogleSearchIxParams;
+begin
+  Result := TGoogleSearchIxParams.Create.&Type();
+end;
+
+function TGoogleSearchIxParams.&Type(
+  const Value: TToolType): TGoogleSearchIxParams;
+begin
+  Result := TGoogleSearchIxParams(Add('type', Value.ToString));
+end;
+
+{ TCodeExecutionIxParams }
+
+class function TCodeExecutionIxParams.New: TCodeExecutionIxParams;
+begin
+  Result := TCodeExecutionIxParams.Create.&Type();
+end;
+
+function TCodeExecutionIxParams.&Type(
+  const Value: TToolType): TCodeExecutionIxParams;
+begin
+  Result := TCodeExecutionIxParams(Add('type', Value.ToString));
+end;
+
+{ TUrlContextIxParams }
+
+class function TUrlContextIxParams.New: TUrlContextIxParams;
+begin
+  Result := TUrlContextIxParams.Create.&Type();
+end;
+
+function TUrlContextIxParams.&Type(const Value: TToolType): TUrlContextIxParams;
+begin
+  Result := TUrlContextIxParams(Add('type', Value.ToString));
+end;
+
+{ TComputerUseIxParams }
+
+function TComputerUseIxParams.Environment(
+  const Value: TComputerEnvironmentType): TComputerUseIxParams;
+begin
+  Result := TComputerUseIxParams(Add('environment', Value.ToString));
+end;
+
+function TComputerUseIxParams.ExcludedPredefinedFunctions(
+  const Value: TArray<string>): TComputerUseIxParams;
+begin
+  Result := TComputerUseIxParams(Add('excludedPredefinedFunctions', Value));
+end;
+
+class function TComputerUseIxParams.New: TComputerUseIxParams;
+begin
+  Result := TComputerUseIxParams.Create.&Type();
+end;
+
+function TComputerUseIxParams.&Type(
+  const Value: TToolType): TComputerUseIxParams;
+begin
+  Result := TComputerUseIxParams(Add('type', Value.ToString));
+end;
+
+{ TMcpServerIxParams }
+
+function TMcpServerIxParams.Headers(
+  const Value: TJSONObject): TMcpServerIxParams;
+begin
+  Result := TMcpServerIxParams(Add('headers', Value));
+end;
+
+function TMcpServerIxParams.Headers(const Value: string): TMcpServerIxParams;
+begin
+  Result := Self.Headers(TJSONHelper.StringToJson(Value));
+end;
+
+function TMcpServerIxParams.Name(const Value: string): TMcpServerIxParams;
+begin
+  Result := TMcpServerIxParams(Add('name', Value));
+end;
+
+class function TMcpServerIxParams.New: TMcpServerIxParams;
+begin
+  Result := TMcpServerIxParams.Create.&Type();
+end;
+
+function TMcpServerIxParams.&Type(const Value: TToolType): TMcpServerIxParams;
+begin
+  Result := TMcpServerIxParams(Add('type', Value.ToString));
+end;
+
+function TMcpServerIxParams.Url(const Value: string): TMcpServerIxParams;
+begin
+  Result := TMcpServerIxParams(Add('url', Value));
+end;
+
+
+
+{ TFileSearchIxParams }
+
+function TFileSearchIxParams.FileSearchStoreNames(
+  const Value: TArray<string>): TFileSearchIxParams;
+begin
+  Result := TFileSearchIxParams(Add('file_search_store_names', Value));
+end;
+
+function TFileSearchIxParams.MetadataFilter(
+  const Value: string): TFileSearchIxParams;
+begin
+  Result := TFileSearchIxParams(Add('metadata_filter', Value));
+end;
+
+class function TFileSearchIxParams.New: TFileSearchIxParams;
+begin
+  Result := TFileSearchIxParams.Create.&Type();
+end;
+
+function TFileSearchIxParams.Topk(const Value: Integer): TFileSearchIxParams;
+begin
+  Result := TFileSearchIxParams(Add('top_k', Value));
+end;
+
+function TFileSearchIxParams.&Type(const Value: TToolType): TFileSearchIxParams;
+begin
+  Result := TFileSearchIxParams(Add('type', Value.ToString));
+end;
+
+{ TToolIxParams }
+
+class function TToolIxParams.AddCodeExecution(
+  const Value: TCodeExecutionIxParams): TToolIxParams;
+begin
+  Result := TToolIxParams(Value);
+end;
+
+class function TToolIxParams.AddComputerUse(
+  const Value: TComputerUseIxParams): TToolIxParams;
+begin
+  Result := TToolIxParams(Value);
+end;
+
+class function TToolIxParams.AddFileSearch(
+  const Value: TFileSearchIxParams): TToolIxParams;
+begin
+  Result := TToolIxParams(Value);
+end;
+
+class function TToolIxParams.AddFunction(
+  const Value: TFunctionIxParams): TToolIxParams;
+begin
+  Result := TToolIxParams(Value);
+end;
+
+class function TToolIxParams.AddGoogleSearch(
+  const Value: TGoogleSearchIxParams): TToolIxParams;
+begin
+  Result := TToolIxParams(Value);
+end;
+
+class function TToolIxParams.AddMcpServer(
+  const Value: TMcpServerIxParams): TToolIxParams;
+begin
+  Result := TToolIxParams(Value);
+end;
+
+class function TToolIxParams.AddUrlContext(
+  const Value: TUrlContextIxParams): TToolIxParams;
+begin
+  Result := TToolIxParams(Value);
+end;
+
+end.

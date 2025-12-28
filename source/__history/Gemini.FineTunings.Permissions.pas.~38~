@@ -1,0 +1,194 @@
+unit Gemini.FineTunings.Permissions;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.JSON, REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.API, Gemini.Async.Support;
+
+type
+  TGranteeType = (
+    /// <summary>
+    /// The default value. This value is unused.
+    /// </summary>
+    GRANTEE_TYPE_UNSPECIFIED,
+    /// <summary>
+    /// Represents a user. When set, you must provide emailAddress for the user.
+    /// </summary>
+    USER,
+    /// <summary>
+    /// Represents a group. When set, you must provide emailAddress for the group.
+    /// </summary>
+    GROUP,
+    /// <summary>
+    /// Represents access to everyone. No extra information is required.
+    /// </summary>
+    EVERYONE
+  );
+
+  TGranteeTypeHelper = record helper for TGranteeType
+    function ToString: string;
+    class function Create(const Value: string): TGranteeType; static;
+  end;
+
+  TGranteeTypeInterceptor = class(TJSONInterceptorStringToString)
+    function StringConverter(Data: TObject; Field: string): string; override;
+    procedure StringReverter(Data: TObject; Field: string; Arg: string); override;
+  end;
+
+  TRoleType = (
+    /// <summary>
+    /// The default value. This value is unused.
+    /// </summary>
+    ROLE_UNSPECIFIED,
+    /// <summary>
+    /// Owner can use, update, share and delete the resource.
+    /// </summary>
+    OWNER,
+    /// <summary>
+    /// Writer can use, update and share the resource.
+    /// </summary>
+    WRITER,
+    /// <summary>
+    /// Reader can use the resource.
+    /// </summary>
+    READER
+  );
+
+  TRoleTypeHelper = record helper for TRoleType
+    function ToString: string;
+    class function Create(const Value: string): TRoleType; static;
+  end;
+
+  TRoleTypeInterceptor = class(TJSONInterceptorStringToString)
+    function StringConverter(Data: TObject; Field: string): string; override;
+    procedure StringReverter(Data: TObject; Field: string; Arg: string); override;
+  end;
+
+  TPermissionsParams =class(TJSONParam)
+  public
+    function GranteeType(const Value: TGranteeType): TPermissionsParams;
+    function EmailAddress(const Value: string): TPermissionsParams;
+    function Role(const Value: TRoleType): TPermissionsParams;
+  end;
+
+  TPermissions = class
+  private
+    FName: string;
+  public
+    property Name: string read FName write FName;
+  end;
+
+  TPermissionsRoute = class(TGeminiAPIRoute)
+
+  end;
+
+implementation
+
+uses
+  System.StrUtils, System.Rtti, Rest.Json;
+
+{ TGranteeTypeHelper }
+
+class function TGranteeTypeHelper.Create(const Value: string): TGranteeType;
+begin
+  var Index := IndexStr(AnsiUpperCase(Value), [
+         'GRANTEE_TYPE_UNSPECIFIED', 'USER', 'GROUP', 'EVERYONE']);
+  if Index = -1 then
+    raise Exception.CreateFmt('"Grantee type" unknown : %s', [Value]);
+  Result := TGranteeType(Index);
+end;
+
+function TGranteeTypeHelper.ToString: string;
+begin
+  case Self of
+    GRANTEE_TYPE_UNSPECIFIED:
+      Exit('GRANTEE_TYPE_UNSPECIFIED');
+    USER:
+      Exit('USER');
+    GROUP:
+      Exit('GROUP');
+    EVERYONE:
+      Exit('EVERYONE');
+  end;
+end;
+
+{ TGranteeTypeInterceptor }
+
+function TGranteeTypeInterceptor.StringConverter(Data: TObject;
+  Field: string): string;
+begin
+  Result := RTTI.GetType(Data.ClassType).GetField(Field).GetValue(Data).AsType<TGranteeType>.ToString;
+end;
+
+procedure TGranteeTypeInterceptor.StringReverter(Data: TObject; Field,
+  Arg: string);
+begin
+  RTTI.GetType(Data.ClassType).GetField(Field).SetValue(Data, TValue.From(TGranteeType.Create(Arg)));
+end;
+
+{ TRoleTypeHelper }
+
+class function TRoleTypeHelper.Create(const Value: string): TRoleType;
+begin
+  var Index := IndexStr(AnsiUpperCase(Value), [
+         'ROLE_UNSPECIFIED', 'OWNER', 'WRITER', 'READER']);
+  if Index = -1 then
+    raise Exception.CreateFmt('"Role type" unknown : %s', [Value]);
+  Result := TRoleType(Index);
+end;
+
+function TRoleTypeHelper.ToString: string;
+begin
+  case Self of
+    ROLE_UNSPECIFIED:
+      Exit('ROLE_UNSPECIFIED');
+    OWNER:
+      Exit('OWNER');
+    WRITER:
+      Exit('WRITER');
+    READER:
+      Exit('READER');
+  end;
+end;
+
+{ TRoleTypeInterceptor }
+
+function TRoleTypeInterceptor.StringConverter(Data: TObject;
+  Field: string): string;
+begin
+  Result := RTTI.GetType(Data.ClassType).GetField(Field).GetValue(Data).AsType<TRoleType>.ToString;
+end;
+
+procedure TRoleTypeInterceptor.StringReverter(Data: TObject; Field,
+  Arg: string);
+begin
+  RTTI.GetType(Data.ClassType).GetField(Field).SetValue(Data, TValue.From(TRoleType.Create(Arg)));
+end;
+
+{ TPermissionsParams }
+
+function TPermissionsParams.EmailAddress(const Value: string): TPermissionsParams;
+begin
+  Result := TPermissionsParams(Add('emailAddress', Value));
+end;
+
+function TPermissionsParams.GranteeType(
+  const Value: TGranteeType): TPermissionsParams;
+begin
+  Result := TPermissionsParams(Add('granteeType', Value.ToString));
+end;
+
+function TPermissionsParams.Role(const Value: TRoleType): TPermissionsParams;
+begin
+  Result := TPermissionsParams(Add('role', Value.ToString));
+end;
+
+end.

@@ -10,125 +10,29 @@ unit Gemini.API;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Net.HttpClient, System.Net.URLClient,
-  System.Net.Mime, System.JSON, System.SyncObjs, Gemini.API.Params, Gemini.Errors;
+  System.SysUtils, System.Classes, System.Net.URLClient, System.Net.Mime, System.JSON,
+  System.SyncObjs, System.Net.HttpClient, System.NetEncoding,
+  REST.Json,
+  Gemini.API.Params, Gemini.Exceptions, Gemini.Errors, Gemini.API.SSEDecoder,
+  Gemini.HttpClientInterface, Gemini.HttpClientAPI, Gemini.Monitoring,
+  Gemini.API.Utils, Gemini.API.Url,
+
+  VCL.Dialogs, Clipbrd;
 
 type
-  GeminiException = class(Exception)
+  /// <summary>
+  /// Represents the configuration settings for the Gemini API.
+  /// </summary>
+  /// <remarks>
+  /// This class provides properties and methods to manage the API key, base URL,
+  /// organization identifier, and custom headers for communicating with the Gemini API.
+  /// It also includes utility methods for building headers and endpoint URLs.
+  /// </remarks>
+  TGeminiSettings = class
+  const
+    URL_BASE     = 'https://generativelanguage.googleapis.com';
+    VERSION_BASE = 'v1beta';
   private
-    FCode: Int64;
-    FMsg: string;
-    FStatus: string;
-  public
-    constructor Create(const ACode: Int64; const AError: TErrorCore); reintroduce; overload;
-    constructor Create(const ACode: Int64; const Value: string); reintroduce; overload;
-    property Code: Int64 read FCode write FCode;
-    property Msg: string read FMsg write FMsg;
-    property Status: string read FStatus write FStatus;
-  end;
-
-  /// <summary>
-  /// The `GeminiExceptionAPI` class represents a generic API-related exception.
-  /// It is thrown when there is an issue with the API configuration or request process,
-  /// such as a missing API token, invalid base URL, or other configuration errors.
-  /// This class serves as a base for more specific API exceptions.
-  /// </summary>
-  GeminiExceptionAPI = class(Exception);
-
-  /// <summary>
-  /// The request body is malformed.
-  /// <para>
-  /// There is a typo, or a missing required field in your request.
-  /// </para>
-  /// </summary>
-  /// <remarks>
-  /// Check the API reference for request format, examples, and supported versions. Using features from a newer API version with an older endpoint can cause errors.
-  /// </remarks>
-  GeminiExceptionInvalidArgument = class(GeminiException);
-
-  /// <summary>
-  /// The API key doesn't have the required permissions.
-  /// <para>
-  /// Wrong API key is used; trying to use a tuned model without going through proper authentication.
-  /// </para>
-  /// </summary>
-  /// <remarks>
-  /// Check that the API key is set and has the right access. And make sure to go through proper authentication to use tuned models.
-  /// </remarks>
-  GeminiExceptionPermissionDenied = class(GeminiException);
-
-  /// <summary>
-  /// The requested resource wasn't found.
-  /// <para>
-  /// An image, audio, or video file referenced in your request was not found.
-  /// </para>
-  /// </summary>
-  /// <remarks>
-  /// Check if all parameters in your request are valid for your API version.
-  /// </remarks>
-  GeminiExceptionNotFound = class(GeminiException);
-
-  /// <summary>
-  /// The rate limit have been exceeded.
-  /// <para>
-  /// Too many requests per minute with the free tier Gemini API.
-  /// </para>
-  /// </summary>
-  /// <remarks>
-  /// Ensure you're within the model's rate limit. Request a quota increase if needed.
-  /// </remarks>
-  GeminiExceptionResourceExhausted = class(GeminiException);
-
-  /// <summary>
-  /// An unexpected error occurred on Google's side.
-  /// <para>
-  /// The input context is too long.
-  /// </para>
-  /// </summary>
-  /// <remarks>
-  /// Reduce your input context or temporarily switch to another model (e.g. from Gemini 1.5 Pro to Gemini 1.5 Flash) and see if it works. Or wait a bit and retry your request. If the issue persists after retrying, please report it using the Send feedback button in Google AI Studio.
-  /// </remarks>
-  GeminiExceptionInternal = class(GeminiException);
-
-  /// <summary>
-  /// The service may be temporarily overloaded or down.
-  /// <para>
-  /// The service is temporarily running out of capacity.
-  /// </para>
-  /// </summary>
-  /// <remarks>
-  /// Temporarily switch to another model (e.g. from Gemini 1.5 Pro to Gemini 1.5 Flash) and see if it works. Or wait a bit and retry your request. If the issue persists after retrying, please report it using the Send feedback button in Google AI Studio.
-  /// </remarks>
-  GeminiExceptionUnavailable = class(GeminiException);
-
-  /// <summary>
-  /// The service is unable to finish processing within the deadline.
-  /// <para>
-  /// The prompt (or context) is too large to be processed in time.
-  /// </para>
-  /// </summary>
-  /// <remarks>
-  /// Set a larger 'timeout' in your client request to avoid this error.
-  /// </remarks>
-  GeminiExceptionDeadlineExceeded = class(GeminiException);
-
-  /// <summary>
-  /// An `InvalidResponse` error occurs when the API response is either empty or not in the expected format.
-  /// This error indicates that the API did not return a valid response that can be processed, possibly due to a server-side issue,
-  /// a malformed request, or unexpected input data.
-  /// </summary>
-  /// <remarks>
-  /// Check if all parameters in your request are valid for your API version.
-  /// </remarks>
-  GeminiExceptionInvalidResponse = class(GeminiException);
-
-  TGeminiAPI = class
-  public
-    const
-      URL_BASE = 'https://generativelanguage.googleapis.com';
-      VERSION_BASE = 'v1beta';
-  private
-    FHTTPClient: THTTPClient;
     FToken: string;
     FBaseUrl: string;
     FVersion: string;
@@ -138,411 +42,1401 @@ type
     procedure SetBaseUrl(const Value: string);
     procedure SetVersion(const Value: string);
     procedure SetOrganization(const Value: string);
-    procedure RaiseError(Code: Int64; Error: TErrorCore);
-    procedure ParseError(const Code: Int64; const ResponseText: string);
     procedure SetCustomHeaders(const Value: TNetHeaders);
 
+  public
+    constructor Create; overload;
+
+    /// <summary>
+    /// The API key used for authentication.
+    /// </summary>
+    property Token: string read FToken write SetToken;
+
+    /// <summary>
+    /// Gets or sets the base URL for all API requests.
+    /// </summary>
+    /// <remarks>
+    /// This value defines the root endpoint used to build request URLs
+    /// (for example, <c>https://generativelanguage.googleapis.com</c>). It is combined with
+    /// relative paths to form the final request URL.
+    /// </remarks>
+    property BaseUrl: string read FBaseUrl write SetBaseUrl;
+
+    /// <summary>
+    /// Gets or sets the version base for all API requests.
+    /// </summary>
+    property Version: string read FVersion write SetVersion;
+
+    /// <summary>
+    /// The organization identifier used for the API.
+    /// </summary>
+    property Organization: string read FOrganization write SetOrganization;
+
+    /// <summary>
+    /// Custom headers to include in API requests.
+    /// </summary>
+    property CustomHeaders: TNetHeaders read FCustomHeaders write SetCustomHeaders;
+  end;
+
+  /// <summary>
+  /// Handles HTTP requests and responses for the Gemini API.
+  /// </summary>
+  /// <remarks>
+  /// This class extends <c>TGeminiSettings</c> and provides a mechanism to
+  /// manage HTTP client interactions for the API, including configuration and request execution.
+  /// </remarks>
+  TApiHttpHandler = class(TGeminiSettings)
   private
-    function ToStringValueFor(const Value: string): string; overload;
-    function ToStringValueFor(const Value: string; const Field: string): string; overload;
-    function ToStringValueFor(const Value: string; const Field: TArray<string>): string; overload;
+    /// <summary>
+    /// The HTTP client interface used for making API calls.
+    /// </summary>
+    FHttpClient: IHttpClientAPI;
 
   protected
-    function GetHeaders: TNetHeaders;
+    /// <summary>
+    /// Validates that the API settings required to issue requests are present.
+    /// </summary>
+    /// <remarks>
+    /// This routine checks the configuration held by <see cref="TGeminiSettings"/> before performing
+    /// an HTTP request. It is typically invoked by the underlying HTTP client implementation prior to
+    /// sending a request.
+    /// <para>
+    /// • Validation rule: <see cref="TGeminiSettings.Token"/> must be non-empty.
+    /// </para>
+    /// <para>
+    /// • Validation rule: <see cref="TGeminiSettings.BaseUrl"/> must be non-empty.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised when a required setting is missing or empty (for example, an empty token or base URL).
+    /// </exception>
+    procedure VerifyApiSettings;
+
+    /// <summary>
+    /// Creates and returns a new HTTP client instance configured for Gemini API requests.
+    /// </summary>
+    /// <returns>
+    /// A newly created instance implementing <see cref="IHttpClientAPI"/> that is ready to issue requests
+    /// using the current API settings.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// • The returned client is created via <c>THttpClientAPI.CreateInstance(VerifyApiSettings)</c>,
+    /// so API settings validation (token/base URL) can be enforced by the underlying implementation.
+    /// </para>
+    /// <para>
+    /// • If <see cref="HttpClient"/> is assigned, this method copies runtime configuration to the new instance
+    /// (timeouts and proxy settings): <c>SendTimeOut</c>, <c>ConnectionTimeout</c>, <c>ResponseTimeout</c>,
+    /// and <c>ProxySettings</c>.
+    /// </para>
+    /// <para>
+    /// • This method always returns a fresh instance; it does not reuse <see cref="HttpClient"/>.
+    /// <see cref="HttpClient"/> is treated as a template for configuration values.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised when required API settings are missing or empty (for example, an empty token or base URL),
+    /// depending on when the underlying HTTP client invokes the provided validation callback.
+    /// </exception>
+    function NewHttpClient: IHttpClientAPI; virtual;
+  public
+    constructor Create;
+
+    /// <summary>
+    /// The HTTP client used to send requests to the API.
+    /// </summary>
+    /// <value>
+    /// An instance of a class implementing <c>IHttpClientAPI</c>.
+    /// </value>
+    property HttpClient: IHttpClientAPI read FHttpClient write FHttpClient;
+  end;
+
+  /// <summary>
+  /// Manages and processes errors from the Gemini API responses, and deserializes JSON payloads
+  /// into strongly typed Delphi objects.
+  /// </summary>
+  /// <remarks>
+  /// <para>
+  /// • This class extends <c>TApiHttpHandler</c> and provides error-handling capabilities by parsing
+  /// error data and raising appropriate exceptions.
+  /// </para>
+  /// <para>
+  /// • <b>Global configuration / thread-safety notice</b><br/>
+  /// <see cref="MetadataAsObject"/> and <see cref="MetadataManager"/> are process-wide (static) settings.
+  /// They are <b>not thread-safe</b>: changing them while other threads are deserializing may lead to
+  /// inconsistent behavior or failures.
+  /// </para>
+  /// <para>
+  /// • <b>Initialization rule</b><br/>
+  /// These settings should be configured <b>once</b> during process startup (before any concurrent use),
+  /// and then treated as immutable for the remainder of the process lifetime.
+  /// </para>
+  /// <para>
+  /// • <b>Testing rule</b><br/>
+  /// Unit/integration tests may override these settings, but only in a controlled manner:
+  /// set them <b>once at test process start</b> (or in a one-time suite setup) before any tests that
+  /// perform deserialization are executed. Avoid modifying them per-test case, especially when tests
+  /// may run in parallel.
+  /// </para>
+  /// </remarks>
+  TApiDeserializer = class(TApiHttpHandler)
+  strict private
+    class var FMetadataManager: ICustomFieldsPrepare;
+    class var FMetadataAsObject: Boolean;
+  protected
+    /// <summary>
+    /// Parses the error data from the API response.
+    /// </summary>
+    /// <param name="Code">
+    /// The HTTP status code returned by the API.
+    /// </param>
+    /// <param name="ResponseText">
+    /// The response body containing error details.
+    /// </param>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if the error response cannot be parsed or contains invalid data.
+    /// </exception>
+    procedure DeserializeErrorData(const Code: Int64; const ResponseText: string); virtual;
+
+    /// <summary>
+    /// Raises an exception corresponding to the API error code.
+    /// </summary>
+    /// <param name="Code">
+    /// The HTTP status code returned by the API.
+    /// </param>
+    /// <param name="Error">
+    /// The deserialized error object containing error details.
+    /// </param>
+    procedure RaiseError(Code: Int64; Error: TErrorCore);
+
+    /// <summary>
+    /// Deserializes the API response into a strongly typed object.
+    /// </summary>
+    /// <param name="T">
+    /// The type of the object to deserialize into. It must be a class with a parameterless constructor.
+    /// </param>
+    /// <param name="Code">
+    /// The HTTP status code of the API response.
+    /// </param>
+    /// <param name="ResponseText">
+    /// The response body as a JSON string.
+    /// </param>
+    /// <returns>
+    /// A deserialized object of type <c>T</c>.
+    /// </returns>
+    /// <exception cref="EInvalidResponse">
+    /// Raised if the response is non-compliant or deserialization fails.
+    /// </exception>
+    function Deserialize<T: class, constructor>(const Code: Int64; const ResponseText: string): T;
+  public
+    class constructor Create;
+
+    /// <summary>
+    /// Gets or sets whether the deserializer treats the "metadata" payload as a JSON object.
+    /// </summary>
+    /// <remarks>
+    /// When set to <c>True</c>, deserialization expects metadata fields to be represented as proper JSON objects
+    /// and mapped to the corresponding Delphi types (for example, a dedicated metadata class with matching fields).
+    /// <para>
+    /// • When set to <c>False</c> (default), metadata fields are treated as raw JSON text and preprocessed through
+    /// <see cref="MetadataManager"/> before the final object mapping occurs. This mode is intended for scenarios
+    /// where the metadata schema is variable across response types and cannot be bound reliably to a single class.
+    /// </para>
+    /// <para>
+    /// • This setting is process-wide (static) and affects all calls that use <see cref="Parse{T}(string)"/> and
+    /// <see cref="Deserialize{T}(Int64,string)"/> within this unit.
+    /// </para>
+    /// </remarks>
+    class property MetadataAsObject: Boolean read FMetadataAsObject write FMetadataAsObject;
+
+    /// <summary>
+    /// Gets or sets the global metadata preprocessor used during JSON deserialization.
+    /// </summary>
+    /// <remarks>
+    /// This property holds an implementation of <c>ICustomFieldsPrepare</c> responsible for preparing and/or
+    /// transforming JSON payloads before they are mapped to Delphi objects.
+    /// <para>
+    /// • When <see cref="MetadataAsObject"/> is <c>False</c> (default), the deserializer invokes
+    /// <c>MetadataManager.Convert(...)</c> to normalize metadata fields that may contain variable or untyped
+    /// structures, enabling stable deserialization without requiring a dedicated metadata class.
+    /// </para>
+    /// <para>
+    /// • When <see cref="MetadataAsObject"/> is <c>True</c>, the metadata preprocessor is typically not required
+    /// because metadata is expected to be represented as proper JSON objects and mapped directly to Delphi types.
+    /// </para>
+    /// <para>
+    /// • This setting is process-wide (static). Assigning a new manager affects all subsequent calls to
+    /// <see cref="Parse{T}(string)"/> and <see cref="Deserialize{T}(Int64,string)"/> within this unit.
+    /// </para>
+    /// <para>
+    /// • If set to <c>nil</c>, and <see cref="MetadataAsObject"/> is <c>False</c>, deserialization may fail for
+    /// responses that rely on metadata preprocessing.
+    /// </para>
+    /// </remarks>
+    class property MetadataManager: ICustomFieldsPrepare read FMetadataManager write FMetadataManager;
+
+    /// <summary>
+    /// Deserializes the API response into a strongly typed object.
+    /// </summary>
+    /// <param name="T">
+    /// The type of the object to deserialize into. It must be a class with a parameterless constructor.
+    /// </param>
+    /// <param name="ResponseText">
+    /// The response body as a JSON string.
+    /// </param>
+    /// <returns>
+    /// A deserialized object of type <c>T</c>.
+    /// </returns>
+    /// <exception cref="EInvalidResponse">
+    /// Raised if the response is non-compliant or deserialization fails.
+    /// </exception>
+    class function Parse<T: class, constructor>(const Value: string): T;
+  end;
+
+  TGeminiAPI = class(TApiDeserializer)
+  private
+    function GetDefaultHeaders: TNetHeaders;
+    function GetJsonHeaders: TNetHeaders;
     function GetFilesURL(const Path: string): string;
     function GetRequestURL(const Path: string): string; overload;
     function GetRequestURL(const Path, Params: string): string; overload;
     function GetRequestFilesURL(const Path: string): string;
     function GetPatchURL(const Path, Params: string): string;
-    function Get(const Path, Params: string; Response: TStringStream): Integer; overload;
-    function Delete(const Path: string; Response: TStringStream): Integer; overload;
-    function Patch(const Path: string; Body: TJSONObject; Response: TStringStream; OnReceiveData: TReceiveDataCallback = nil): Integer; overload;
-    function Patch(const Path, UriParams: string; Body: TJSONObject; Response: TStringStream; OnReceiveData: TReceiveDataCallback = nil): Integer; overload;
-    function Post(const Path: string; Response: TStringStream): Integer; overload;
-    function Post(const Path: string; Body: TJSONObject; Response: TStringStream; OnReceiveData: TReceiveDataCallback = nil): Integer; overload;
-    function Post(const Path: string; Body: TMultipartFormData; Response: TStringStream): Integer; overload;
-    function Post(const Path: string; Body: TJSONObject; var ResponseHeader: TNetHeaders): Integer; overload;
-    function ParseResponse<T: class, constructor>(const Code: Int64; const ResponseText: string): T;
-    procedure CheckAPI;
-
+    function MockJsonFile(const FieldName: string; Response: TStringStream): string;
   public
+    /// <summary>
+    /// Executes a request expected to return information in the HTTP response headers and extracts a header value.
+    /// </summary>
+    /// <typeparam name="TParams">
+    /// A JSON-parameter builder type deriving from <c>TJSONParam</c>, used to build the request body.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL) used to build the request URL.
+    /// </param>
+    /// <param name="KeyName">
+    /// The name of the HTTP header to search for (case-insensitive).
+    /// </param>
+    /// <param name="ParamProc">
+    /// An optional procedure invoked to populate an instance of <typeparamref name="TParams"/> before sending the request.
+    /// If <c>nil</c>, the request is sent without a JSON body.
+    /// </param>
+    /// <returns>
+    /// The value of the matching response header, or an empty string if the header is not present.
+    /// </returns>
+    /// <remarks>
+    /// This method issues a POST request using <see cref="GetRequestFilesURL"/> (API key in query string) and JSON headers.
+    /// It is intended for endpoints that return key information in headers (for example, a resource identifier or location).
+    /// <para>
+    /// • On success (HTTP 2xx), it scans the returned headers using a case-insensitive comparison and returns the first match.
+    /// </para>
+    /// <para>
+    /// • On non-success status codes, this method currently raises a generic exception (<c>Exception</c>) indicating that
+    /// the response headers could not be retrieved.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="Exception">
+    /// Raised when the HTTP status code is not in the 2xx range.
+    /// </exception>
     function Find<TParams: TJSONParam>(const Path: string; KeyName: string; ParamProc: TProc<TParams>): string;
+
+    /// <summary>
+    /// Sends a GET request to the specified API endpoint and deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="Params">
+    /// Optional query-string suffix appended to the request URL.
+    /// This value is concatenated as-is by <see cref="GetRequestURL(string,string)"/> and is expected to start with
+    /// <c>&amp;</c> when non-empty.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This method builds the request URL using the configured <see cref="TGeminiSettings.BaseUrl"/>,
+    /// <see cref="TGeminiSettings.Version"/>, and <see cref="TGeminiSettings.Token"/> (API key in query string),
+    /// then performs the request through the decoupled <see cref="IHttpClientAPI"/> implementation.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. For non-2xx status codes,
+    /// deserialization triggers error processing and raises a corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns an error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is not compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Get<TResult: class, constructor>(const Path: string; const Params: string = ''): TResult; overload;
+
+    function Get<TResult: class, constructor; TParams: TUrlParam>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+
+    /// <summary>
+    /// Sends a GET request to the specified API endpoint and returns the raw response body as a string.
+    /// </summary>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="Params">
+    /// Optional query-string suffix appended to the request URL.
+    /// This value is concatenated as-is by <see cref="GetRequestURL(string,string)"/> and is expected to start with
+    /// <c>&amp;</c> when non-empty.
+    /// </param>
+    /// <returns>
+    /// The raw response body returned by the API (typically JSON) as a UTF-8 string.
+    /// </returns>
+    /// <remarks>
+    /// This overload is useful when the caller wants to handle JSON parsing manually or when the response does not map
+    /// directly to a known DTO type.
+    /// <para>
+    /// • For HTTP 2xx responses, the method returns the response body unchanged. For non-2xx responses, it attempts to
+    /// parse the error payload via <see cref="ParseError(Int64,string)"/> and raises the corresponding exception when possible.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised by downstream logic when the server response is non-compliant (depending on error parsing behavior).
+    /// </exception>
     function Get(const Path: string; const Params: string = ''): string; overload;
-    procedure GetFile(const Path: string; Response: TStream); overload;
-    function Delete<TResult: class, constructor>(const Path: string): TResult; overload;
+
+    /// <summary>
+    /// Sends a GET request to the specified API endpoint and writes the response body to the provided stream.
+    /// </summary>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="Response">
+    /// The destination stream that will receive the response body. The stream is not created or freed by this method.
+    /// </param>
+    /// <remarks>
+    /// This overload is intended for binary or large payloads (for example, downloaded files) where streaming is preferred.
+    /// The request is executed through the configured <see cref="IHttpClientAPI"/> implementation.
+    /// <para>
+    /// • On HTTP 2xx, the method returns after writing the payload into <paramref name="Response"/>.
+    /// On non-2xx, it rewinds <paramref name="Response"/> to position 0, copies it into a temporary UTF-8 string stream,
+    /// and attempts to parse a structured error via <see cref="ParseError(Int64,string)"/>.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if configuration is invalid (for example, missing API key or base URL) when the HTTP client validates settings.
+    /// </exception>
+    function GetFile(const Path: string; Response: TStream): Integer; overload;
+
+    /// <summary>
+    /// Sends a GET request that downloads a raw payload into memory, then wraps that payload into a JSON object
+    /// under a single field and deserializes it into <typeparamref name="TResult"/>.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// The generated JSON must be compatible with the DTO mapping for <typeparamref name="TResult"/>.
+    /// </typeparam>
+    /// <param name="Endpoint">
+    /// The relative API endpoint path (without the base URL) to download from.
+    /// This value is combined with <see cref="GetRequestURL(string)"/> (base URL + version + API key) to form the final URL.
+    /// </param>
+    /// <param name="JSONFieldName">
+    /// The name of the JSON field that will receive the downloaded payload as a Base64-encoded string.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the generated JSON payload
+    /// containing the Base64-encoded download.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// • This overload is a convenience wrapper around <see cref="GetFile(string,TStream)"/>:
+    /// it downloads the raw response into an in-memory string stream, Base64-encodes the payload,
+    /// then builds a minimal JSON object and calls <see cref="Deserialize{T}(Int64,string)"/>.
+    /// </para>
+    /// <para>
+    /// • The generated JSON has the form <c>{"&lt;JSONFieldName&gt;":"&lt;base64&gt;"}</c> and is intended for DTOs that
+    /// expose a single Base64 string field mapped to <paramref name="JSONFieldName"/>.
+    /// </para>
+    /// <para>
+    /// • On non-success HTTP status codes, the underlying <see cref="GetFile(string,TStream)"/> performs error parsing
+    /// and raises the corresponding exception.
+    /// </para>
+    /// <para>
+    /// • Memory note:<br/>
+    /// The entire response body is buffered in memory before encoding and deserialization.
+    /// For large payloads, prefer <see cref="GetFile(string,TStream)"/> to stream to a caller-managed destination.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if configuration is invalid (for example, missing API key or base URL) when validated prior to the request.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response cannot be wrapped/decoded as expected or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
+    function GetFile<TResult: class, constructor>(const Endpoint: string; const JSONFieldName: string):TResult; overload;
+
+    /// <summary>
+    /// Sends a DELETE request to the specified API endpoint and deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This method builds the request URL using the configured <see cref="TGeminiSettings.BaseUrl"/>,
+    /// <see cref="TGeminiSettings.Version"/>, and <see cref="TGeminiSettings.Token"/> (API key in query string),
+    /// then performs the request through the decoupled <see cref="IHttpClientAPI"/> implementation.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. For non-2xx status codes,
+    /// deserialization triggers error processing and raises a corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns an error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is not compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
+    function Delete<TResult: class, constructor>(const Path: string; const Params: string = ''): TResult; overload;
+
+    /// <summary>
+    /// Sends a PATCH request to the specified API endpoint using a JSON body built by a parameter object,
+    /// then deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <typeparam name="TParams">
+    /// A JSON-parameter builder type deriving from <c>TJSONParam</c>, used to build the PATCH request body.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate an instance of <typeparamref name="TParams"/> before the request is sent.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload builds the request URL with <see cref="GetRequestURL(string)"/> (API key in query string),
+    /// serializes the parameters object to JSON, and executes the request through the configured
+    /// <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Patch<TResult: class, constructor; TParams: TJSONParam>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+
+    /// <summary>
+    /// Sends a PATCH request to the specified API endpoint using an update mask in the URL and a JSON body built by a
+    /// parameter object, then deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <typeparam name="TParams">
+    /// A JSON-parameter builder type deriving from <c>TJSONParam</c>, used to build the PATCH request body.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="UriParams">
+    /// The update mask value appended to the request URL as the <c>updateMask</c> query parameter.
+    /// The string is inserted as-is by <see cref="GetPatchURL(string,string)"/> and must follow the format expected by Gemini.
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate an instance of <typeparamref name="TParams"/> before the request is sent.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload targets endpoints that require an <c>updateMask</c> query parameter when performing partial updates.
+    /// The request URL is built via <see cref="GetPatchURL(string,string)"/> (API key in query string), the request body is
+    /// produced from <typeparamref name="TParams"/>, and the call is executed through the configured
+    /// <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Patch<TResult: class, constructor; TParams: TJSONParam>(const Path, UriParams: string; ParamProc: TProc<TParams>): TResult; overload;
+
+    /// <summary>
+    /// Sends a PATCH request to the specified API endpoint using an update mask in the URL and a JSON payload,
+    /// then deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="Params">
+    /// The update mask value appended to the request URL as the <c>updateMask</c> query parameter.
+    /// The string is inserted as-is by <see cref="GetPatchURL(string,string)"/> and must follow the format expected by Gemini.
+    /// </param>
+    /// <param name="ParamJSON">
+    /// The JSON object to send as the PATCH request body. Ownership remains with the caller.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload targets partial-update endpoints that require an <c>updateMask</c> query parameter.
+    /// The request URL is built via <see cref="GetPatchURL(string,string)"/> (API key in query string) and the request is
+    /// executed through the configured <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Patch<TResult: class, constructor>(const Path, Params: string; ParamJSON: TJSONObject): TResult; overload;
+
+    /// <summary>
+    /// Sends a PATCH request to the specified API endpoint using the provided JSON payload,
+    /// then deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="ParamJSON">
+    /// The JSON object to send as the PATCH request body. Ownership remains with the caller.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload performs a standard PATCH request (no <c>updateMask</c> parameter) to the given endpoint.
+    /// The request URL is built via <see cref="GetRequestURL(string)"/> (API key in query string) and the request is
+    /// executed through the configured <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Patch<TResult: class, constructor>(const Path: string; ParamJSON: TJSONObject): TResult; overload;
-    function Post<TParams: TJSONParam>(const Path: string; ParamProc: TProc<TParams>; Response: TStringStream; Event: TReceiveDataCallback): Boolean; overload;
+
+    /// <summary>
+    /// Sends a POST request to the specified API endpoint using a JSON body built by a parameter object,
+    /// then deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <typeparam name="TParams">
+    /// A JSON-parameter builder type deriving from <c>TJSONParam</c>, used to build the POST request body.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate an instance of <typeparamref name="TParams"/> before the request is sent.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload builds the request URL with <see cref="GetRequestURL(string)"/> (API key in query string),
+    /// serializes the parameters object to JSON, and executes the request through the configured
+    /// <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// T• he response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Post<TResult: class, constructor; TParams: TJSONParam>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+
+    /// <summary>
+    /// Sends a POST request to the specified API endpoint using the provided JSON payload,
+    /// then deserializes the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="ParamJSON">
+    /// The JSON object to send as the POST request body. Ownership remains with the caller.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload performs a standard JSON POST request. The request URL is built via
+    /// <see cref="GetRequestURL(string)"/> (API key in query string) and the request is executed through the configured
+    /// <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Post<TResult: class, constructor>(const Path: string; ParamJSON: TJSONObject): TResult; overload;
+
+    /// <summary>
+    /// Sends a POST request to the specified API endpoint without a request body and deserializes the JSON response
+    /// into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload is intended for endpoints that accept an empty POST body.
+    /// The request URL is built via <see cref="GetRequestURL(string)"/> (API key in query string) and the request is
+    /// executed through the configured <see cref="IHttpClientAPI"/> implementation using the default headers.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
     function Post<TResult: class, constructor>(const Path: string): TResult; overload;
-    function PostForm<TResult: class, constructor; TParams: TMultipartFormData, constructor>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+
+    /// <summary>
+    /// Sends a POST request with a JSON body built by a parameter object and streams the response into a string stream,
+    /// optionally reporting received data through a callback.
+    /// </summary>
+    /// <typeparam name="TParams">
+    /// A JSON-parameter builder type deriving from <c>TJSONParam</c>, used to build the POST request body.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate an instance of <typeparamref name="TParams"/> before the request is sent.
+    /// </param>
+    /// <param name="Response">
+    /// The destination <c>TStringStream</c> that will receive the response body (typically JSON or SSE chunks).
+    /// The stream is not created or freed by this method.
+    /// </param>
+    /// <param name="Event">
+    /// An optional receive-data callback invoked by the underlying HTTP client as data is received.
+    /// This is typically used for progressive/streaming responses.
+    /// </param>
+    /// <returns>
+    /// <c>True</c> if the HTTP status code is in the 2xx range; otherwise <c>False</c>.
+    /// </returns>
+    /// <remarks>
+    /// This overload is designed for scenarios where the caller wants direct access to the raw response stream and/or
+    /// incremental receive notifications (for example, server-sent events).
+    /// The request URL is built via <see cref="GetRequestURL(string)"/> (API key in query string) and the request is
+    /// executed through the configured <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// • On non-2xx responses, this method rewinds <paramref name="Response"/> to position 0, loads it into a temporary
+    /// UTF-8 stream, and calls <see cref="ParseError(Int64,string)"/> to raise the corresponding exception when possible.
+    /// In this case, the function returns <c>False</c>.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if configuration is invalid (for example, missing API key or base URL) when the HTTP client validates settings.
+    /// </exception>
+    function Post<TParams: TJSONParam>(const Path: string; ParamProc: TProc<TParams>;
+      Response: TStringStream; Event: TReceiveDataCallback): Boolean; overload;
+
+    /// <summary>
+    /// Sends a POST request with a JSON body built by a parameter object, appends extra query parameters to the URL,
+    /// and streams the response into the provided stream while optionally reporting received data through a callback.
+    /// </summary>
+    /// <typeparam name="TParams">
+    /// A JSON-parameter builder type deriving from <c>TJSONParam</c>, used to build the POST request body.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="Params">
+    /// Optional query-string suffix appended to the request URL.
+    /// This value is concatenated as-is by <see cref="GetRequestURL(string,string)"/> and is expected to start with
+    /// <c>&amp;</c> when non-empty.
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate an instance of <typeparamref name="TParams"/> before the request is sent.
+    /// </param>
+    /// <param name="Response">
+    /// The destination stream that will receive the response body (binary or text).
+    /// The stream is not created or freed by this method.
+    /// </param>
+    /// <param name="Event">
+    /// An optional receive-data callback invoked by the underlying HTTP client as data is received.
+    /// This is typically used for progressive/streaming responses.
+    /// </param>
+    /// <returns>
+    /// <c>True</c> if the HTTP status code is in the 2xx range; otherwise <c>False</c>.
+    /// </returns>
+    /// <remarks>
+    /// This overload is intended for endpoints that require additional query parameters and/or return large or streaming
+    /// payloads that should be written directly to <paramref name="Response"/>.
+    /// The request URL is built via <see cref="GetRequestURL(string,string)"/> (API key in query string) and the request is
+    /// executed through the configured <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// <para>
+    /// • On non-2xx responses, this method rewinds <paramref name="Response"/> to position 0, copies it into a temporary
+    /// UTF-8 string stream, and calls <see cref="ParseError(Int64,string)"/> to raise the corresponding exception when possible.
+    /// In this case, the function returns <c>False</c>.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if configuration is invalid (for example, missing API key or base URL) when the HTTP client validates settings.
+    /// </exception>
+    function Post<TParams: TJSONParam>(const Path, Params: string; ParamProc: TProc<TParams>;
+      Response: TStream; Event: TReceiveDataCallback): Boolean; overload;
+
+    /// <summary>
+    /// Sends a POST request with a JSON body built by a parameter object and streams the response body into
+    /// the provided destination stream, optionally reporting incremental receive progress through a callback.
+    /// </summary>
+    /// <typeparam name="TParams">
+    /// A JSON-parameter builder type deriving from <c>TJSONParam</c>, used to build the POST request body.
+    /// It must provide a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate an instance of <typeparamref name="TParams"/> before the request is sent.
+    /// If <c>nil</c>, an empty/default instance is used and its JSON is sent.
+    /// </param>
+    /// <param name="Response">
+    /// The destination stream that will receive the response body (text or binary). The stream is not created
+    /// or freed by this method.
+    /// </param>
+    /// <param name="Event">
+    /// Optional receive-data callback invoked by the underlying HTTP client as data is received. This is typically
+    /// used for progressive/streaming responses (for example, SSE) to decode chunks incrementally and/or to abort
+    /// the transfer by setting the callback's abort flag.
+    /// </param>
+    /// <returns>
+    /// <c>True</c> if the HTTP status code is in the 2xx range; otherwise <c>False</c>.
+    /// </returns>
+    /// <remarks>
+    /// This overload is intended for endpoints that return large or streaming payloads that should be written
+    /// directly to a caller-managed stream.
+    /// <para>
+    /// • The request URL is built via <see cref="GetRequestURL(string)"/> (base URL + version + API key in query string),
+    /// and the call is executed through the configured <see cref="IHttpClientAPI"/> implementation using JSON headers.
+    /// </para>
+    /// <para>
+    /// • Error handling: on non-2xx status codes, this method rewinds <paramref name="Response"/> to position 0,
+    /// copies it into a temporary UTF-8 string stream, and invokes <see cref="DeserializeErrorData(Int64,string)"/>
+    /// to raise the corresponding exception when the payload is parseable. When an exception is raised, control does
+    /// not return normally.
+    /// </para>
+    /// <para>
+    /// • Streaming: when <paramref name="Event"/> is assigned, it is invoked as data arrives so that callers can
+    /// process incremental chunks (for example, feeding an SSE decoder) without waiting for the full response.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if configuration is invalid (for example, missing API key or base URL) when the HTTP client validates settings.
+    /// </exception>
+    function Post<TParams: TJSONParam>(const Path: string; ParamProc: TProc<TParams>;
+      Response: TStream; Event: TReceiveDataCallback): Boolean; overload;
+
+    /// <summary>
+    /// Sends a multipart/form-data POST request to the specified endpoint and deserializes the JSON response
+    /// into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <typeparam name="TParams">
+    /// A multipart/form-data builder type deriving from <c>TMultipartFormData</c>, used to build the request body.
+    /// It must provide a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL). For file endpoints, it is combined with
+    /// <see cref="GetFilesURL"/> to build the final URL.
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate an instance of <typeparamref name="TParams"/> before the request is sent
+    /// (for example, adding fields and files to the multipart payload).
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// This overload is intended for endpoints that require <c>multipart/form-data</c> payloads, typically for file uploads.
+    /// The request is executed through the configured <see cref="IHttpClientAPI"/> implementation using the default headers.
+    /// The multipart boundary and content type are handled by the multipart implementation passed as <typeparamref name="TParams"/>.
+    /// <para>
+    /// • The response is deserialized using <see cref="Deserialize{TResult}(Int64,string)"/>. Any non-2xx status code
+    /// triggers error processing and raises the corresponding exception.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
+    function PostForm<TResult: class, constructor; TParams: TMultipartFormData, constructor>(
+      const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+
+    /// <summary>
+    /// Uploads a local file as raw bytes (<c>application/octet-stream</c>) and deserializes
+    /// the JSON response into a strongly typed object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Path">
+    /// The request URL used <b>as-is</b> by the underlying HTTP client.
+    /// This method does not build the URL (no base URL/version concatenation) and does not append
+    /// the API key automatically. If the endpoint requires query parameters (for example <c>?key=...</c>),
+    /// they must already be present in <paramref name="Path"/>.
+    /// </param>
+    /// <param name="FileName">
+    /// Full path to the local file to upload. The file is opened read-only (shared read).
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// </returns>
+    /// <remarks>
+    /// The file is streamed directly to the server without JSON wrapping.
+    /// The request is sent with <c>Content-Type: application/octet-stream</c>.
+    /// <para>
+    /// • Before sending the request, API settings are validated (token and base URL must be set),
+    /// even though <paramref name="Path"/> is not derived from those settings.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if API settings are invalid (for example, missing API key or base URL) when validated prior to the request.
+    /// </exception>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns an error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised if the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
+    /// <exception cref="EFOpenError">
+    /// Raised if the file specified by <paramref name="FileName"/> cannot be opened.
+    /// </exception>
     function UploadRaw<TResult: class, constructor>(const Path: string; const FileName: string): TResult;
 
-  public
     constructor Create; overload;
-    constructor Create(const AToken: string); overload;
-    destructor Destroy; override;
-    property Token: string read FToken write SetToken;
-    property BaseUrl: string read FBaseUrl write SetBaseUrl;
-    property Version: string read FVersion write SetVersion;
-    property Organization: string read FOrganization write SetOrganization;
-    property Client: THTTPClient read FHTTPClient;
-    property CustomHeaders: TNetHeaders read FCustomHeaders write SetCustomHeaders;
   end;
 
   /// <summary>
-  /// The <c>TGeminiAPIModel</c> class manages the configuration and state
-  /// related to the language models used within the Gemini API framework.
+  /// Holds the process-wide "current model" selection used to build Gemini request routes.
   /// </summary>
   /// <remarks>
-  /// This class handles the current model selection, ensures that model names
-  /// adhere to the required formatting standards, and provides thread-safe
-  /// access to the model configuration through the use of a critical section.
-  /// It serves as a foundational class for managing model-specific operations
-  /// within the Gemini API.
+  /// This class centralizes the model identifier shared across API route builders.
+  /// The selected model is stored in the class variable <c>CurrentModel</c>.
+  /// <para>
+  /// • Thread-safety: writes performed by <see cref="SetModel"/> and reads performed by
+  /// <see cref="GetCurrentModel"/> are protected by <c>GeminiLock</c>. If you access
+  /// <c>CurrentModel</c> directly, you must apply the same locking discipline.
+  /// </para>
+  /// <para>
+  /// • Lifecycle: <c>GeminiLock</c> is created in the class constructor and released in the class destructor.
+  /// </para>
   /// </remarks>
   TGeminiAPIModel = class
-    /// <summary>
-    /// Holds the name of the currently active model used for embedding requests.
-    /// </summary>
-    /// <remarks>
-    /// This class variable ensures that all embedding operations reference the
-    /// correct model, maintaining consistency across API requests.
-    /// </remarks>
-    class var CurrentModel: string;
-    /// <summary>
-    /// A critical section object that ensures thread-safe access to model-related
-    /// operations and variables.
-    /// </summary>
-    /// <remarks>
-    /// The <c>GeminiLock</c> ensures that changes to the model configuration
-    /// are performed atomically, preventing race conditions in multi-threaded
-    /// environments.
-    /// </remarks>
-    class var GeminiLock: TCriticalSection;
   protected
-    /// <summary>
-    /// Sets the active model name after validating its format.
-    /// </summary>
-    /// <param name="ModelName">
-    /// The name of the model to be set as active.
-    /// </param>
-    /// <param name="Supp">
-    /// An optional supplementary string to append to the model name.
-    /// </param>
-    /// <returns>
-    /// The finalized model name after formatting and appending the supplementary string.
-    /// </returns>
     /// <remarks>
-    /// This method not only sets the current model but also ensures that any
-    /// supplementary information is correctly appended, maintaining the integrity
-    /// of the model name within the API framework.
+    /// Thread-safety: updates to <c>CurrentModel</c> are protected by <c>GeminiLock</c>.
+    /// <para>
+    /// • <c>Supp</c> is treated as an optional suffix and is trimmed before concatenation.
+    /// The stored <c>CurrentModel</c> is the effective value returned by this function.
+    /// </para>
     /// </remarks>
     function SetModel(const ModelName: string; const Supp: string = ''): string;
 
   public
     /// <summary>
-    /// Initializes the <c>TGeminiAPIModel</c> class by creating necessary
-    /// synchronization objects.
+    /// Normalizes a Gemini model identifier to the canonical form expected by route builders.
     /// </summary>
+    /// <param name="ModelName">
+    /// The model name to normalize (for example, <c>gemini-1.5-pro</c> or <c>models/gemini-1.5-pro</c>).
+    /// Leading slashes are tolerated.
+    /// </param>
+    /// <returns>
+    /// The normalized model identifier, guaranteed to start with <c>models/</c>.
+    /// </returns>
     /// <remarks>
-    /// The class constructor sets up the critical section used for thread-safe
-    /// operations related to model management.
+    /// <para>
+    /// • If <paramref name="ModelName"/> already starts with <c>models/</c>, it is returned unchanged.
+    /// </para>
+    /// <para>
+    /// • Otherwise, the function prefixes <c>models/</c> and trims leading <c>'/'</c> characters and surrounding whitespace.
+    /// </para>
+    /// <para>
+    /// • This routine does not validate that the resulting model exists; it only normalizes the identifier format.
+    /// </para>
     /// </remarks>
-    class constructor Create;
-    /// <summary>
-    /// Finalizes the <c>TGeminiAPIModel</c> class by releasing allocated resources.
-    /// </summary>
-    /// <remarks>
-    /// The class destructor frees the critical section object, ensuring that
-    /// all resources are properly released when the application terminates.
-    /// </remarks>
-    class destructor Destroy;
+    class function ModelNormalize(const ModelName: string): string;
   end;
 
-  /// <summary>
-  /// Provides methods for building route parameters related to model retrieval in API requests.
-  /// </summary>
-  /// <remarks>
-  /// The <c>TModelsRouteParams</c> class is responsible for constructing query parameters such as
-  /// pagination settings, including page size and page token, for API calls that retrieve model data.
-  /// This class extends <c>TGeminiAPIRoute</c> and is designed to be used by derived classes that
-  /// perform specific API requests.
-  /// </remarks>
   TGeminiAPIRequestParams = class(TGeminiAPIModel)
   protected
     /// <summary>
-    /// Builds the query string parameters for pagination when fetching models.
+    /// Builds the query-string portion used for paginated list requests.
     /// </summary>
     /// <param name="PageSize">
-    /// The number of models to retrieve per page.
+    /// The maximum number of items to request per page.
     /// </param>
     /// <param name="PageToken">
-    /// An optional token used for fetching the next page of results.
+    /// An optional pagination token returned by a previous request, used to retrieve the next page.
     /// </param>
     /// <returns>
-    /// A string containing the formatted query parameters, including the page size and optional page token.
+    /// A query-string suffix containing <c>pageSize</c> and, when provided, <c>pageToken</c>.
+    /// The returned value is formatted to be appended directly after the API key query parameter.
     /// </returns>
     /// <remarks>
-    /// The <c>ParamsBuilder</c> method constructs the query string for paginated model requests.
-    /// The page size is mandatory, and the page token is optional but will be included in the query if provided.
+    /// The returned string always starts with <c>&amp;pageSize=</c>.
+    /// When <paramref name="PageToken"/> is not empty, it is URL-encoded and appended as
+    /// <c>&amp;pageToken=...</c>.
     /// </remarks>
     function ParamsBuilder(const PageSize: Integer; const PageToken: string = ''): string; overload;
+
     /// <summary>
-    /// Builds the query string parameters for pagination when fetching models, including an optional filter.
+    /// Builds the query-string portion used for paginated list requests, with an optional filter expression.
     /// </summary>
     /// <param name="PageSize">
-    /// The number of models to retrieve per page.
+    /// The maximum number of items to request per page.
     /// </param>
     /// <param name="PageToken">
-    /// An optional token used for fetching the next page of results.
+    /// An optional pagination token returned by a previous request, used to retrieve the next page.
     /// </param>
     /// <param name="Filter">
-    /// An optional filter string used to refine the results based on specific criteria.
+    /// An optional filter expression used to restrict the returned items according to API-specific criteria.
     /// </param>
     /// <returns>
-    /// A string containing the formatted query parameters, including the page size, optional page token, and filter.
+    /// A query-string suffix containing <c>pageSize</c> and, when provided, <c>pageToken</c> and <c>filter</c>.
+    /// The returned value is formatted to be appended directly after the API key query parameter.
     /// </returns>
     /// <remarks>
-    /// The <c>ParamsBuilder</c> method constructs the query string for paginated model requests with an optional filter.
-    /// The page size is mandatory, while the page token and filter are optional but will be included in the query if provided.
+    /// This overload composes the pagination parameters using
+    /// <see cref="ParamsBuilder(Integer,string)"/> and, when <paramref name="Filter"/> is not empty,
+    /// appends <c>&amp;filter=...</c> with the filter value URL-encoded.
     /// </remarks>
     function ParamsBuilder(const PageSize: Integer; const PageToken, Filter: string): string; overload;
+
+    /// <summary>
+    /// Builds the query-string portion used to force an operation when supported by the target endpoint.
+    /// </summary>
+    /// <param name="Force">
+    /// Indicates whether the <c>force</c> query parameter should be included.
+    /// </param>
+    /// <returns>
+    /// A query-string suffix suitable for appending directly after the API key query parameter:
+    /// <c>&amp;force=true</c> when <paramref name="Force"/> is <c>True</c>, otherwise an empty string.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// • When <paramref name="Force"/> is <c>False</c>, this function returns <c>''</c> (no query parameters added).
+    /// </para>
+    /// <para>
+    /// • When <paramref name="Force"/> is <c>True</c>, this function returns <c>&amp;force=true</c>.
+    /// </para>
+    /// <para>
+    /// • The returned value is formatted to be concatenated to an existing query string that already contains
+    /// the API key parameter (for example, <c>?key=...</c>), therefore it starts with <c>&amp;</c>.
+    /// </para>
+    /// </remarks>
+    function ParamsBuilder(const Force: Boolean): string; overload;
   end;
 
-  /// <summary>
-  /// The <c>TGeminiAPIRoute</c> class represents a specific API route within
-  /// the Gemini framework, encapsulating the necessary API client and route-specific
-  /// configurations.
-  /// </summary>
-  /// <remarks>
-  /// Inheriting from <c>TGeminiAPIModel</c>, this class leverages model management
-  /// capabilities to handle route-specific operations. It manages an instance of
-  /// <c>TGeminiAPI</c>, allowing for the execution of API requests tailored to
-  /// the defined route.
-  /// </remarks>
   TGeminiAPIRoute = class(TGeminiAPIRequestParams)
   private
-    /// <summary>
-    /// The instance of <c>TGeminiAPI</c> used to perform API requests for this route.
-    /// </summary>
-    /// <remarks>
-    /// This field holds the reference to the API client, enabling the route to
-    /// execute HTTP requests with the appropriate configurations and headers.
-    /// </remarks>
     FAPI: TGeminiAPI;
-    /// <summary>
-    /// Sets the <c>FAPI</c> field to a new <c>TGeminiAPI</c> instance.
-    /// </summary>
-    /// <param name="Value">
-    /// The new <c>TGeminiAPI</c> instance to be associated with this route.
-    /// </param>
-    /// <remarks>
-    /// This method allows for updating the API client used by the route, providing
-    /// flexibility in managing different API configurations or tokens.
-    /// </remarks>
     procedure SetAPI(const Value: TGeminiAPI);
   public
     /// <summary>
-    /// Gets or sets the <c>TGeminiAPI</c> instance associated with this route.
+    /// Gets or sets the <c>TGeminiAPI</c> instance used by this route to execute HTTP requests.
     /// </summary>
+    /// <value>
+    /// A configured <c>TGeminiAPI</c> instance providing transport, authentication, URL building, and
+    /// JSON (de)serialization services.
+    /// </value>
     /// <remarks>
-    /// This property provides access to the API client, enabling the execution
-    /// of API calls specific to the route's configuration.
+    /// Route classes delegate all network operations to this API object (for example <c>Get</c>, <c>Post</c>,
+    /// <c>Delete</c>, streaming POST overloads, and error handling).
+    /// <para>
+    /// • The route does not take ownership of the assigned instance; lifecycle management is expected to be handled
+    /// by the caller or the component that constructs the routes.
+    /// </para>
+    /// <para>
+    /// • Assigning a different instance at runtime redirects subsequent route calls to the new API object.
+    /// </para>
     /// </remarks>
     property API: TGeminiAPI read FAPI write SetAPI;
+
     /// <summary>
-    /// Creates a new instance of <c>TGeminiAPIRoute</c> associated with the specified API client.
+    /// Creates a new route instance bound to the specified <c>TGeminiAPI</c> executor.
     /// </summary>
     /// <param name="AAPI">
-    /// The <c>TGeminiAPI</c> instance to be used by this route for API requests.
+    /// The <c>TGeminiAPI</c> instance that will be used by this route to execute requests.
     /// </param>
     /// <remarks>
-    /// The constructor initializes the route with the provided API client, ensuring
-    /// that all subsequent API calls made through this route utilize the correct
-    /// configurations and authentication tokens.
+    /// This constructor binds the route to an API executor and initializes inherited request-parameter helpers.
+    /// <para>
+    /// • The provided <paramref name="AAPI"/> is stored in the <see cref="API"/> property and is used for all
+    /// subsequent route calls.
+    /// </para>
+    /// <para>
+    /// • This constructor uses <c>reintroduce</c> to hide an inherited <c>Create</c> constructor. Callers should
+    /// prefer <c>CreateRoute</c> to ensure the route is correctly associated with an API instance.
+    /// </para>
     /// </remarks>
     constructor CreateRoute(AAPI: TGeminiAPI); reintroduce;
-    /// <summary>
-    /// Destroys the <c>TGeminiAPIRoute</c> instance, releasing any associated resources.
-    /// </summary>
-    /// <remarks>
-    /// The destructor ensures that all resources tied to the route, including the
-    /// API client reference, are properly released to prevent memory leaks.
-    /// </remarks>
+
     destructor Destroy; override;
   end;
 
 implementation
 
 uses
-  REST.Json;
+  Gemini.Api.JsonFingerprintBinder;
 
-const
-  FieldsToString : TArray<string> = ['"args": {', '"response": {', '"metadata": {'];
+{ TGeminiAPI }
 
 constructor TGeminiAPI.Create;
 begin
   inherited Create;
-  FHTTPClient := THTTPClient.Create;
-  FToken := EmptyStr;
-  FBaseUrl := URL_BASE;
-  FVersion := VERSION_BASE;
+
 end;
 
-constructor TGeminiAPI.Create(const AToken: string);
+function TGeminiAPI.GetDefaultHeaders: TNetHeaders;
 begin
-  Create;
-  Token := AToken;
+  Result :=
+    FCustomHeaders +
+    [TNetHeader.Create('Accept', 'application/json')];
 end;
 
-destructor TGeminiAPI.Destroy;
+function TGeminiAPI.GetFilesURL(const Path: string): string;
 begin
-  FHTTPClient.Free;
-  inherited;
+  Result := TGeminiUrl.Create(FBaseURL, FVersion, Token).FilesUrl(Path);
 end;
 
-function TGeminiAPI.Post(const Path: string; Body: TJSONObject; Response: TStringStream; OnReceiveData: TReceiveDataCallback): Integer;
-var
-  Headers: TNetHeaders;
-  Stream: TStringStream;
+function TGeminiAPI.GetJsonHeaders: TNetHeaders;
 begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Stream := TStringStream.Create;
-  FHTTPClient.ReceiveDataCallBack := OnReceiveData;
+  Result :=
+    GetDefaultHeaders +
+    [TNetHeader.Create('Content-Type', 'application/json')];
+end;
+
+function TGeminiAPI.GetRequestFilesURL(const Path: string): string;
+begin
+  Result := TGeminiUrl.Create(FBaseURL, FVersion, Token).RequestFilesUrl(Path);
+end;
+
+function TGeminiAPI.GetRequestURL(const Path: string): string;
+begin
+  Result := TGeminiUrl.Create(FBaseURL, FVersion, Token).RequestUrl(Path);
+end;
+
+function TGeminiAPI.GetRequestURL(const Path, Params: string): string;
+begin
+  Result := TGeminiUrl.Create(FBaseURL, FVersion, Token).RequestUrl(Path, Params);
+end;
+
+function BytesToString(const Value: TBytes): string;
+begin
+  if Length(Value) = 0 then
+    raise Exception.Create('BytesToString is empty.');
+  var MemStream := TMemoryStream.Create;
   try
-    Stream.WriteString(Body.ToJSON);
-    Stream.Position := 0;
-    Result := FHTTPClient.Post(GetRequestURL(Path), Stream, Response, Headers).StatusCode;
-  finally
-    FHTTPClient.ReceiveDataCallBack := nil;
-    Stream.Free;
-  end;
-end;
-
-function TGeminiAPI.Get(const Path, Params: string; Response: TStringStream): Integer;
-var
-  Headers: TNetHeaders;
-begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Result := FHTTPClient.Get(GetRequestURL(Path, Params), Response, Headers).StatusCode;
-end;
-
-function TGeminiAPI.Post(const Path: string; Body: TMultipartFormData; Response: TStringStream): Integer;
-var
-  Headers: TNetHeaders;
-begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Result := FHTTPClient.Post(GetFilesURL(Path), Body, Response, Headers).StatusCode;
-end;
-
-function TGeminiAPI.Post(const Path: string; Body: TJSONObject;
-  var ResponseHeader: TNetHeaders): Integer;
-begin
-  CheckAPI;
-  var Headers := GetHeaders;
-  var Stream: TStringStream := nil;
-  try
-    if Assigned(Body) then
-      begin
-        Stream := TStringStream.Create;
-        Stream.WriteString(Body.ToJSON);
-        Stream.Position := 0;
-      end;
-    var response := FHTTPClient.Post(GetRequestFilesURL(Path), Stream, nil, Headers);
-    Result := Response.StatusCode;
-    case Result of
-       200..299:
-         ResponseHeader := Response.Headers;
-       else
-         raise Exception.Create('Error on response headers');
+    MemStream.WriteBuffer(Value[0], Length(Value));
+    MemStream.Position := 0;
+    var Reader := TStreamReader.Create(MemStream, TEncoding.UTF8);
+    try
+      Result := Reader.ReadToEnd;
+    finally
+      Reader.Free;
     end;
   finally
-    FHTTPClient.OnReceiveData := nil;
-    Stream.Free;
+    MemStream.Free;
   end;
 end;
 
-function TGeminiAPI.Find<TParams>(const Path: string;
-  KeyName: string; ParamProc: TProc<TParams>): string;
+function EncodeBase64(const Value: TStream): string; overload;
+begin
+  var Stream := TMemoryStream.Create;
+  var StreamOutput := TStringStream.Create('', TEncoding.UTF8);
+  try
+    Stream.LoadFromStream(Value);
+    Stream.Position := 0;
+    {$IF RTLVersion >= 35.0}
+    TNetEncoding.Base64String.Encode(Stream, StreamOutput);
+    {$ELSE}
+    TNetEncoding.Base64.Encode(Stream, StreamOutput);
+    {$ENDIF}
+    Result := StreamOutput.DataString;
+  finally
+    Stream.Free;
+    StreamOutput.Free;
+  end;
+end;
+
+function TGeminiAPI.MockJsonFile(const FieldName: string;
+  Response: TStringStream): string;
+begin
+  Response.Position := 0;
+  var Data := TStringStream.Create(BytesToString(Response.Bytes).TrimRight([#0]));
+  try
+    Result := Format('{"%s":"%s"}', [FieldName, EncodeBase64(Data)]);
+  finally
+    Data.Free;
+  end;
+end;
+
+function TGeminiAPI.GetPatchURL(const Path, Params: string): string;
+begin
+  Result := Format('%s/%s/%s?key=%s&updateMask=%s', [FBaseURL, Fversion, Path, Token, Params]);
+end;
+
+function TGeminiAPI.Find<TParams>(const Path: string; KeyName: string; ParamProc: TProc<TParams>): string;
 var
   ResponseHeader: TNetHeaders;
+  Params: TParams;
+  Code: Integer;
 begin
-  var Params: TParams := nil;
+  Monitoring.Inc;
+  Result := '';
+  Params := nil;
   try
+    var Http := NewHttpClient;
     if Assigned(ParamProc) then
       begin
         Params := TParams.Create;
         ParamProc(Params);
-        Post(Path, Params.JSON, ResponseHeader);
+        Code := Http.PostHeaders(GetRequestFilesURL(Path), Params.JSON, GetJsonHeaders, ResponseHeader);
       end
     else
-      Post(Path, nil, ResponseHeader);
+      Code := Http.PostHeaders(GetRequestFilesURL(Path), nil, GetJsonHeaders, ResponseHeader);
+
+    case Code of
+      200..299: {success};
+    else
+      raise EGeminiException.Create('Error on response headers');
+    end;
+
     for var Item in ResponseHeader do
+      if SameText(Item.Name, KeyName) then
       begin
-        if Item.Name.ToLower = KeyName then
-          begin
-            Result := Item.Value;
-            Break;
-          end;
+        Result := Item.Value;
+        Break;
       end;
   finally
     Params.Free;
+    Monitoring.Dec;
   end;
 end;
 
-function TGeminiAPI.Post(const Path: string; Response: TStringStream): Integer;
-var
-  Headers: TNetHeaders;
-  Stream: TStringStream;
-begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Stream := nil;
-  try
-    Result := FHTTPClient.Post(GetRequestURL(Path), Stream, Response, Headers).StatusCode;
-  finally
-  end;
-end;
-
-function TGeminiAPI.Post<TResult, TParams>(const Path: string; ParamProc: TProc<TParams>): TResult;
+function TGeminiAPI.Get(const Path: string; const Params: string): string;
 var
   Response: TStringStream;
-  Params: TParams;
   Code: Integer;
 begin
+  Monitoring.Inc;
   Response := TStringStream.Create('', TEncoding.UTF8);
+  try
+    var Http := NewHttpClient;
+    Code := Http.Get(GetRequestURL(Path, Params), Response, GetDefaultHeaders);
+    case code of
+      200..299: {success};
+      else
+        DeserializeErrorData(Code, Response.DataString);
+    end;
+    Result := Response.DataString;
+  finally
+    Response.Free;
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.Get<TResult, TParams>(const Path: string;
+  ParamProc: TProc<TParams>): TResult;
+var
+  Response: TStringStream;
+  Code: Integer;
+  Params: TParams;
+begin
+  Monitoring.Inc;
   Params := TParams.Create;
+  Response := TStringStream.Create('', TEncoding.UTF8);
   try
     if Assigned(ParamProc) then
       ParamProc(Params);
-    Code := Post(Path, Params.JSON, Response);
-    Result := ParseResponse<TResult>(Code, ToStringValueFor(Response.DataString));
+
+    var Http := NewHttpClient;
+    Code := Http.Get(GetRequestURL(Path, Params.ToQueryString), Response, GetDefaultHeaders);
+    case Code of
+      200..299:
+        try
+          Result := Deserialize<TResult>(Code, Response.DataString);
+        except
+          Result := TResult.Create;
+          (Result as TJSONFingerprint).JSONResponse := Response.DataString;
+        end;
+      else
+        begin
+          DeserializeErrorData(Code, Response.DataString);
+          Result := nil;
+        end;
+    end;
   finally
     Params.Free;
     Response.Free;
+    Monitoring.Dec;
   end;
 end;
 
-function TGeminiAPI.Post<TResult>(const Path: string;
-  ParamJSON: TJSONObject): TResult;
+function TGeminiAPI.Get<TResult>(const Path: string; const Params: string): TResult;
 var
   Response: TStringStream;
   Code: Integer;
 begin
+  Monitoring.Inc;
   Response := TStringStream.Create('', TEncoding.UTF8);
   try
-    Code := Post(Path, ParamJSON, Response);
-    Result := ParseResponse<TResult>(Code, ToStringValueFor(Response.DataString));
+    var Http := NewHttpClient;
+    Code := Http.Get(GetRequestURL(Path, Params), Response, GetDefaultHeaders);
+    case Code of
+      200..299:
+        try
+          Result := Deserialize<TResult>(Code, Response.DataString);
+        except
+          Result := TResult.Create;
+          (Result as TJSONFingerprint).JSONResponse := Response.DataString;
+        end;
+      else
+        begin
+          DeserializeErrorData(Code, Response.DataString);
+          Result := nil;
+        end;
+    end;
   finally
     Response.Free;
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.GetFile(const Path: string; Response: TStream): Integer;
+begin
+  Monitoring.Inc;
+  try
+    var Http := NewHttpClient;
+    Result := Http.Get(GetRequestURL(Path), Response, GetDefaultHeaders);
+    case Result of
+      200..299: {success};
+      else
+        begin
+          var Recieved := TStringStream.Create('', TEncoding.UTF8);
+          try
+            Response.Position := 0;
+            Recieved.LoadFromStream(Response);
+            DeserializeErrorData(Result, Recieved.DataString);
+          finally
+            Recieved.Free;
+          end;
+        end;
+    end;
+  finally
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.GetFile<TResult>(const Endpoint,
+  JSONFieldName: string): TResult;
+begin
+  Monitoring.Inc;
+  var Stream := TStringStream.Create;
+  try
+    var Code := GetFile(Endpoint, Stream);
+    Result := Deserialize<TResult>(Code, MockJsonFile(JSONFieldName, Stream));
+  finally
+    Stream.Free;
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.Delete<TResult>(const Path: string; const Params: string): TResult;
+var
+  Response: TStringStream;
+  Code: Integer;
+begin
+  Monitoring.Inc;
+  Response := TStringStream.Create('', TEncoding.UTF8);
+  try
+    var Http := NewHttpClient;
+    Code := Http.Delete(GetRequestURL(Path, Params), Response, GetDefaultHeaders);
+    Result := Deserialize<TResult>(Code, Response.DataString);
+  finally
+    Response.Free;
+    Monitoring.Dec;
   end;
 end;
 
@@ -552,29 +1446,144 @@ var
   Params: TParams;
   Code: Integer;
 begin
+  Monitoring.Inc;
   Params := TParams.Create;
   try
     if Assigned(ParamProc) then
       ParamProc(Params);
-    Code := Post(Path, Params.JSON, Response, Event);
-    case Code of
+
+    var Http := NewHttpClient;
+    Code := Http.Post(GetRequestURL(Path), Params.JSON, Response, GetJsonHeaders, Event);
+    case code of
       200..299:
         Result := True;
-    else
-      begin
-        Result := False;
-        var Recieved := TStringStream.Create;
-        try
-          Response.Position := 0;
-          Recieved.LoadFromStream(Response);
-          ParseError(Code, Recieved.DataString);
-        finally
-          Recieved.Free;
+      else
+        begin
+          var Recieved := TStringStream.Create('', TEncoding.UTF8);
+          try
+            Response.Position := 0;
+            Recieved.LoadFromStream(Response);
+            DeserializeErrorData(Code, Recieved.DataString);
+            Result := False;
+          finally
+            Recieved.Free;
+          end;
         end;
-      end;
     end;
   finally
     Params.Free;
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.Post<TParams>(const Path, Params: string; ParamProc: TProc<TParams>;
+  Response: TStream; Event: TReceiveDataCallback): Boolean;
+var
+  P: TParams;
+  Code: Integer;
+begin
+  Monitoring.Inc;
+  P := TParams.Create;
+  try
+    if Assigned(ParamProc) then
+      ParamProc(P);
+
+    var Http := NewHttpClient;
+    Code := Http.Post(GetRequestURL(Path, Params), P.JSON, Response, GetJsonHeaders, Event);
+    case Code of
+      200..299:
+        Result := True;
+      else
+        begin
+          var Recieved := TStringStream.Create('', TEncoding.UTF8);
+          try
+            Response.Position := 0;
+            Recieved.LoadFromStream(Response);
+            DeserializeErrorData(Code, Recieved.DataString);
+            Result := False;
+          finally
+            Recieved.Free;
+          end;
+        end;
+    end;
+  finally
+    P.Free;
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.Post<TParams>(const Path: string; ParamProc: TProc<TParams>;
+  Response: TStream; Event: TReceiveDataCallback): Boolean;
+var
+  P: TParams;
+  Code: Integer;
+begin
+  Monitoring.Inc;
+  P := TParams.Create;
+  try
+    if Assigned(ParamProc) then
+      ParamProc(P);
+
+    var Http := NewHttpClient;
+    Code := Http.Post(GetRequestURL(Path), P.JSON, Response, GetJsonHeaders, Event);
+    case Code of
+      200..299:
+        Result := True;
+      else
+        begin
+          var Recieved := TStringStream.Create('', TEncoding.UTF8);
+          try
+            Response.Position := 0;
+            Recieved.LoadFromStream(Response);
+            DeserializeErrorData(Code, Recieved.DataString);
+            Result := False;
+          finally
+            Recieved.Free;
+          end;
+        end;
+    end;
+  finally
+    P.Free;
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.Post<TResult, TParams>(const Path: string; ParamProc: TProc<TParams>): TResult;
+var
+  Response: TStringStream;
+  Params: TParams;
+  Code: Integer;
+begin
+  Monitoring.Inc;
+  Response := TStringStream.Create('', TEncoding.UTF8);
+  Params := TParams.Create;
+  try
+    if Assigned(ParamProc) then
+      ParamProc(Params);
+    var Http := NewHttpClient;
+    Code := Http.Post(GetRequestURL(Path), Params.JSON, Response, GetJsonHeaders, nil);
+    Result := Deserialize<TResult>(Code, Response.DataString);
+  finally
+    Params.Free;
+    Response.Free;
+    Monitoring.Dec;
+  end;
+end;
+
+function TGeminiAPI.Post<TResult>(const Path: string; ParamJSON: TJSONObject): TResult;
+var
+  Response: TStringStream;
+  Code: Integer;
+begin
+  Monitoring.Inc;
+  Response := TStringStream.Create('', TEncoding.UTF8);
+  try
+    var Http := NewHttpClient;
+    Code := Http.Post(GetRequestURL(Path), ParamJSON, Response, GetJsonHeaders, nil);
+    Result := Deserialize<TResult>(Code, Response.DataString);
+  finally
+    Response.Free;
+    Monitoring.Dec;
   end;
 end;
 
@@ -583,35 +1592,15 @@ var
   Response: TStringStream;
   Code: Integer;
 begin
+  Monitoring.Inc;
   Response := TStringStream.Create('', TEncoding.UTF8);
   try
-    Code := Post(Path, Response);
-    Result := ParseResponse<TResult>(Code, Response.DataString);
+    var Http := NewHttpClient;
+    Code := Http.Post(GetRequestURL(Path), Response, GetDefaultHeaders);
+    Result := Deserialize<TResult>(Code, Response.DataString);
   finally
     Response.Free;
-  end;
-end;
-
-function TGeminiAPI.Delete(const Path: string; Response: TStringStream): Integer;
-var
-  Headers: TNetHeaders;
-begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Result := FHTTPClient.Delete(GetRequestURL(Path), Response, Headers).StatusCode;
-end;
-
-function TGeminiAPI.Delete<TResult>(const Path: string): TResult;
-var
-  Response: TStringStream;
-  Code: Integer;
-begin
-  Response := TStringStream.Create('', TEncoding.UTF8);
-  try
-    Code := Delete(Path, Response);
-    Result := ParseResponse<TResult>(Code, Response.DataString);
-  finally
-    Response.Free;
+    Monitoring.Dec;
   end;
 end;
 
@@ -621,384 +1610,121 @@ var
   Params: TParams;
   Code: Integer;
 begin
+  Monitoring.Inc;
   Response := TStringStream.Create('', TEncoding.UTF8);
   Params := TParams.Create;
   try
     if Assigned(ParamProc) then
       ParamProc(Params);
-    Code := Post(Path, Params, Response);
-    Result := ParseResponse<TResult>(Code, Response.DataString);
+    var Http := NewHttpClient;
+    Code := Http.Post(GetFilesURL(Path), Params, Response, GetDefaultHeaders);
+    Result := Deserialize<TResult>(Code, Response.DataString);
   finally
     Params.Free;
     Response.Free;
+    Monitoring.Dec;
   end;
 end;
 
-procedure TGeminiAPI.RaiseError(Code: Int64; Error: TErrorCore);
-begin
-  case Code of
-    400:
-      raise GeminiExceptionInvalidArgument.Create(Code, Error);
-    403:
-      raise GeminiExceptionPermissionDenied.Create(Code, Error);
-    404:
-      raise GeminiExceptionNotFound.Create(Code, Error);
-    429:
-      raise GeminiExceptionResourceExhausted.Create(Code, Error);
-    500:
-      raise GeminiExceptionInternal.Create(Code, Error);
-    503:
-      raise GeminiExceptionUnavailable.Create(Code, Error);
-    504:
-      raise GeminiExceptionDeadlineExceeded.Create(Code, Error);
-  else
-    raise GeminiException.Create(Code, Error);
-  end;
-end;
-
-function TGeminiAPI.Get(const Path: string; const Params: string): string;
-var
-  Response: TStringStream;
-  Code: Integer;
-begin
-  Response := TStringStream.Create('', TEncoding.UTF8);
-  try
-    Code := Get(Path, Params, Response);
-    case Code of
-      200..299: ; //Success
-    end;
-    Result := Response.DataString;
-  finally
-    Response.Free;
-  end;
-end;
-
-function TGeminiAPI.Get<TResult>(const Path: string; const Params: string): TResult;
-var
-  Response: TStringStream;
-  Code: Integer;
-begin
-  Response := TStringStream.Create('', TEncoding.UTF8);
-  try
-    Code := Get(Path, Params, Response);
-    Result := ParseResponse<TResult>(Code, Response.DataString);
-  finally
-    Response.Free;
-  end;
-end;
-
-procedure TGeminiAPI.GetFile(const Path: string; Response: TStream);
-var
-  Headers: TNetHeaders;
-  Code: Integer;
-begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Code := FHTTPClient.Get(GetRequestURL(Path), Response, Headers).StatusCode;
-  case Code of
-    200..299:
-      ; {success}
-  else
-    var Recieved := TStringStream.Create;
-    try
-      Response.Position := 0;
-      Recieved.LoadFromStream(Response);
-      ParseError(Code, Recieved.DataString);
-    finally
-      Recieved.Free;
-    end;
-  end;
-end;
-
-function TGeminiAPI.GetFilesURL(const Path: string): string;
-begin
-  Result := Format('%s/%s', [FBaseURL, Path]);
-end;
-
-function TGeminiAPI.GetHeaders: TNetHeaders;
-begin
-  Result := FCustomHeaders + [TNetHeader.Create('Content-Type', 'application/json')];
-end;
-
-function TGeminiAPI.GetPatchURL(const Path, Params: string): string;
-begin
-  Result := Format('%s/%s/%s?key=%s&&updateMask=%s', [FBaseURL, Fversion, Path, Token, Params]);
-end;
-
-function TGeminiAPI.GetRequestURL(const Path, Params: string): string;
-begin
-  Result := Format('%s/%s/%s?key=%s%s', [FBaseURL, FVersion, Path, Token, Params]);
-end;
-
-function TGeminiAPI.GetRequestFilesURL(const Path: string): string;
-begin
-  Result := Format('%s/%s?key=%s', [FBaseURL, Path, Token]);
-end;
-
-function TGeminiAPI.GetRequestURL(const Path: string): string;
-begin
-  Result := Format('%s/%s/%s?key=%s', [FBaseURL, FVersion, Path, Token]);
-end;
-
-procedure TGeminiAPI.CheckAPI;
-begin
-  if FToken.IsEmpty then
-    raise GeminiExceptionAPI.Create('Token is empty!');
-  if FBaseUrl.IsEmpty then
-    raise GeminiExceptionAPI.Create('Base url is empty!');
-end;
-
-procedure TGeminiAPI.ParseError(const Code: Int64; const ResponseText: string);
-var
-  Error: TErrorCore;
-begin
-  Error := nil;
-  try
-    try
-      Error := TJson.JsonToObject<TError>(ResponseText);
-    except
-      Error := nil;
-    end;
-    if Assigned(Error) then
-      RaiseError(Code, Error);
-  finally
-    if Assigned(Error) then
-      Error.Free;
-  end;
-end;
-
-function TGeminiAPI.ParseResponse<T>(const Code: Int64; const ResponseText: string): T;
-begin
-  Result := nil;
-  case Code of
-    200..299:
-      try
-        Result := TJson.JsonToObject<T>(ResponseText);
-      except
-        Result := nil;
-      end;
-    else
-      ParseError(Code, ResponseText);
-  end;
-  if not Assigned(Result) then
-    raise GeminiExceptionInvalidResponse.Create(Code, 'Empty or invalid response');
-end;
-
-function TGeminiAPI.Patch(const Path: string; Body: TJSONObject;
-  Response: TStringStream; OnReceiveData: TReceiveDataCallback): Integer;
-var
-  Headers: TNetHeaders;
-  Stream: TStringStream;
-begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Stream := TStringStream.Create;
-  FHTTPClient.ReceiveDataCallBack := OnReceiveData;
-  try
-    Stream.WriteString(Body.ToJSON);
-    Stream.Position := 0;
-    Result := FHTTPClient.Patch(GetRequestURL(Path), Stream, Response, Headers).StatusCode;
-  finally
-    FHTTPClient.ReceiveDataCallBack := nil;
-    Stream.Free;
-  end;
-end;
-
-function TGeminiAPI.Patch(const Path, UriParams: string; Body: TJSONObject;
-  Response: TStringStream; OnReceiveData: TReceiveDataCallback): Integer;
-var
-  Headers: TNetHeaders;
-  Stream: TStringStream;
-begin
-  CheckAPI;
-  Headers := GetHeaders;
-  Stream := TStringStream.Create;
-  FHTTPClient.ReceiveDataCallBack := OnReceiveData;
-  try
-    Stream.WriteString(Body.ToJSON);
-    Stream.Position := 0;
-    Result := FHTTPClient.Patch(GetPatchURL(Path, UriParams), Stream, Response, Headers).StatusCode;
-  finally
-    FHTTPClient.ReceiveDataCallBack := nil;
-    Stream.Free;
-  end;
-end;
-
-function TGeminiAPI.Patch<TResult, TParams>(const Path, UriParams: string;
-  ParamProc: TProc<TParams>): TResult;
+function TGeminiAPI.Patch<TResult, TParams>(const Path: string; ParamProc: TProc<TParams>): TResult;
 var
   Response: TStringStream;
   Params: TParams;
   Code: Integer;
 begin
+  Monitoring.Inc;
   Response := TStringStream.Create('', TEncoding.UTF8);
   Params := TParams.Create;
   try
     if Assigned(ParamProc) then
       ParamProc(Params);
-    Code := Patch(Path, UriParams, Params.JSON, Response);
-    Result := ParseResponse<TResult>(Code, ToStringValueFor(Response.DataString));
+    var Http := NewHttpClient;
+    Code := Http.Patch(GetRequestURL(Path), Params.JSON, Response, GetJsonHeaders, nil);
+    Result := Deserialize<TResult>(Code, Response.DataString);
   finally
     Params.Free;
     Response.Free;
+    Monitoring.Dec;
   end;
 end;
 
-function TGeminiAPI.Patch<TResult>(const Path: string;
-  ParamJSON: TJSONObject): TResult;
-var
-  Response: TStringStream;
-  Code: Integer;
-begin
-  Response := TStringStream.Create('', TEncoding.UTF8);
-  try
-    Code := Patch(Path, ParamJSON, Response);
-    Result := ParseResponse<TResult>(Code, ToStringValueFor(Response.DataString));
-  finally
-    Response.Free;
-  end;
-end;
-
-function TGeminiAPI.Patch<TResult>(const Path, Params: string;
-  ParamJSON: TJSONObject): TResult;
-var
-  Response: TStringStream;
-  Code: Integer;
-begin
-  Response := TStringStream.Create('', TEncoding.UTF8);
-  try
-    Code := Patch(Path, Params, ParamJSON, Response);
-    Result := ParseResponse<TResult>(Code, ToStringValueFor(Response.DataString));
-  finally
-    Response.Free;
-  end;
-end;
-
-function TGeminiAPI.Patch<TResult, TParams>(const Path: string;
-  ParamProc: TProc<TParams>): TResult;
+function TGeminiAPI.Patch<TResult, TParams>(const Path, UriParams: string; ParamProc: TProc<TParams>): TResult;
 var
   Response: TStringStream;
   Params: TParams;
   Code: Integer;
 begin
+  Monitoring.Inc;
   Response := TStringStream.Create('', TEncoding.UTF8);
   Params := TParams.Create;
   try
     if Assigned(ParamProc) then
       ParamProc(Params);
-    Code := Patch(Path, Params.JSON, Response);
-    Result := ParseResponse<TResult>(Code, ToStringValueFor(Response.DataString));
+    var Http := NewHttpClient;
+    Code := Http.Patch(GetPatchURL(Path, UriParams), Params.JSON, Response, GetJsonHeaders, nil);
+    Result := Deserialize<TResult>(Code, Response.DataString);
   finally
     Params.Free;
     Response.Free;
+    Monitoring.Dec;
   end;
 end;
 
-procedure TGeminiAPI.SetBaseUrl(const Value: string);
+function TGeminiAPI.Patch<TResult>(const Path: string; ParamJSON: TJSONObject): TResult;
+var
+  Response: TStringStream;
+  Code: Integer;
 begin
-  FBaseUrl := Value;
+  Monitoring.Inc;
+  Response := TStringStream.Create('', TEncoding.UTF8);
+  try
+    var Http := NewHttpClient;
+    Code := Http.Patch(GetRequestURL(Path), ParamJSON, Response, GetJsonHeaders, nil);
+    Result := Deserialize<TResult>(Code, Response.DataString);
+  finally
+    Response.Free;
+    Monitoring.Dec;
+  end;
 end;
 
-procedure TGeminiAPI.SetCustomHeaders(const Value: TNetHeaders);
+function TGeminiAPI.Patch<TResult>(const Path, Params: string; ParamJSON: TJSONObject): TResult;
+var
+  Response: TStringStream;
+  Code: Integer;
 begin
-  FCustomHeaders := Value;
-end;
-
-procedure TGeminiAPI.SetOrganization(const Value: string);
-begin
-  FOrganization := Value;
-end;
-
-procedure TGeminiAPI.SetToken(const Value: string);
-begin
-  FToken := Value;
-end;
-
-procedure TGeminiAPI.SetVersion(const Value: string);
-begin
-  FVersion := Value;
-end;
-
-function TGeminiAPI.ToStringValueFor(const Value: string): string;
-begin
-  Result := ToStringValueFor(Value, FieldsToString);
-end;
-
-function TGeminiAPI.ToStringValueFor(const Value, Field: string): string;
-begin
-  Result := Value;
-  var i := Pos(Field, Result);
-  while (i > 0) and (i < Result.Length) do
-    begin
-      i := i + Field.Length - 1;
-      Result[i] := '"';
-      Inc(i);
-      var j := 0;
-      while (j > 0) or ((j = 0) and not (Result[i] = '}')) do
-        begin
-          case Result[i] of
-            '{':
-              Inc(j);
-            '}':
-              j := j - 1;
-            '"':
-              Result[i] := '`';
-          end;
-          Inc(i);
-          if i > Result.Length then
-            raise Exception.Create('Invalid JSON string');
-        end;
-      Result[i] := '"';
-      i := Pos(Field, Result);
-    end;
-end;
-
-function TGeminiAPI.ToStringValueFor(const Value: string;
-  const Field: TArray<string>): string;
-begin
-  Result := Value;
-  if Length(Field) > 0 then
-    begin
-      for var Item in Field do
-        Result := ToStringValueFor(Result, Item);
-    end;
+  Monitoring.Inc;
+  Response := TStringStream.Create('', TEncoding.UTF8);
+  try
+    var Http := NewHttpClient;
+    Code := Http.Patch(GetPatchURL(Path, Params), ParamJSON, Response, GetJsonHeaders, nil);
+    Result := Deserialize<TResult>(Code, Response.DataString);
+  finally
+    Response.Free;
+    Monitoring.Dec;
+  end;
 end;
 
 function TGeminiAPI.UploadRaw<TResult>(const Path, FileName: string): TResult;
 var
-  Headers: TNetHeaders;
   Response: TStringStream;
-  Code: integer;
+  Code: Integer;
+  Headers: TNetHeaders;
 begin
-  CheckAPI;
-  Headers := GetHeaders;
-  var FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
+  Monitoring.Inc;
+  VerifyApiSettings;
+  Headers := GetDefaultHeaders + [TNetHeader.Create('Content-Type', 'application/octet-stream')];
+
   Response := TStringStream.Create('', TEncoding.UTF8);
+  var FileStream := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
   try
-    Code := FHTTPClient.Post(Path, FileStream, Response, Headers).StatusCode;
-    Result := ParseResponse<TResult>(Code, Response.DataString);
+    var Http := NewHttpClient;
+    Code := Http.Post(Path, FileStream, Response, Headers);
+    Result := Deserialize<TResult>(Code, Response.DataString);
   finally
     FileStream.Free;
     Response.Free;
+    Monitoring.Dec;
   end;
-end;
-
-{ GeminiException }
-
-constructor GeminiException.Create(const ACode: Int64; const AError: TErrorCore);
-begin
-  Code := ACode;
-  Msg := (AError as TError).Error.Message;
-  Status := (AError as TError).Error.Status;
-
-  inherited Create(Format('error (%d) %s: '+ sLineBreak + '     %s', [Code, Status, Msg]));
-end;
-
-constructor GeminiException.Create(const ACode: Int64; const Value: string);
-begin
-  Code := ACode;
-  Msg := Value;
-  inherited Create(Format('error %d: %s', [ACode, Msg]));
 end;
 
 { TGeminiAPIRoute }
@@ -1019,45 +1745,243 @@ begin
   FAPI := Value;
 end;
 
-
-{ TGeminiAPIModel }
-
-class constructor TGeminiAPIModel.Create;
+class function TGeminiAPIModel.ModelNormalize(const ModelName: string): string;
 begin
-  GeminiLock := TCriticalSection.Create;
-end;
-
-class destructor TGeminiAPIModel.Destroy;
-begin
-  GeminiLock.Free;
+  if not ModelName.StartsWith('models/') then
+    Result := 'models/' + ModelName.TrimLeft(['/']).Trim
+  else
+    Result := ModelName;
 end;
 
 function TGeminiAPIModel.SetModel(const ModelName: string; const Supp: string): string;
 begin
-  if ModelName.Trim.IsEmpty then
+  var Base := ModelName.Trim;
+  if Base.IsEmpty then
     raise Exception.Create('Error: Unknown model name provided.');
-  Result := ModelName.Trim;
-  CurrentModel := Result;
-  if not Supp.Trim.IsEmpty then
-    Result := Result + Supp;
+
+  Base := ModelNormalize(Base);
+
+  var Suffix := Supp.Trim;
+
+  Result := Base;
+  if not Suffix.IsEmpty then
+    Result := Result + Suffix;
 end;
 
 { TGeminiAPIRequestParams }
 
-function TGeminiAPIRequestParams.ParamsBuilder(const PageSize: Integer;
-  const PageToken: string): string;
+function TGeminiAPIRequestParams.ParamsBuilder(const PageSize: Integer; const PageToken: string): string;
 begin
-  Result := Format('&&pageSize=%d', [PageSize]);
+  Result := Format('&pageSize=%d', [PageSize]);
   if not PageToken.IsEmpty then
-    Result := Format('%s&&pageToken=%s', [Result, PageToken]);
+    Result := Result + '&pageToken=' + TNetEncoding.URL.Encode(PageToken);
 end;
 
-function TGeminiAPIRequestParams.ParamsBuilder(const PageSize: Integer;
-  const PageToken, Filter: string): string;
+function TGeminiAPIRequestParams.ParamsBuilder(const PageSize: Integer; const PageToken, Filter: string): string;
 begin
   Result := ParamsBuilder(PageSize, PageToken);
   if not Filter.IsEmpty then
-    Result := Format('%s&&filter=%s', [Result, Filter]);
+    Result := Result + '&filter=' + TNetEncoding.URL.Encode(Filter);
+end;
+
+function TGeminiAPIRequestParams.ParamsBuilder(const Force: Boolean): string;
+begin
+  if not Force then
+    Exit('');
+
+  Result := '&force=true';
+end;
+
+{ TGeminiSettings }
+
+constructor TGeminiSettings.Create;
+begin
+  inherited Create;
+  FToken := EmptyStr;
+  FBaseUrl := URL_BASE;
+  FVersion := VERSION_BASE;
+  FCustomHeaders := [];
+end;
+
+procedure TGeminiSettings.SetBaseUrl(const Value: string);
+begin
+  FBaseUrl := Value;
+end;
+
+procedure TGeminiSettings.SetCustomHeaders(const Value: TNetHeaders);
+begin
+  FCustomHeaders := Value;
+end;
+
+procedure TGeminiSettings.SetOrganization(const Value: string);
+begin
+  FOrganization := Value;
+end;
+
+procedure TGeminiSettings.SetToken(const Value: string);
+begin
+  FToken := Value;
+end;
+
+procedure TGeminiSettings.SetVersion(const Value: string);
+begin
+  FVersion := Value;
+end;
+
+{ TApiHttpHandler }
+
+function TApiHttpHandler.NewHttpClient: IHttpClientAPI;
+begin
+  Result := THttpClientAPI.CreateInstance(VerifyApiSettings);
+
+  if Assigned(FHttpClient) then
+    begin
+      Result.SendTimeOut        := FHttpClient.SendTimeOut;
+      Result.ConnectionTimeout  := FHttpClient.ConnectionTimeout;
+      Result.ResponseTimeout    := FHttpClient.ResponseTimeout;
+      Result.ProxySettings      := FHttpClient.ProxySettings;
+    end;
+end;
+
+procedure TApiHttpHandler.VerifyApiSettings;
+begin
+  if FToken.IsEmpty or FBaseUrl.IsEmpty then
+    raise EGeminiExceptionAPI.Create('Invalid API key or base URL.');
+end;
+
+constructor TApiHttpHandler.Create;
+begin
+  inherited Create;
+
+  {--- TEMPLATE de config, exposé via IGemini.HttpClient }
+  FHttpClient := THttpClientAPI.CreateInstance(VerifyApiSettings);
+end;
+
+{ TApiDeserializer }
+
+class constructor TApiDeserializer.Create;
+begin
+  FMetadataManager := TDeserializationPrepare.CreateInstance;
+  FMetadataAsObject := False;
+end;
+
+function TApiDeserializer.Deserialize<T>(const Code: Int64;
+  const ResponseText: string): T;
+begin
+  Result := nil;
+  case Code of
+    200..299:
+      try
+        Result := Parse<T>(ResponseText);
+      except
+        raise;
+      end;
+    else
+      DeserializeErrorData(Code, ResponseText);
+  end;
+end;
+
+procedure TApiDeserializer.DeserializeErrorData(const Code: Int64;
+  const ResponseText: string);
+var
+  Error: TError;
+begin
+  Error := nil;
+  try
+    try
+      Error := TJson.JsonToObject<TError>(ResponseText);
+    except
+      Error := nil;
+    end;
+    if Assigned(Error) then
+      RaiseError(Code, Error)
+    else
+      raise EGeminiExceptionAPI.CreateFmt(
+        'Server returned error code %d but response was not parseable: %s', [Code, ResponseText]);
+  finally
+    if Assigned(Error) then
+      Error.Free;
+  end;
+end;
+
+class function TApiDeserializer.Parse<T>(const Value: string): T;
+{$REGION 'Dev note'}
+  (*
+    • If MetadataManager are to be treated as objects, a dedicated TMetadata class is required, containing
+      all properties corresponding to the specified JSON fields.
+
+    • However, if MetadataManager are not treated as objects, they will be temporarily handled as a string
+      and subsequently converted back into a valid JSON string during deserialization using the
+      Revert method of the interceptor.
+
+    By default, MetadataManager are treated as strings rather than objects to handle cases where multiple
+    classes to be deserialized may contain variable data structures. Refer to the global variable
+    MetadataAsObject.
+
+    • JSON fingerprint propagation:
+      If the target type inherits from TJSONFingerprint, the original JSON payload is normalized
+      (formatted) and stored into JSONResponse. The formatted JSON is then propagated to all
+      TJSONFingerprint instances found in the resulting object graph via
+      TJSONFingerprintBinder.Bind(Result, Formatted). The binder traverses RTTI fields only (no
+      properties evaluated) and is cycle-safe.
+
+    • Exception safety:
+      Post-processing (formatting/binding) may raise (e.g., truncation handler in DEBUG). On any
+      exception after allocation, the partially created instance is freed before re-raising to
+      prevent leaks.
+  *)
+{$ENDREGION}
+var
+  Obj: TObject;
+begin
+  Result := Default(T);
+  try
+    case MetadataAsObject of
+      True:
+        Result := TJson.JsonToObject<T>(Value);
+      else
+        begin
+          if MetadataManager = nil then
+            raise EInvalidResponse.Create('MetadataManager is nil while MetadataAsObject=False');
+
+          Result := TJson.JsonToObject<T>(MetadataManager.Convert(Value));
+        end;
+    end;
+
+    {--- Add JSON response if class inherits from TJSONFingerprint class. }
+    if Assigned(Result) and (Result is TJSONFingerprint) then
+      begin
+        var JSONValue := TJSONObject.ParseJSONValue(Value);
+        try
+          var Formatted := JSONValue.Format();
+
+          (Result as TJSONFingerprint).JSONResponse := Formatted;
+          TJSONFingerprintBinder.Bind(Result, Formatted);
+        finally
+          JSONValue.Free;
+        end;
+      end;
+  except
+    Obj := TObject(Result);
+    if Obj <> nil then
+      Obj.Free;
+//    raise;
+  end;
+end;
+
+procedure TApiDeserializer.RaiseError(Code: Int64; Error: TErrorCore);
+begin
+  case Code of
+    400: raise EInvalidArgument.Create(Code, Error);
+    403: raise EPermissionDenied.Create(Code, Error);
+    404: raise EResourceNotFound.Create(Code, Error);
+    429: raise EResourceExhausted.Create(Code, Error);
+    500: raise EInternalError.Create(Code, Error);
+    503: raise ETryAgain.Create(Code, Error);
+    504: raise EDeadlineExceeded.Create(Code, Error);
+  else
+    raise EGeminiException.Create(Code, Error);
+  end;
 end;
 
 end.

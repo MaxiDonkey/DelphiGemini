@@ -9,96 +9,26 @@ unit Gemini.FineTunings;
 
 interface
 
+{$REGION 'dev note'}
+
+(*
+
+  Following the deprecation of Gemini 1.5 Flash-001 in May 2025, Google no longer
+  offers a model compatible with fine-tuning in the Gemini API.
+
+  Google has indicated that fine-tuning support will be reintroduced in the future.
+  As a result, this unit has not been removed from the wrapper; it has merely been
+  put into a dormant state and will remain inactive until further notice.
+
+*)
+
+{$ENDREGION}
+
 uses
   System.SysUtils, System.Classes, System.JSON, REST.JsonReflect, REST.Json.Types,
-  Gemini.API.Params, Gemini.API, Gemini.Async.Support, Gemini.Chat;
+  Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Async.Support;
 
 type
-  /// <summary>
-  /// The state of the tuned model.
-  /// </summary>
-  TModelState = (
-    /// <summary>
-    /// Default value. This value is not used.
-    /// </summary>
-    STATE_UNSPECIFIED,
-    /// <summary>
-    /// The model is being created.
-    /// </summary>
-    CREATING,
-    /// <summary>
-    /// The model is ready to use.
-    /// </summary>
-    ACTIVE,
-    /// <summary>
-    /// Failed to create model.
-    /// </summary>
-    FAILED
-  );
-
-  /// <summary>
-  /// Helper record for the <c>TModelState</c> enumeration, providing utility methods for converting
-  /// between <c>TModelState</c> values and their string representations.
-  /// </summary>
-  TModelStateHelper = record helper for TModelState
-    /// <summary>
-    /// Converts the current <c>TModelState</c> value to its corresponding string representation.
-    /// </summary>
-    /// <returns>
-    /// A string representing the current <c>TModelState</c> value.
-    /// </returns>
-    function ToString: string;
-    /// <summary>
-    /// Converts a string representation of a <c>TModelState</c> into its corresponding enumeration value.
-    /// </summary>
-    /// <param name="Value">
-    /// The string representing a <c>TModelState</c>.
-    /// </param>
-    /// <returns>
-    /// The <c>TModelState</c> enumeration value that corresponds to the provided string.
-    /// </returns>
-    class function Create(const Value: string): TModelState; static;
-  end;
-
-  /// <summary>
-  /// Interceptor class for converting <c>TModelState</c> values to and from their string representations in JSON serialization and deserialization.
-  /// </summary>
-  /// <remarks>
-  /// This class is used to facilitate the conversion between the <c>TModelState</c> enum and its string equivalents during JSON processing.
-  /// It extends the <c>TJSONInterceptorStringToString</c> class to override the necessary methods for custom conversion logic.
-  /// </remarks>
-  TModelStateInterceptor = class(TJSONInterceptorStringToString)
-    /// <summary>
-    /// Converts the <c>TModelState</c> value of the specified field to a string during JSON serialization.
-    /// </summary>
-    /// <param name="Data">
-    /// The object containing the field to be converted.
-    /// </param>
-    /// <param name="Field">
-    /// The field name representing the <c>TModelState</c> value.
-    /// </param>
-    /// <returns>
-    /// The string representation of the <c>TModelState</c> value.
-    /// </returns>
-    function StringConverter(Data: TObject; Field: string): string; override;
-    /// <summary>
-    /// Converts a string back to a <c>TModelState</c> value for the specified field during JSON deserialization.
-    /// </summary>
-    /// <param name="Data">
-    /// The object containing the field to be set.
-    /// </param>
-    /// <param name="Field">
-    /// The field name where the <c>TModelState</c> value will be set.
-    /// </param>
-    /// <param name="Arg">
-    /// The string representation of the <c>TModelState</c> to be converted back.
-    /// </param>
-    /// <remarks>
-    /// This method converts the string argument back to the corresponding <c>TModelState</c> value and assigns it to the specified field in the object.
-    /// </remarks>
-    procedure StringReverter(Data: TObject; Field: string; Arg: string); override;
-  end;
-
   /// <summary>
   /// <c>THyperparametersParams</c> class controlling the tuning process.
   /// </summary>
@@ -114,6 +44,7 @@ type
     /// If not set, a default of 0.001 or 0.0002 will be calculated based on the number of training examples.
     /// </remarks>
     function LearningRate(const Value: Double): THyperparametersParams;
+
     /// <summary>
     /// Optional. Immutable. The learning rate multiplier is used to calculate a final learningRate based on the default (recommended) value
     /// </summary>
@@ -121,6 +52,7 @@ type
     /// Actual learning rate := learningRateMultiplier * default learning rate Default learning rate is dependent on base model and dataset size. If not set, a default of 1.0 will be used.
     /// </remarks>
     function LearningRateMultiplier(const Value: Double): THyperparametersParams;
+
     /// <summary>
     /// Immutable. The number of training epochs.
     /// </summary>
@@ -128,6 +60,7 @@ type
     /// An epoch is one pass through the training data. If not set, a default of 5 will be used.
     /// </remarks>
     function EpochCount(const Value: Integer): THyperparametersParams;
+
     /// <summary>
     /// Immutable. The batch size hyperparameter for tuning.
     /// </summary>
@@ -146,10 +79,12 @@ type
     /// Required. The expected model output.
     /// </summary>
     function Output(const Value: string): TTuningExample;
+
     /// <summary>
     /// Optional. Text model input.
     /// </summary>
     function TextInput(const Value: string): TTuningExample;
+
     class function AddItem(const Input, Output: string): TTuningExample;
   end;
 
@@ -182,6 +117,7 @@ type
     /// Thrown if the specified CSV file does not exist or cannot be read.
     /// </exception>
     class function LoadFromCSV(const FileName: string; Separator: Char = ';'): TJSONArray; static;
+
     /// <summary>
     /// Converts the contents of a JSONL (JSON Lines) file into a <c>TJSONArray</c>.
     /// </summary>
@@ -195,6 +131,7 @@ type
     /// Thrown if the specified JSONL file does not exist or cannot be read.
     /// </exception>
     class function LoadFromJSONL(const FileName: string): TJSONArray; static;
+
     /// <summary>
     /// Converts the contents of a CSV or JSONL file into a <c>TJSONArray</c>, based on the file extension.
     /// </summary>
@@ -208,6 +145,7 @@ type
     /// Thrown if the specified file does not exist, is not readable, or is of an unsupported format.
     /// </exception>
     class function FileDataToJSONArray(const FileName: string): TJSONArray; static;
+
     /// <summary>
     /// Builds a <c>TJSONObject</c> containing training examples from an array of <c>TTuningExample</c> instances.
     /// </summary>
@@ -218,6 +156,7 @@ type
     /// A <c>TJSONObject</c> with a single pair where the key is "examples" and the value is a <c>TJSONArray</c> of the provided examples.
     /// </returns>
     class function ExamplesBuilder(const Value: TArray<TTuningExample>): TJSONObject; overload; static;
+
     /// <summary>
     /// Builds a <c>TJSONObject</c> containing training examples by reading from a JSONL file.
     /// </summary>
@@ -242,14 +181,17 @@ type
     /// Required. Input only. Immutable. The model training data.
     /// </summary>
     function TrainingData(const JSONLFileName: string): TTuningTaskParams; overload;
+
     /// <summary>
     /// Required. Input only. Immutable. The model training data.
     /// </summary>
     function TrainingData(const Value: TArray<TTuningExample>): TTuningTaskParams; overload;
+
     /// <summary>
     /// Required. Input only. Immutable. The model training data.
     /// </summary>
     function TrainingData(const Value: TJSONObject): TTuningTaskParams; overload;
+
     /// <summary>
     /// Immutable. Hyperparameters controlling the tuning process.
     /// </summary>
@@ -277,6 +219,7 @@ type
     /// Returns the updated <c>TTunedModelParams</c> instance, allowing for method chaining.
     /// </returns>
     function DisplayName(const Value: string): TTunedModelParams;
+
     /// <summary>
     /// A short description of this model.
     /// </summary>
@@ -287,6 +230,7 @@ type
     /// Returns the updated <c>TTunedModelParams</c> instance, allowing for method chaining.
     /// </returns>
     function Description(const Value: string): TTunedModelParams;
+
     /// <summary>
     /// Required. The tuning task that creates the tuned model.
     /// </summary>
@@ -297,6 +241,7 @@ type
     /// Returns the updated <c>TTunedModelParams</c> instance, allowing for method chaining.
     /// </returns>
     function TuningTask(const Value: TTuningTaskParams): TTunedModelParams; overload;
+
     /// <summary>
     /// Optional. List of project numbers that have read access to the tuned model.
     /// </summary>
@@ -307,6 +252,7 @@ type
     /// Returns the updated <c>TTunedModelParams</c> instance, allowing for method chaining.
     /// </returns>
     function ReaderProjectNumbers(const Value: TArray<Integer>): TTunedModelParams;
+
     /// <summary>
     /// Optional. TunedModel to use as the starting point for training the new model.
     /// </summary>
@@ -317,6 +263,7 @@ type
     /// Returns the updated <c>TTunedModelParams</c> instance, allowing for method chaining.
     /// </returns>
     function TunedModelSource(const Value: string): TTunedModelParams;
+
     /// <summary>
     /// Immutable. The name of the Model to tune.
     /// </summary>
@@ -327,6 +274,7 @@ type
     /// Returns the updated <c>TTunedModelParams</c> instance, allowing for method chaining.
     /// </returns>
     function BaseModel(const Value: string): TTunedModelParams;
+
     /// <summary>
     /// Optional. Controls the randomness of the output.
     /// </summary>
@@ -340,6 +288,7 @@ type
     /// This value specifies default to be the one used by the base model while creating the model.
     /// </remarks>
     function Temperature(const Value: Double): TTunedModelParams;
+
     /// <summary>
     /// Optional. For Nucleus sampling.
     /// </summary>
@@ -353,6 +302,7 @@ type
     /// This value specifies default to be the one used by the base model while creating the model.
     /// </remarks>
     function TopP(const Value: Double): TTunedModelParams;
+
     /// <summary>
     /// Optional. For Top-k sampling.
     /// </summary>
@@ -387,6 +337,7 @@ type
     /// you use the default HTTP mapping, the name should be a resource name ending with operations/{unique_id}.
     /// </remarks>
     property Name: string read FName write FName;
+
     /// <summary>
     /// Service-specific metadata associated with the operation.
     /// </summary>
@@ -397,6 +348,7 @@ type
     /// </para>
     /// </remarks>
     property Metadata: string read FMetadata write FMetadata;
+
     /// <summary>
     /// If the value is false, it means the operation is still in progress.
     /// </summary>
@@ -404,6 +356,7 @@ type
     /// If true, the operation is completed, and either error or response is available.
     /// </remarks>
     property Done: Boolean read FDone write FDone;
+
     /// <summary>
     /// The normal, successful response of the operation.
     /// </summary>
@@ -430,14 +383,17 @@ type
     /// Output only. The tuning step.
     /// </summary>
     property Step: Integer read FStep write FStep;
+
     /// <summary>
     /// Output only. The epoch this step was part of.
     /// </summary>
     property Epoch: Integer read FEpoch write FEpoch;
+
     /// <summary>
     /// Output only. The mean loss of the training examples for this step.
     /// </summary>
     property MeanLoss: Double read FMeanLoss write FMeanLoss;
+
     /// <summary>
     /// Output only. The timestamp when this metric was computed.
     /// </summary>
@@ -464,6 +420,7 @@ type
     /// If not set, a default of 0.001 or 0.0002 will be calculated based on the number of training examples.
     /// </remarks>
     property LearningRate: Double read FLearningRate write FLearningRate;
+
     /// <summary>
     /// Optional. Immutable. The learning rate multiplier is used to calculate a final learningRate based on the default (recommended) value.
     /// </summary>
@@ -471,6 +428,7 @@ type
     /// Actual learning rate := learningRateMultiplier * default learning rate Default learning rate is dependent on base model and dataset size. If not set, a default of 1.0 will be used.
     /// </remarks>
     property LearningRateMultiplier: Double read FLearningRateMultiplier write FLearningRateMultiplier;
+
     /// <summary>
     /// Immutable. The number of training epochs.
     /// </summary>
@@ -478,6 +436,7 @@ type
     /// An epoch is one pass through the training data. If not set, a default of 5 will be used.
     /// </remarks>
     property EpochCount: Integer read FEpochCount write FEpochCount;
+
     /// <summary>
     /// Immutable. The batch size hyperparameter for tuning.
     /// </summary>
@@ -504,6 +463,7 @@ type
     /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
     /// </remarks>
     property StartTime: string read FStartTime write FStartTime;
+
     /// <summary>
     /// Output only. The timestamp when tuning this model completed.
     /// </summary>
@@ -511,14 +471,17 @@ type
     /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
     /// </remarks>
     property CompleteTime: string read FCompleteTime write FCompleteTime;
+
     /// <summary>
     /// Output only. Metrics collected during tuning.
     /// </summary>
     property Snapshots: TArray<TTuningSnapshot> read Fsnapshots write Fsnapshots;
+
     /// <summary>
     /// Immutable. Hyperparameters controlling the tuning process. If not provided, default values will be used.
     /// </summary>
     property Hyperparameters: THyperParameters read FHyperparameters write FHyperparameters;
+
     destructor Destroy; override;
   end;
 
@@ -537,6 +500,7 @@ type
     /// Example: tunedModels/my-tuned-model
     /// </remarks>
     property TunedModel: string read FTunedModel write FTunedModel;
+
     /// <summary>
     /// Output only. The name of the base Model this TunedModel was tuned from.
     /// </summary>
@@ -576,6 +540,7 @@ type
     /// </para>
     /// </summary>
     property Name: string read FName write FName;
+
     /// <summary>
     /// Optional. The name to display for this model in user interfaces.
     /// </summary>
@@ -583,14 +548,17 @@ type
     /// The display name must be up to 40 characters including spaces.
     /// </remarks>
     property DisplayName: string read FDisplayName write FDisplayName;
+
     /// <summary>
     /// Optional. A short description of this model.
     /// </summary>
     property Description: string read FDescription write FDescription;
+
     /// <summary>
     /// Output only. The state of the tuned model.
     /// </summary>
     property State: TModelState read FState write FState;
+
     /// <summary>
     /// Output only. The timestamp when this model was created.
     /// </summary>
@@ -598,6 +566,7 @@ type
     /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
     /// </remarks>
     property CreateTime: string read FCreateTime write FCreateTime;
+
     /// <summary>
     /// Output only. The timestamp when this model was updated.
     /// </summary>
@@ -605,18 +574,22 @@ type
     /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
     /// </remarks>
     property UpdateTime: string read FUpdateTime write FUpdateTime;
+
     /// <summary>
     /// Required. The tuning task that creates the tuned model.
     /// </summary>
     property TuningTask: TTuningTask read FTuningTask write FTuningTask;
+
     /// <summary>
     /// Optional. List of project numbers that have read access to the tuned model.
     /// </summary>
     property ReaderProjectNumbers: TArray<Int64> read FReaderProjectNumbers write FReaderProjectNumbers;
+
     /// <summary>
     /// Optional. TunedModel to use as the starting point for training the new model.
     /// </summary>
     property TunedModelSource: TTunedModelSource read FTunedModelSource write FTunedModelSource;
+
     /// <summary>
     /// Immutable. The name of the Model to tune.
     /// </summary>
@@ -624,6 +597,7 @@ type
     /// Example: models/gemini-1.5-flash-001
     /// </remarks>
     property BaseModel: string read FBaseModel write FBaseModel;
+
     /// <summary>
     /// Optional. Controls the randomness of the output.
     /// </summary>
@@ -632,6 +606,7 @@ type
     /// This value specifies default to be the one used by the base model while creating the model.
     /// </remarks>
     property Temperature: Double read FTemperature write FTemperature;
+
     /// <summary>
     /// Optional. For Nucleus sampling.
     /// </summary>
@@ -640,6 +615,7 @@ type
     /// This value specifies default to be the one used by the base model while creating the model.
     /// </remarks>
     property TopP: Double read FTopP write FTopP;
+
     /// <summary>
     /// Optional. For Top-k sampling.
     /// </summary>
@@ -648,6 +624,7 @@ type
     /// This value specifies default to be the one used by the base model while creating the model.
     /// </remarks>
     property TopK: Integer read FTopK write FTopK;
+
     destructor Destroy; override;
   end;
 
@@ -670,6 +647,7 @@ type
     /// An array of <c>TTunedModel</c> instances representing the tuned models.
     /// </value>
     property TunedModels: TArray<TTunedModel> read FTunedModels write FTunedModels;
+
     /// <summary>
     /// Gets or sets the token used to retrieve the next page of tuned models.
     /// </summary>
@@ -677,6 +655,7 @@ type
     /// A string token that can be used to fetch the next page of results. If empty, there are no more pages.
     /// </value>
     property NextPageToken: string read FNextPageToken write FNextPageToken;
+
     destructor Destroy; override;
   end;
 
@@ -771,6 +750,7 @@ type
     /// </code>
     /// </remarks>
     procedure ASynCreate(const Value: TJSONObject; CallBacks: TFunc<TAsynModelTraining>); overload;
+
     /// <summary>
     /// Asynchronously creates a new model training operation using a parameter procedure.
     /// </summary>
@@ -813,6 +793,7 @@ type
     /// </code>
     /// </remarks>
     procedure ASynCreate(ParamProc: TProc<TTunedModelParams>; CallBacks: TFunc<TAsynModelTraining>); overload;
+
     /// <summary>
     /// Asynchronously retrieves a list of tuned models with pagination support.
     /// </summary>
@@ -859,6 +840,7 @@ type
     /// </remarks>
     procedure ASynList(const PageSize: Integer; const PageToken, Filter: string;
       CallBacks: TFunc<TAsynTunedModels>);
+
     /// <summary>
     /// Asynchronously retrieves a specific tuned model by its name.
     /// </summary>
@@ -896,6 +878,7 @@ type
     /// </code>
     /// </remarks>
     procedure ASynRetrieve(const TunedModelName: string; CallBacks: TFunc<TAsynTunedModel>);
+
     /// <summary>
     /// Asynchronously updates a tuned model using a JSON object.
     /// </summary>
@@ -940,6 +923,7 @@ type
     /// </remarks>
     procedure ASynUpdate(const TunedModelName: string; const UpdateMask: string; const Value: TJSONObject;
       CallBacks: TFunc<TAsynTunedModel>); overload;
+
     /// <summary>
     /// Asynchronously updates a tuned model using a parameter procedure.
     /// </summary>
@@ -987,6 +971,7 @@ type
     /// </code>
     procedure ASynUpdate(const TunedModelName: string; const UpdateMask: string; ParamProc: TProc<TTunedModelParams>;
       CallBacks: TFunc<TAsynTunedModel>); overload;
+
     /// <summary>
     /// Asynchronously deletes a tuned model by its name.
     /// </summary>
@@ -1024,6 +1009,7 @@ type
     /// </code>
     /// </remarks>
     procedure ASynDelete(const TunedModelName: string; CallBacks: TFunc<TAsynModelDelete>);
+
     /// <summary>
     /// Creates a new model training operation using a JSON object.
     /// </summary>
@@ -1048,6 +1034,7 @@ type
     /// </code>
     /// </remarks>
     function Create(ParamProc: TProc<TTunedModelParams>): TModelTraining; overload;
+
     /// <summary>
     /// Retrieves a list of tuned models with pagination support.
     /// </summary>
@@ -1064,6 +1051,7 @@ type
     /// Returns an instance of <c>TTunedModels</c> containing the list of tuned models and pagination information.
     /// </returns>
     function Create(const Value: TJSONObject): TModelTraining; overload;
+
     /// <summary>
     /// Creates a new model training operation using a parameter procedure.
     /// </summary>
@@ -1074,6 +1062,7 @@ type
     /// Returns an instance of <c>TModelTraining</c> representing the training operation.
     /// </returns>
     function List(const PageSize: Integer; const PageToken, Filter: string): TTunedModels;
+
     /// <summary>
     /// Retrieves a specific tuned model by its name.
     /// </summary>
@@ -1084,6 +1073,7 @@ type
     /// Returns an instance of <c>TTunedModel</c> representing the retrieved tuned model.
     /// </returns>
     function Retrieve(const TunedModelName: string): TTunedModel;
+
     /// <summary>
     /// Updates a tuned model using a parameter procedure.
     /// </summary>
@@ -1114,6 +1104,7 @@ type
     /// </code>
     /// </remarks>
     function Update(const TunedModelName: string; const UpdateMask: string; ParamProc: TProc<TTunedModelParams>): TTunedModel; overload;
+
     /// <summary>
     /// Updates a tuned model using a JSON object.
     /// </summary>
@@ -1130,6 +1121,7 @@ type
     /// Returns an instance of <c>TTunedModel</c> representing the updated tuned model.
     /// </returns>
     function Update(const TunedModelName: string; const UpdateMask: string; const Value: TJSONObject): TTunedModel; overload;
+
     /// <summary>
     /// Deletes a tuned model by its name.
     /// </summary>
@@ -1146,45 +1138,6 @@ implementation
 
 uses
   System.StrUtils, System.IOUtils, System.Rtti, Rest.Json;
-
-{ TModelStateHelper }
-
-class function TModelStateHelper.Create(const Value: string): TModelState;
-begin
-  var Index := IndexStr(AnsiUpperCase(Value), [
-         'STATE_UNSPECIFIED', 'CREATING', 'ACTIVE', 'FAILED']);
-  if Index = -1 then
-    raise Exception.CreateFmt('"Model state" unknown : %s', [Value]);
-  Result := TModelState(Index);
-end;
-
-function TModelStateHelper.ToString: string;
-begin
-  case Self of
-    STATE_UNSPECIFIED:
-      Exit('STATE_UNSPECIFIED');
-    CREATING:
-      Exit('CREATING');
-    ACTIVE:
-      Exit('ACTIVE');
-    FAILED:
-      Exit('FAILED');
-  end;
-end;
-
-{ TModelStateInterceptor }
-
-function TModelStateInterceptor.StringConverter(Data: TObject;
-  Field: string): string;
-begin
-  Result := RTTI.GetType(Data.ClassType).GetField(Field).GetValue(Data).AsType<TModelState>.ToString;
-end;
-
-procedure TModelStateInterceptor.StringReverter(Data: TObject; Field,
-  Arg: string);
-begin
-  RTTI.GetType(Data.ClassType).GetField(Field).SetValue(Data, TValue.From(TModelState.Create(Arg)));
-end;
 
 { TTunedModelParams }
 
@@ -1312,13 +1265,9 @@ end;
 class function TTuningTaskHelper.ExamplesBuilder(
   const Value: TArray<TTuningExample>): TJSONObject;
 begin
-  {--- Add examples to a JSON array }
-  var JSONArray := TJSONArray.Create;
-  for var Item in Value do
-    JSONArray.Add(Item.Detach);
-
-  {--- Building the JSON string for the API request }
-  Result := TJSONObject.Create.AddPair('examples', TJSONObject.Create.AddPair('examples', JSONArray));
+  Result := TJSONObject.Create.AddPair('examples',
+    TJSONObject.Create
+      .AddPair('examples', TJSONHelper.ToJsonArray<TTuningExample>(Value)));
 end;
 
 class function TTuningTaskHelper.ExamplesBuilder(

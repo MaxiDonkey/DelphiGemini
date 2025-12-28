@@ -1,0 +1,7 @@
+unit Gemini.Core.ArrayBuilder;
+
+interface
+
+implementation
+
+end.

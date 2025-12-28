@@ -10,60 +10,11 @@ unit Gemini.Schema;
 interface
 
 uses
-  System.SysUtils, System.Classes, REST.JsonReflect, System.JSON, REST.Json.Types,
-  Gemini.API.Params;
+  System.SysUtils, System.Classes, System.JSON,
+  REST.Json.Types, REST.JsonReflect,
+  Gemini.API.Params, Gemini.Types;
 
 type
-  /// <summary>
-  /// Type contains the list of OpenAPI data types as defined by https://spec.openapis.org/oas/v3.0.3#data-types
-  /// </summary>
-  TSchemaType = (
-    /// <summary>
-    /// Not specified, should not be used.
-    /// </summary>
-    TYPE_UNSPECIFIED,
-    /// <summary>
-    /// String type.
-    /// </summary>
-    stSTRING,
-    /// <summary>
-    /// Number type.
-    /// </summary>
-    stNUMBER,
-    /// <summary>
-    /// Integer type.
-    /// </summary>
-    stINTEGER,
-    /// <summary>
-    /// Boolean type.
-    /// </summary>
-    stBOOLEAN,
-    /// <summary>
-    /// Array type.
-    /// </summary>
-    stARRAY,
-    /// <summary>
-    /// Object type.
-    /// </summary>
-    stOBJECT
-  );
-
-  /// <summary>
-  /// Helper record for the <c>TSchemaType</c> enumeration, providing utility methods for converting
-  /// between <c>TSchemaType</c> values and their string representations.
-  /// </summary>
-  TSchemaTypeHelper = record helper for TSchemaType
-    /// <summary>
-    /// Converts the current <c>TSchemaType</c> value to its corresponding string representation.
-    /// </summary>
-    /// <returns>
-    /// A string representing the current <c>TSchemaType</c> value.
-    /// </returns>
-    function ToString: string;
-  end;
-
-  TSchemaParams = class;
-
   /// <summary>
   /// Provides helper methods for creating property items in OpenAPI schema definitions.
   /// </summary>
@@ -107,6 +58,7 @@ type
     /// Valid types include <c>string</c>, <c>number</c>, <c>integer</c>, <c>boolean</c>, <c>array</c>, and <c>object</c>.
     /// </remarks>
     function &Type(const Value: TSchemaType): TSchemaParams;
+
     /// <summary>
     /// Specifies the format of the data type.
     /// </summary>
@@ -118,6 +70,7 @@ type
     /// for <c>number</c> types; and <c>byte</c>, <c>binary</c>, <c>date</c>, <c>date-time</c>, <c>password</c> for <c>string</c> types.
     /// </remarks>
     function Format(const Value: string): TSchemaParams;
+
     /// <summary>
     /// Adds a description to the schema.
     /// </summary>
@@ -128,6 +81,7 @@ type
     /// This field supports Markdown syntax for rich text representation.
     /// </remarks>
     function Description(const Value: string): TSchemaParams;
+
     /// <summary>
     /// Specifies whether the schema's value can be null.
     /// </summary>
@@ -138,6 +92,7 @@ type
     /// By default, this is false.
     /// </remarks>
     function Nullable(const Value: Boolean): TSchemaParams;
+
     /// <summary>
     /// Specifies an enumeration of possible values.
     /// </summary>
@@ -148,6 +103,7 @@ type
     /// The schema's type must be <c>string</c> when using enum.
     /// </remarks>
     function Enum(const Value: TArray<string>): TSchemaParams;
+
     /// <summary>
     /// Specifies the maximum number of items allowed in an array schema.
     /// </summary>
@@ -158,6 +114,7 @@ type
     /// of items the array can contain.
     /// </remarks>
     function MaxItems(const Value: string): TSchemaParams;
+
     /// <summary>
     /// Specifies the minimum number of items required in an array schema.
     /// </summary>
@@ -168,6 +125,7 @@ type
     /// of items the array must contain.
     /// </remarks>
     function MinItems(const Value: string): TSchemaParams;
+
     /// <summary>
     /// Adds a property to an object schema.
     /// </summary>
@@ -179,6 +137,7 @@ type
     /// Each property is a key-value pair where the key is the property name and the value is a schema defining the property.
     /// </remarks>
     function Properties(const Key: string; const Value: TSchemaParams): TSchemaParams; overload;
+
     /// <summary>
     /// Adds a property to an object schema using a parameterized procedure to configure the property's schema.
     /// </summary>
@@ -189,6 +148,7 @@ type
     /// This overload allows you to define the property's schema inline using a procedural configuration.
     /// </remarks>
     function Properties(const Key: string; const ParamProc: TProcRef<TSchemaParams>): TSchemaParams; overload;
+
     /// <summary>
     /// Adds multiple properties to an object schema.
     /// </summary>
@@ -198,6 +158,7 @@ type
     /// This overload allows adding multiple properties at once to the object schema.
     /// </remarks>
     function Properties(const Value: TArray<TJSONPair>): TSchemaParams; overload;
+
     /// <summary>
     /// Specifies which properties are required in an object schema.
     /// </summary>
@@ -208,6 +169,7 @@ type
     /// is validated against the schema.
     /// </remarks>
     function Required(const Value: TArray<string>): TSchemaParams;
+
     /// <summary>
     /// Specifies the schema of the items in an array schema.
     /// </summary>
@@ -217,6 +179,7 @@ type
     /// The <c>items</c> keyword is used in array schemas to define the schema of each item in the array.
     /// </remarks>
     function Items(const Value: TSchemaParams): TSchemaParams; overload;
+
     /// <summary>
     /// Specifies the schema of the items in an array schema using a parameterized procedure.
     /// </summary>
@@ -226,11 +189,13 @@ type
     /// This overload allows you to define the items' schema inline using a procedural configuration.
     /// </remarks>
     function Items(const ParamProc: TProcRef<TSchemaParams>): TSchemaParams; overload;
+
     /// <summary>
     /// Creates a new instance of <c>TSchemaParams</c>.
     /// </summary>
     /// <returns>A new <c>TSchemaParams</c> instance.</returns>
     class function New: TSchemaParams; overload;
+
     /// <summary>
     /// Creates and configures a new instance of <c>TSchemaParams</c> using a parameterized procedure.
     /// </summary>
@@ -246,28 +211,6 @@ implementation
 
 uses
   System.StrUtils, System.Rtti, Rest.Json;
-
-{ TSchemaTypeHelper }
-
-function TSchemaTypeHelper.ToString: string;
-begin
-  case Self of
-    TYPE_UNSPECIFIED:
-      Exit('type_unspecified');
-    stSTRING:
-      Exit('string');
-    stNUMBER:
-      Exit('number');
-    stINTEGER:
-      Exit('integer');
-    stBOOLEAN:
-      Exit('boolean');
-    stARRAY:
-      Exit('array');
-    stOBJECT:
-      Exit('object');
-  end;
-end;
 
 { TSchemaParams }
 
@@ -295,7 +238,8 @@ begin
       ParamProc(Value);
       Result := Items(Value);
     end
-  else Result := Self;
+  else
+    Result := Self;
 end;
 
 function TSchemaParams.Items(const Value: TSchemaParams): TSchemaParams;
@@ -353,7 +297,8 @@ begin
       ParamProc(Value);
       Result := Properties(Key, Value);
     end
-  else Result := Self;
+  else
+    Result := Self;
 end;
 
 function TSchemaParams.Properties(const Key: string;

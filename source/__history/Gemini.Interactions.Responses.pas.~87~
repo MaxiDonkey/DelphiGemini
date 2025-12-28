@@ -1,0 +1,218 @@
+unit Gemini.Interactions.Responses;
+
+interface
+
+uses
+  System.SysUtils,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.Types, Gemini.Interactions.ResponsesContent,
+  Gemini.Async.Support, Gemini.Async.Promise;
+
+type
+  {$REGION 'TInteractionUsage'}
+
+  TIxModalityTokens = class
+  private
+    FModality: string;
+    FTokens: Int64;
+  public
+    /// <summary>
+    /// The modality associated with the token count.
+    /// </summary>
+    property Modality: string read FModality write FModality;
+
+    /// <summary>
+    /// Number of tokens for the modality.
+    /// </summary>
+    property Tokens: Int64 read FTokens write FTokens;
+  end;
+
+  TIxUsage = class
+  private
+    [JsonNameAttribute('total_input_tokens')]
+    FTotalInputTokens: Int64;
+    [JsonNameAttribute('input_tokens_by_modality')]
+    FInputTokensByModality: TArray<TIxModalityTokens>;
+    [JsonNameAttribute('total_cached_tokens')]
+    FTotalCachedTokens: Int64;
+    [JsonNameAttribute('cached_tokens_by_modality')]
+    FCachedTokensByModality: TArray<TIxModalityTokens>;
+    [JsonNameAttribute('total_output_tokens')]
+    FTotalOutputTokens: Int64;
+    [JsonNameAttribute('output_tokens_by_modality')]
+    FOutputTokensByModality: TArray<TIxModalityTokens>;
+    [JsonNameAttribute('total_tool_use_tokens')]
+    FTotalToolUseTokens: Int64;
+    [JsonNameAttribute('tool_use_tokens_by_modality')]
+    FToolUseTokensByModality: TArray<TIxModalityTokens>;
+    [JsonNameAttribute('total_reasoning_tokens')]
+    FTotalReasoningTokens: Int64;
+    [JsonNameAttribute('total_tokens')]
+    FTotalTokens: Int64;
+  public
+    /// <summary>
+    /// Number of tokens in the prompt (context).
+    /// </summary>
+    property TotalInputTokens: Int64 read FTotalInputTokens write FTotalInputTokens;
+
+    /// <summary>
+    /// A breakdown of input token usage by modality.
+    /// </summary>
+    property InputTokensByModality: TArray<TIxModalityTokens> read FInputTokensByModality write FInputTokensByModality;
+
+    /// <summary>
+    /// Number of tokens in the cached part of the prompt (the cached content).
+    /// </summary>
+    property TotalCachedTokens: Int64 read FTotalCachedTokens write FTotalCachedTokens;
+
+    /// <summary>
+    /// A breakdown of cached token usage by modality.
+    /// </summary>
+    property CachedTokensByModality: TArray<TIxModalityTokens> read FCachedTokensByModality write FCachedTokensByModality;
+
+    /// <summary>
+    /// Total number of tokens across all the generated responses.
+    /// </summary>
+    property TotalOutputTokens: Int64 read FTotalOutputTokens write FTotalOutputTokens;
+
+    /// <summary>
+    /// A breakdown of output token usage by modality.
+    /// </summary>
+    property OutputTokensByModality: TArray<TIxModalityTokens> read FOutputTokensByModality write FOutputTokensByModality;
+
+    /// <summary>
+    /// Number of tokens present in tool-use prompt(s).
+    /// </summary>
+    property TotalToolUseTokens: Int64 read FTotalToolUseTokens write FTotalToolUseTokens;
+
+    /// <summary>
+    /// A breakdown of tool-use token usage by modality.
+    /// </summary>
+    property ToolUseTokensByModality: TArray<TIxModalityTokens> read FToolUseTokensByModality write FToolUseTokensByModality;
+
+    /// <summary>
+    /// Number of tokens of thoughts for thinking models.
+    /// </summary>
+    property TotalReasoningTokens: Int64 read FTotalReasoningTokens write FTotalReasoningTokens;
+
+    /// <summary>
+    /// Total token count for the interaction request (prompt + responses + other internal tokens).
+    /// </summary>
+    property TotalTokens: Int64 read FTotalTokens write FTotalTokens;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  TInteraction = class(TJSONFingerprint)
+  private
+    FModel: string;
+    FAgent: string;
+    FId: string;
+    [JsonReflectAttribute(ctString, rtString, TInteractionStatusTypeInterceptor)]
+    FStatus: TInteractionStatusType;
+    FCreated: string;
+    FUpdated: string;
+    [JsonReflectAttribute(ctString, rtString, TMessageRoleInterceptor)]
+    FRole: TMessageRole;
+    FOutputs: TArray<TIxContent>;
+    FObject: string;
+    FUsage: TIxUsage;
+    [JsonNameAttribute('previous_interaction_id')]
+    FPreviousInteractionId: string;
+  public
+    /// <summary>
+    /// The name of the `Model` used for generating the interaction.
+    /// </summary>
+    property Model: string read FModel write FModel;
+
+    /// <summary>
+    /// The name of the `Agent` used for generating the interaction.
+    /// </summary>
+    property Agent: string read FAgent write FAgent;
+
+    /// <summary>
+    /// Output only. A unique identifier for the interaction completion.
+    /// </summary>
+    property Id: string read FId write FId;
+
+    /// <summary>
+    /// Output only. The status of the interaction.
+    /// </summary>
+    property Status: TInteractionStatusType read FStatus write FStatus;
+
+    /// <summary>
+    /// Output only. The time at which the response was created in ISO 8601 format (YYYY-MM-DDThh:mm:ssZ).
+    /// </summary>
+    property Created: string read FCreated write FCreated;
+
+    /// <summary>
+    /// Output only. The time at which the response was last updated in ISO 8601 format (YYYY-MM-DDThh:mm:ssZ).
+    /// </summary>
+    property Updated: string read FUpdated write FUpdated;
+
+    /// <summary>
+    /// Output only. The role of the interaction.
+    /// </summary>
+    property Role: TMessageRole read FRole write FRole;
+
+    /// <summary>
+    /// Output only. Responses from the model.
+    /// </summary>
+    property Outputs: TArray<TIxContent> read FOutputs write FOutputs;
+
+    /// <summary>
+    /// Output only. The object type of the interaction. Always set to `interaction`.
+    /// </summary>
+    /// <remarks>
+    /// Always set to "interaction".
+    /// </remarks>
+    property &Object: string read FObject write FObject;
+
+    /// <summary>
+    /// Output only. Statistics on the interaction request's token usage.
+    /// </summary>
+    property Usage: TIxUsage read FUsage write FUsage;
+
+    /// <summary>
+    /// The ID of the previous interaction, if any.
+    /// </summary>
+    property PreviousInteractionId: string read FPreviousInteractionId write FPreviousInteractionId;
+
+    destructor Destroy; override;
+  end;
+
+  TAsynInteraction = TAsynCallBack<TInteraction>;
+
+  TPromiseInteraction = TPromiseCallback<Interaction>;
+
+implementation
+
+{ TInteraction }
+
+destructor TInteraction.Destroy;
+begin
+  if Assigned(FUsage) then
+    FUsage.Free;
+  for var Item in FOutputs do
+    Item.Free;
+  inherited;
+end;
+
+{ TIxUsage }
+
+destructor TIxUsage.Destroy;
+begin
+  for var Item in FInputTokensByModality do
+    Item.Free;
+  for var Item in FCachedTokensByModality do
+    Item.Free;
+  for var Item in FOutputTokensByModality do
+    Item.Free;
+  for var Item in FToolUseTokensByModality do
+    Item.Free;
+  inherited;
+end;
+
+end.

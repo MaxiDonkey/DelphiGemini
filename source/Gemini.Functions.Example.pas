@@ -10,7 +10,7 @@ unit Gemini.Functions.Example;
 interface
 
 uses
-  System.SysUtils, Gemini.Functions.Core, Gemini.Schema;
+  System.SysUtils, Gemini.Functions.Core, Gemini.Types, Gemini.Schema;
 
 type
   TWeatherReportFunction = class(TFunctionCore)
@@ -124,20 +124,20 @@ begin
   var Schema := TSchemaParams.New(
     procedure (var Params: TSchemaParams)
     begin
-      Params.&Type(stOBJECT);
+      Params.&Type(TSchemaType.OBJECT);
       Params.Properties('properties',
         procedure (var Params: TSchemaParams)
         begin
           Params.Properties('location',
             procedure (var Params: TSchemaParams)
             begin
-              Params.&Type(stSTRING);
+              Params.&Type(TSchemaType.STRING);
               Params.Description('The city and state, e.g. San Francisco, CA');
             end);
           Params.Properties('unit',
             procedure (var Params: TSchemaParams)
             begin
-              Params.&Type(stSTRING);
+              Params.&Type(TSchemaType.STRING);
               Params.Enum(['celsius', 'fahrenheit']);
             end);
         end);

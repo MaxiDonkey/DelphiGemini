@@ -1,0 +1,500 @@
+unit Gemini.Models;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils,
+  Gemini.API, Gemini.API.Params,
+  Gemini.Async.Support, Gemini.Async.Promise;
+
+type
+  TModel = class(TJSONFingerprint)
+  private
+    FName: string;
+    FBaseModelId: string;
+    FVersion: string;
+    FDisplayName: string;
+    FDescription: string;
+    FInputTokenLimit: string;
+    FOutputTokenLimit: string;
+    FSupportedGenerationMethods: TArray<string>;
+    FThinking: Boolean;
+    FTemperature: double;
+    FMaxTemperature: double;
+    FTopP: double;
+    FTopK: integer;
+
+  public
+    /// <summary>
+    /// The resource name of the Model.
+    /// </summary>
+    /// <remarks>
+    /// Refer to Model variants for all allowed values.
+    /// Format: models/{model} with a {model} naming convention of:
+    ///   "{baseModelId}-{version}"
+    /// </remarks>
+    property Name: string read FName write FName;
+
+    /// <summary>
+    /// The name of the base model, pass this to the generation request.
+    /// </summary>
+    /// <remarks>
+    /// Examples: gemini-1.5-flash
+    /// </remarks>
+    property BaseModelId: string read FBaseModelId write FBaseModelId;
+
+    /// <summary>
+    /// The version number of the model.
+    /// </summary>
+    /// <remarks>
+    /// This represents the major version (1.0 or 1.5)
+    /// </remarks>
+    property Version: string read FVersion write FVersion;
+
+    /// <summary>
+    /// The human-readable name of the model. E.g. "Gemini 1.5 Flash".
+    /// </summary>
+    /// <remarks>
+    /// The name can be up to 128 characters long and can consist of any UTF-8 characters.
+    /// </remarks>
+    property DisplayName: string read FDisplayName write FDisplayName;
+
+    /// <summary>
+    /// A short description of the model.
+    /// </summary>
+    property Description: string read FDescription write FDescription;
+
+    /// <summary>
+    /// Maximum number of input tokens allowed for this model.
+    /// </summary>
+    property InputTokenLimit: string read FInputTokenLimit write FInputTokenLimit;
+
+    /// <summary>
+    /// Maximum number of output tokens available for this model.
+    /// </summary>
+    property OutputTokenLimit: string read FOutputTokenLimit write FOutputTokenLimit;
+
+    /// <summary>
+    /// The model's supported generation methods.
+    /// </summary>
+    /// <remarks>
+    /// The corresponding API method names are defined as Pascal case strings, such as generateMessage and generateContent.
+    /// </remarks>
+    property SupportedGenerationMethods: TArray<string> read FSupportedGenerationMethods write FSupportedGenerationMethods;
+
+    /// <summary>
+    /// Whether the model supports thinking.
+    /// </summary>
+    property Thinking: Boolean read FThinking write FThinking;
+
+    /// <summary>
+    /// Controls the randomness of the output.
+    /// </summary>
+    /// <remarks>
+    /// Values can range over [0.0,maxTemperature], inclusive. A higher value will produce responses that are more varied, while a value closer to 0.0 will typically result in less surprising responses from the model. This value specifies default to be used by the backend while making the call to the model.
+    /// </remarks>
+    property Temperature: double read FTemperature write FTemperature;
+
+    /// <summary>
+    /// The maximum temperature this model can use.
+    /// </summary>
+    property MaxTemperature: double read FMaxTemperature write FMaxTemperature;
+
+    /// <summary>
+    /// For Nucleus sampling.
+    /// </summary>
+    /// <remarks>
+    /// Nucleus sampling considers the smallest set of tokens whose probability sum is at least topP. This value specifies default to be used by the backend while making the call to the model.
+    /// </remarks>
+    property TopP: double read FTopP write FTopP;
+
+    /// <summary>
+    /// For Top-k sampling.
+    /// </summary>
+    /// <remarks>
+    /// Top-k sampling considers the set of topK most probable tokens. This value specifies default to be used by the backend while making the call to the model. If empty, indicates the model doesn't use top-k sampling, and topK isn't allowed as a generation parameter.
+    /// </remarks>
+    property TopK: integer read FTopK write FTopK;
+  end;
+
+  TModels = class(TJSONFingerprint)
+  private
+    FModels: TArray<TModel>;
+    FNextPageToken: string;
+
+  public
+    /// <summary>
+    /// Gets or sets the array of models.
+    /// </summary>
+    /// <remarks>
+    /// The <c>Models</c> property contains a list of model instances that can be accessed or modified.
+    /// Each item in this array represents an individual model with its own properties and settings.
+    /// </remarks>
+    property Models: TArray<TModel> read FModels write FModels;
+
+    /// <summary>
+    /// Gets or sets the pagination token for retrieving the next page of models.
+    /// </summary>
+    /// <remarks>
+    /// If the model list is paginated, this token can be used in subsequent requests to retrieve the next
+    /// set of models. This token is managed by the API and allows efficient handling of large datasets.
+    /// </remarks>
+    property NextPageToken: string read FNextPageToken write FNextPageToken;
+
+    /// <summary>
+    /// Destructor for the <c>TModels</c> class. Frees the memory associated with each model in the array.
+    /// </summary>
+    /// <remarks>
+    /// The destructor ensures that all models in the <c>FModels</c> array are properly freed before
+    /// the <c>TModels</c> instance is destroyed, thus preventing memory leaks.
+    /// </remarks>
+    destructor Destroy; override;
+  end;
+
+  /// <summary>
+  /// Manages asynchronous callbacks for a model search request using <c>TModel</c> as the response type.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TAsynModel</c> type extends the <c>TAsynParams&lt;TModel&gt;</c> record to handle the lifecycle of an asynchronous model operation.
+  /// It provides event handlers that trigger at various stages, such as when the operation starts, completes successfully, or encounters an error.
+  /// This structure facilitates non-blocking model search operations and is specifically tailored for scenarios where multiple model choices are required.
+  /// </remarks>
+  TAsynModel = TAsynCallBack<TModel>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TModel</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseModel</c> is a specialization of <c>TPromiseCallback&lt;TModel&gt;</c> intended for
+  /// promise-based model endpoints (e.g., async/await wrappers). It groups lifecycle callbacks that may be
+  /// invoked while the promise is pending and when it settles (resolved with a <c>TModel</c> or rejected with an error).
+  /// <para>
+  /// • This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseModel = TPromiseCallback<TModel>;
+
+  /// <summary>
+  /// Manages asynchronous callbacks for a model search request that returns a collection of models using <c>TModels</c> as the response type.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TAsynModels</c> type extends the <c>TAsynCallBack&lt;TModels&gt;</c> record to handle the lifecycle of an asynchronous operation
+  /// involving multiple models. This includes event handlers that trigger at key points in the process, such as when the operation begins,
+  /// completes successfully, or encounters an error.
+  /// This structure is designed for non-blocking operations that return a collection of models. The <c>TModels</c> type represents
+  /// a collection of <c>TModel</c> instances, making this type useful when working with multiple model objects in asynchronous requests.
+  /// </remarks>
+  TAsynModels = TAsynCallBack<TModels>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TModels</c> collection.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseModels</c> is a specialization of <c>TPromiseCallback&lt;TModels&gt;</c> intended for
+  /// promise-based model listing endpoints (e.g., async/await wrappers). It groups lifecycle callbacks that may be
+  /// invoked while the promise is pending and when it settles (resolved with a <c>TModels</c> instance or rejected with an error).
+  /// <para>
+  /// • This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseModels = TPromiseCallback<TModels>;
+
+  TAbstractSupport = class(TGeminiAPIRoute)
+  protected
+    function List: TModels; overload; virtual; abstract;
+
+    function List(const PageSize: Integer;
+      const PageToken: string): TModels; overload; virtual; abstract;
+
+    function Retrieve(const ModelName: string): TModel; virtual; abstract;
+
+  end;
+
+  TAsynchronousSupport = class(TAbstractSupport)
+  protected
+    procedure AsynList(const CallBacks: TFunc<TAsynModels>); overload;
+
+    procedure AsynList(const PageSize: Integer;
+      const PageToken: string;
+      const CallBacks: TFunc<TAsynModels>); overload;
+
+    procedure AsynRetrieve(const ModelName: string;
+      const CallBacks: TFunc<TAsynModel>);
+  end;
+
+  TModelsRoute = class(TAsynchronousSupport)
+     /// <summary>
+    /// Retrieves the list of all available models.
+    /// </summary>
+    /// <returns>
+    /// A <c>TModels</c> object containing the list of models.
+    /// </returns>
+    /// <remarks>
+    /// This method sends a request to the API to fetch all available models without pagination or filtering.
+    /// It returns a <c>TModels</c> object containing the collection of models.
+    /// <code>
+    /// var List := Gemini.Models.List;
+    /// try
+    ///   for var Item in List.Models do
+    ///     WriteLn( Item.DisplayName );
+    /// finally
+    ///   List.Free;
+    /// end;
+    /// </code>
+    /// </remarks>
+    function List: TModels; overload; override;
+
+    /// <summary>
+    /// Retrieves a paginated list of models.
+    /// </summary>
+    /// <param name="PageSize">
+    /// The number of models to return per page.
+    /// </param>
+    /// <param name="PageToken">
+    /// A token used to retrieve the next page of models.
+    /// </param>
+    /// <returns>
+    /// A <c>TModels</c> object containing the list of models for the specified page.
+    /// </returns>
+    /// <remarks>
+    /// This overloaded <c>List</c> method allows for paginated retrieval of models.
+    /// The page size specifies how many models to return per request, while the page token
+    /// helps retrieve the next set of models. If no page token is provided, the first page is returned.
+    /// <code>
+    ///
+    /// //Declare global variable var Next: string;
+    ///
+    /// var List := Gemini.Models.List(5, Next);
+    /// try
+    ///   for var Item in List.Models do
+    ///     WriteLn( Item.DisplayName );
+    ///   Next := List.NextPageToken;
+    /// finally
+    ///   List.Free;
+    /// end;
+    /// </code>
+    /// </remarks>
+    function List(const PageSize: Integer;
+      const PageToken: string): TModels; overload; override;
+
+    /// <summary>
+    /// Retrieves a specific model by its name.
+    /// </summary>
+    /// <param name="ModelName">
+    /// The name of the model to retrieve. If the model name does not already start with 'models/', it will be prefixed with 'models/'.
+    /// </param>
+    /// <returns>
+    /// A <c>TModel</c> object representing the requested model.
+    /// </returns>
+    /// <remarks>
+    /// This method sends a request to the API to retrieve a model by its unique name. The <c>ModelName</c>
+    /// parameter is required and can be automatically adjusted with the <c>LowerCase</c> flag. The model name
+    /// will be properly formatted to ensure compatibility with the LLM Gemini framework.
+    /// <code>
+    /// var Model := Gemini.Models.List('models/Gemini-1.5-flash');
+    /// try
+    ///   WriteLn( Model.DisplayName );
+    /// finally
+    ///   Model.Free;
+    /// end;
+    /// </code>
+    /// </remarks>
+    function Retrieve(const ModelName: string): TModel; override;
+
+    /// <summary>
+    /// Asynchronously retrieves a paginated list of available models using a promise-based interface.
+    /// </summary>
+    /// <param name="PageSize">
+    /// The maximum number of models to return in this page.
+    /// </param>
+    /// <param name="PageToken">
+    /// The pagination token identifying which page to retrieve. Pass an empty string to retrieve the first page.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseModels</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TModels&gt;</c> that resolves with a <c>TModels</c> instance containing the retrieved page
+    /// of models (and a next page token if available), or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// Use this overload when you need explicit pagination control. The returned <c>TModels</c> instance may include
+    /// a <c>NextPageToken</c> value that can be passed to subsequent calls to continue listing models.
+    /// </remarks>
+    function AsyncAwaitList(const PageSize: Integer;
+      const PageToken: string;
+      const Callbacks: TFunc<TPromiseModels> = nil): TPromise<TModels>; overload;
+
+    /// <summary>
+    /// Asynchronously retrieves the list of available models using a promise-based interface.
+    /// </summary>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseModels</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TModels&gt;</c> that resolves with a <c>TModels</c> instance containing the retrieved models,
+    /// or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This overload retrieves models without explicitly specifying pagination parameters. If the underlying API
+    /// paginates results, the returned <c>TModels</c> instance may include a <c>NextPageToken</c> that can be used
+    /// with the paginated overload to continue listing models.
+    /// </remarks>
+    function AsyncAwaitList(
+      const Callbacks: TFunc<TPromiseModels> = nil): TPromise<TModels>; overload;
+
+    /// <summary>
+    /// Asynchronously retrieves a specific model by name using a promise-based interface.
+    /// </summary>
+    /// <param name="ModelName">
+    /// The model resource name to retrieve. If the underlying implementation requires the <c>models/</c> prefix,
+    /// the name may be normalized accordingly.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseModel</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TModel&gt;</c> that resolves with the retrieved <c>TModel</c> instance, or rejects with an
+    /// exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// Use this method to obtain detailed metadata for a single model (display name, limits, supported methods, etc.)
+    /// in an async/await workflow while still having access to promise-style callbacks.
+    /// </remarks>
+    function AsyncAwaitRetrieve(const ModelName: string;
+      const Callbacks: TFunc<TPromiseModel> = nil): TPromise<TModel>;
+
+  end;
+
+implementation
+
+{ TModels }
+
+destructor TModels.Destroy;
+begin
+  for var Item in FModels do
+    Item.Free;
+  inherited;
+end;
+
+{ TModelsRoute }
+
+function TModelsRoute.AsyncAwaitList(
+  const Callbacks: TFunc<TPromiseModels>): TPromise<TModels>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TModels>(
+    procedure(const CallbackParams: TFunc<TAsynModels>)
+    begin
+      Self.AsynList(CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TModelsRoute.AsyncAwaitList(const PageSize: Integer;
+  const PageToken: string;
+  const Callbacks: TFunc<TPromiseModels>): TPromise<TModels>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TModels>(
+    procedure(const CallbackParams: TFunc<TAsynModels>)
+    begin
+      Self.AsynList(PageSize, PageToken, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TModelsRoute.AsyncAwaitRetrieve(const ModelName: string;
+  const Callbacks: TFunc<TPromiseModel>): TPromise<TModel>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TModel>(
+    procedure(const CallbackParams: TFunc<TAsynModel>)
+    begin
+      Self.AsynRetrieve(ModelName, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TModelsRoute.List: TModels;
+begin
+  Result := API.Get<TModels>('models');
+end;
+
+function TModelsRoute.List(const PageSize: Integer;
+  const PageToken: string): TModels;
+begin
+  Result := API.Get<TModels>('models', ParamsBuilder(PageSize, PageToken));
+end;
+
+function TModelsRoute.Retrieve(const ModelName: string): TModel;
+begin
+  Result := API.Get<TModel>(ModelNormalize(ModelName));
+end;
+
+{ TAsynchronousSupport }
+
+procedure TAsynchronousSupport.AsynList(const CallBacks: TFunc<TAsynModels>);
+begin
+  with TAsynCallBackExec<TAsynModels, TModels>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TModels
+      begin
+        Result := Self.List;
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynList(const PageSize: Integer;
+  const PageToken: string; const CallBacks: TFunc<TAsynModels>);
+begin
+   with TAsynCallBackExec<TAsynModels, TModels>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TModels
+      begin
+        Result := Self.List(PageSize, PageToken);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynRetrieve(const ModelName: string;
+  const CallBacks: TFunc<TAsynModel>);
+begin
+  with TAsynCallBackExec<TAsynModel, TModel>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TModel
+      begin
+        Result := Retrieve(ModelName);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+end.

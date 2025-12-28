@@ -1,0 +1,608 @@
+unit Unit2;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
+  Gemini, Gemini.Chat, Gemini.Embeddings, Gemini.Safety, Gemini.Files,
+  Gemini.Tools, Gemini.Functions.Example, Gemini.Functions.Core, Gemini.Caching,
+  Gemini.FineTunings, Gemini.GoogleSearch;
+
+type
+  TForm2 = class(TForm)
+    Memo1: TMemo;
+    Button5: TButton;
+    Button1: TButton;
+    Button2: TButton;
+    procedure Button5Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+  private
+    Gemini: IGemini;
+    Next: string;
+  public
+    procedure CallFunction(const Value: TFunctionCall; Func: IFunctionCore);
+  end;
+
+
+  procedure Display(Sender: TObject); overload;
+
+  procedure Display(Sender: TObject; Chat: TChat); overload;
+  procedure Display(Sender: TObject; S: string); overload;
+  procedure Display(Sender: TObject; Candidate: TChatCandidate); overload;
+  procedure Display(Sender: TObject; Embed: TEmbeddingValues); overload;
+  procedure Display(Sender: TObject; Embed: TEmbeddings); overload;
+  procedure Display(Sender: TObject; Files: TFiles); overload;
+  procedure Display(Sender: TObject; Delete: TFileDelete); overload;
+  procedure Display(Sender: TObject; Cache: TCacheContents); overload;
+
+  procedure DisplayStream(Sender: TObject; Buffer: string); overload;
+  procedure DisplayStream(Sender: TObject; Chat: TChat); overload;
+
+  procedure DisplayCode(Sender: TObject; Chat: TChat);
+var
+  Form2: TForm2;
+  Next: string;
+
+implementation
+
+{$R *.dfm}
+
+procedure Display(Sender: TObject; S: string); overload;
+begin
+  var M := Sender as TMemo;
+  M.Lines.Text := M.Text + sLineBreak + S;
+  M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+end;
+
+procedure Display(Sender: TObject; Candidate: TChatCandidate); overload;
+begin
+  for var Item in Candidate.Content.Parts do
+    if Assigned(Item) then
+      DisplayStream(Sender, Item.Text);
+end;
+
+procedure Display(Sender: TObject; Chat: TChat);
+begin
+  var M := Sender as TMemo;
+  for var Item in Chat.Candidates do
+    begin
+      if Item.FinishReason = STOP then
+        for var SubItem in Item.Content.Parts do
+          begin
+            M.Lines.Text := M.Text + sLineBreak + SubItem.Text;
+          end;
+      M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+    end;
+end;
+
+procedure Display(Sender: TObject; Embed: TEmbeddingValues);
+begin
+  var M := Sender as TMemo;
+  for var Item in Embed.Values do
+    begin
+      M.Lines.Text := M.Text + sLineBreak + Item.ToString;
+    end;
+  M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+end;
+
+procedure Display(Sender: TObject; Embed: TEmbeddings); overload;
+begin
+  var M := Sender as TMemo;
+  for var Item in Embed.Embeddings do
+    begin
+      Display(Sender, Item);
+      M.Lines.Text := M.Text + sLineBreak;
+    end;
+  M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+end;
+
+procedure Display(Sender: TObject);
+begin
+  var M := Sender as TMemo;
+  M.Lines.Text := M.Text + sLineBreak;
+  M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+end;
+
+procedure DisplayStream(Sender: TObject; Chat: TChat);
+begin
+  Display(Sender, Chat.Candidates[0]);
+end;
+
+procedure DisplayStream(Sender: TObject; Buffer: string); overload;
+begin
+  var M := Sender as TMemo;
+  for var i := 1 to Length(Buffer) do
+    begin
+      M.Lines.Text := M.Text + Buffer[i];
+      M.Lines.BeginUpdate;
+      try
+        Application.ProcessMessages;
+        M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+      finally
+        M.Lines.EndUpdate;
+      end;
+    end;
+end;
+
+procedure DisplayCode(Sender: TObject; Chat: TChat);
+begin
+  for var Candidate in Chat.Candidates do
+    begin
+      for var Part in Candidate.Content.Parts do
+        begin
+          if Assigned(Part.ExecutableCode) then
+            DisplayStream(Sender, Part.ExecutableCode.Code)
+          else
+            DisplayStream(Sender, Part.Text);
+        end;
+    end;
+end;
+
+procedure Display(Sender: TObject; Cache: TCacheContents); overload;
+begin
+  var M := Sender as TMemo;
+  if Length(Cache.CachedContents) > 0 then
+    begin
+      for var Item in Cache.CachedContents do
+        begin
+          M.Text := M.Text + Item.Name + '  Expire at : ' +  Item.expireTime + sLineBreak;
+          M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+        end;
+    end
+  else
+    M.Text := M.Text + 'No items cached' + sLineBreak;
+  M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+end;
+
+procedure DisplayGoogleSearch(Sender: TObject; Chat: TChat);
+begin
+  var M := Sender as TMemo;
+  for var Item in Chat.Candidates do
+    begin
+      if Item.FinishReason = STOP then
+        begin
+          for var SubItem in Item.Content.Parts do
+            begin
+              M.Lines.Text := M.Text + sLineBreak + SubItem.Text;
+            end;
+          if Assigned(Item.GroundingMetadata) then
+            begin
+              for var Chunk in Item.GroundingMetadata.GroundingChunks do
+                begin
+                  M.Lines.Text := M.Text + sLineBreak + Chunk.Web.Title + sLineBreak;
+                  M.Lines.Text := M.Text + sLineBreak + Chunk.Web.Uri + sLineBreak;
+                end;
+              M.Lines.Text := M.Text + sLineBreak + Item.GroundingMetadata.WebSearchQueries[0];
+            end;
+        end;
+      M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+    end;
+end;
+
+procedure TForm2.Button1Click(Sender: TObject);
+begin
+  Gemini.Chat.AsynCreate('models/gemini-1.5-pro',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.Add('Trouve les projets Github de Maxidonkey ?')]);
+      Params.Tools(GoogleSearch, 0.1);
+    end,
+    function : TAsynChat
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess := DisplayGoogleSearch;
+      Result.OnError := Display;
+    end);
+end;
+
+procedure Display(Sender: TObject; Files: TFiles); overload;
+begin
+  var M := Sender as TMemo;
+  for var Item in Files.Files do
+    begin
+      M.Text := M.Text + sLineBreak + Item.Name + '   ' + Item.MimeType + '   ' + Item.Uri + sLineBreak;
+      M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+    end;
+  M.Text := M.Text + sLineBreak;
+  M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+end;
+
+procedure Display(Sender: TObject; Delete: TFileDelete); overload;
+begin
+  Display(Sender, 'deleted');
+end;
+
+procedure TForm2.CallFunction(const Value: TFunctionCall; Func: IFunctionCore);
+begin
+  var ArgResult := Func.Execute(Value.Args);
+  Gemini.Chat.ASynCreateStream('models/gemini-1.5-flash',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.Add(ArgResult)]);
+    end,
+    function : TAsynChatStream
+    begin
+      Result.Sender := Memo1;
+      Result.OnProgress := DisplayStream;
+      Result.OnError := Display;
+    end);
+end;
+
+procedure TForm2.Button2Click(Sender: TObject);
+begin
+  var CacheName := 'cachedContents/yz75zl6p9lr1';
+
+  var TunedModelName := 'tunedModels/number-generator-model-ols5oep0fvxt';
+
+  var TuningTask := TTuningTaskParams.Create
+    .Hyperparameters(
+       procedure (var Params : THyperparametersParams)
+       begin
+         Params.LearningRate(0.001);
+         Params.EpochCount(4);
+         Params.BatchSize(2);
+       end)
+    .TrainingData('TrainData01.csv');
+
+  var TuningDataSet := TTunedModelParams.Create
+    .DisplayName('new number generator model')
+    .Description('Update test de nouveau')
+    .BaseModel('models/gemini-1.0-pro-001')
+    .TuningTask(TuningTask);
+
+  var Updated := Gemini.FineTune.Update(TunedModelName, 'displayName,description', TuningDataSet.Detach);
+  try
+    Display(Memo1, Updated.DisplayName + ' - ' + Updated.Description);
+  finally
+    Updated.Free;
+  end;
+  Exit;
+
+//
+//  Gemini.Caching.ASynRetrieve(CacheName,
+//    function : TAsynCache
+//    begin
+//      Result.Sender := Memo1;
+//      Result.OnSuccess :=
+//        procedure (Sender: TObject; Cache: TCache)
+//        begin
+//          Display(Sender, Cache.Name + '  Expire at : ' + Cache.ExpireTime);
+//        end;
+//      Result.OnError := Display;
+//    end);
+//  Exit;
+//
+//  var Deleted := Gemini.FineTune.Delete(TunedModelName);
+//  try
+//    Display(Memo1, TunedModelName + ' - Deleted');
+//  finally
+//    Deleted.Free;
+//  end;
+//  Exit;
+//  var Retrieved := Gemini.FineTune.Retrieve(TunedModelName);
+//  try
+//    Display(Memo1,Retrieved.Name + ' - ' + Retrieved.BaseModel);
+//  finally
+//    Retrieved.Free;
+//  end;
+//  Exit;
+//  var List := Gemini.FineTune.List(20, Next, '');
+//  try
+//    for var Item in List.TunedModels do
+//      begin
+//        Display(Memo1, Item.Name + ' - ' + Item.State.ToString);
+//      end;
+//  finally
+//    List.Free;
+//  end;
+//  Exit;
+//  var TuningTask := TTuningTaskParams.Create
+//    .Hyperparameters(
+//       procedure (var Params : THyperparametersParams)
+//       begin
+//         Params.LearningRate(0.001);
+//         Params.EpochCount(4);
+//         Params.BatchSize(2);
+//       end)
+//    .TrainingData('TrainData01.csv');
+//
+//  var TuningDataSet := TTunedModelParams.Create
+//    .DisplayName('number generator model')
+//    .BaseModel('models/gemini-1.0-pro-001')
+//    .TuningTask(TuningTask);
+//
+//  var Tuning := Gemini.FineTune.Create(TuningDataSet.Detach);
+//  try
+//    Display(Memo1, Tuning.Name + sLineBreak + Tuning.Metadata);
+//  finally
+//    Tuning.Free;
+//  end;
+  Exit;
+
+
+  Gemini.Caching.ASynDelete(CacheName,
+    function : TAsynCacheDelete
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess :=
+        procedure (Sender: TObject; EmptyCache: TCacheDelete)
+        begin
+          Display(Sender, CacheName + ' deleted');
+        end;
+      Result.OnError := Display;
+    end);
+  Exit;
+  Gemini.Caching.ASynUpdate(CacheName, '2300s',
+    function : TAsynCache
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess :=
+        procedure (Sender: TObject; Cache: TCache)
+        begin
+          Display(Sender, Cache.Name + '  Expire at : ' + Cache.ExpireTime);
+        end;
+      Result.OnError := Display;
+    end);
+  Exit;
+  Gemini.Caching.ASynList(20, Next,
+    function : TAsynCacheContents
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+  Exit;
+//  var CacheName := 'cachedContents/779s07oyj53w';
+
+  Gemini.Chat.AsynCreateStream('models/gemini-1.5-flash-001',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([ TPayload.User('Please summarize this transcript') ]);
+      Params.CachedContent(CacheName)
+    end,
+    function : TAsynChatStream
+    begin
+      Result.Sender := Memo1;
+      Result.OnProgress := DisplayStream;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+  Exit;
+  var a11 := 'D:\2025-developpement\Images\a11.txt';
+
+  Gemini.Caching.ASynCreate(
+    procedure (Params: TCacheParams)
+    begin
+      Params.Contents([TPayload.User([a11])]);
+      Params.SystemInstruction('You are an expert on the history of space exploration.');
+      Params.ttl('2000s');
+      Params.Model('models/gemini-1.5-flash-001');
+    end,
+
+    function : TAsynCache
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess :=
+        procedure (Sender: TObject; Cache: TCache)
+        begin
+          DisplayStream(Sender, Cache.Name)
+        end;
+      Result.OnError := Display;
+    end);
+  Exit;
+  var Weather := TWeatherReportFunction.CreateInstance;
+
+  var Chat := Gemini.Chat.Create('models/gemini-1.5-flash',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.User('What is the weather like in Paris?')]);
+      Params.Tools([Weather]);
+      Params.ToolConfig(AUTO);
+    end);
+
+  try
+    for var Item in Chat.Candidates do
+      begin
+        for var SubItem in Item.Content.Parts do
+          begin
+            if Assigned(SubItem.FunctionCall) then
+              CallFunction(SubItem.FunctionCall, Weather) else
+              DisplayStream(Memo1, SubItem.Text);
+          end;
+      end;
+  finally
+    Chat.Free;
+  end;
+  Exit;
+  Gemini.Chat.ASynCreateStream('models/gemini-1.5-flash',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.Add('What is the sum of the first 50 prime numbers? Generate and run code for the calculation, and make sure you get all 50.')]);
+      Params.Tools(CodeExecution);
+    end,
+    function : TAsynChatStream
+    begin
+      Result.Sender := Memo1;
+      Result.OnProgress := DisplayCode;
+      Result.OnError := Display;
+    end);
+  Exit;
+  Gemini.Chat.AsynCreateStream('models/gemini-1.5-flash-001',
+    procedure (Params: TChatParams)
+    begin
+      Params.SystemInstruction('you are a rocket scientist');
+      Params.Contents([ TPayload.Add('What are the differences between the Saturn 5 rocket and the Saturn 1 rocket?') ]);
+    end,
+    function : TAsynChatStream
+    begin
+      Result.Sender := Memo1;
+      Result.OnProgress := DisplayStream;
+      Result.OnError := Display;
+    end);
+
+  Exit;
+  Gemini.Files.AsynDelete('files/yrsihy2hdyz7',
+    function : TAsynFileDelete
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  Exit;
+  Gemini.Files.AsynList(
+     function : TAsynFiles
+     begin
+       Result.Sender := Memo1;
+       Result.OnSuccess := Display;
+       Result.OnError := Display;
+     end);
+  Exit;
+  var GetFile := Gemini.Files.Retrieve('files/yrsihy2hdyz7');
+
+  try
+    Display(Memo1, GetFile.Name + ' : ' + GetFile.MimeType + ' : ' + GetFile.DisplayName);
+  finally
+    GetFile.Free;
+  end;
+
+  Exit;
+  var FileUri := '';
+  var MyFile := Gemini.Files.UpLoad('D:\2025-developpement\Images\Invoice.png', 'MyFile');
+  try
+    FileUri := MyFile.&File.URI;
+    Display(Memo1, FileUri);
+  finally
+    MyFile.Free;
+  end;
+
+  Gemini.Chat.AsynCreate('models/gemini-1.5-pro',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.Add('Describe this image.', [FileUri])]);
+    end,
+    function : TAsynChat
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  Exit;
+  var Integration := Gemini.Embeddings.Create('models/text-embedding-004',
+            procedure (Params: TEmbeddingParams)
+            begin
+              Params.Content(['This is an example']);
+            end);
+  // For displaying, add a TMemo on the form
+  try
+    Display(Memo1, Integration.Embedding)
+  finally
+    Integration.Free;
+  end;
+  Exit;
+  Gemini.Embeddings.AsynCreateBatch('models/text-embedding-004',
+       procedure (Parameters: TEmbeddingBatchParams)
+       begin
+         Parameters.Requests(
+           [
+            TEmbeddingRequestParams.Create(
+              procedure (var Params: TEmbeddingRequestParams)
+              begin
+                Params.Content(['This is an example']);
+                Params.OutputDimensionality(20);
+              end),
+
+              TEmbeddingRequestParams.Create(
+              procedure (var Params: TEmbeddingRequestParams)
+              begin
+                Params.Content(['Second example']);
+                Params.OutputDimensionality(20);
+              end)
+           ]);
+       end,
+       // For displaying, add a TMemo on the form
+       function : TAsynEmbeddings
+       begin
+         Result.Sender := Memo1; // Set a TMemo on the form
+         Result.OnSuccess := Display;
+       end);
+  Exit;
+  var Ref := 'D:\2025-developpement\Images\big.png';
+  Gemini.Chat.AsynCreate('models/gemini-1.5-pro',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.Add('Describe this image.', [Ref])]);
+    end,
+    // For displaying, add a TMemo on the form
+    function : TAsynChat
+    begin
+      Result.Sender := Memo1;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  Exit;
+  var GenerateContent := Gemini.Chat.Create('models/gemini-1.5-flash',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.Add('Write a story about a magic backpack.')]);
+      {--- Specifies safety settings to block unsafe content. }
+      Params.SafetySettings([
+        TSafety.DangerousContent(BLOCK_ONLY_HIGH),
+        TSafety.HateSpeech(BLOCK_MEDIUM_AND_ABOVE) ]);
+      {--- Configures generation options for the model's outputs. }
+      Params.GenerationConfig(
+        procedure (var Params: TGenerationConfig)
+        begin
+          Params.StopSequences(['Title']);
+          Params.Temperature(1.0);
+          Params.MaxOutputTokens(800);
+          Params.TopP(0.8);
+          Params.TopK(10);
+        end);
+    end);
+
+  Exit;
+  Gemini.Chat.AsynCreateStream('models/gemini-1.5-flash',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([
+        TPayload.User('Hello'),
+        TPayload.Assistant('Great to meet you. What would you like to know?'),
+        TPayload.User('I have two dogs in my house. How many paws are in my house?')
+      ]);
+    end,
+    function : TAsynChatStream
+    begin
+      Result.Sender := Memo1;
+      Result.OnProgress := DisplayStream;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+end;
+
+procedure TForm2.Button5Click(Sender: TObject);
+begin
+  var Chat := Gemini.Chat.Create('models/gemini-1.5-pro',
+    procedure (Params: TChatParams)
+    begin
+      Params.Contents([TPayload.Add('Write a story about a magic backpack.')]);
+    end);
+
+  try
+    Display(Memo1, Chat);
+  finally
+    Chat.Free;
+  end;
+end;
+
+procedure TForm2.FormCreate(Sender: TObject);
+begin
+  Gemini := TGeminiFactory.CreateInstance('AIzaSyDmuiXxl13NJK9r5l99mIPtVOd3Ht6TM54');
+end;
+
+end.

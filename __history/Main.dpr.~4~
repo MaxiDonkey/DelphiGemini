@@ -1,0 +1,20 @@
+program Main;
+
+uses
+  Vcl.Forms,
+  GeminiTest in 'GeminiTest.pas' {Form1},
+  Vcl.Themes,
+  Vcl.Styles,
+  Gemini.Safety in 'source\Gemini.Safety.pas',
+  Gemini.Schema in 'source\Gemini.Schema.pas',
+  Gemini.Tools in 'source\Gemini.Tools.pas';
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  TStyleManager.TrySetStyle('Windows11 MineShaft');
+  Application.CreateForm(TForm1, Form1);
+  Application.Run;
+end.

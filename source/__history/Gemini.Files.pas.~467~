@@ -1,0 +1,948 @@
+unit Gemini.Files;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils, System.JSON, System.Net.URLClient,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Exceptions,
+  Gemini.Operation,
+  Gemini.Async.Support, Gemini.Async.Promise;
+
+type
+  TFileParams = class(TJSONParam)
+  public
+    /// <summary>
+    /// Optional. The human-readable display name for the File.
+    /// </summary>
+    /// <param name="Value">
+    /// The display name must be no more than 512 characters in length, including spaces. Example: "Welcome Image"
+    /// </param>
+    /// <returns>
+    /// The string representation of the <c>TFileParams</c> value.
+    /// </returns>
+    function DisplayName(const Value: string): TFileParams;
+  end;
+
+  TFileVideoFileMetadata = class
+  private
+    FVideoDuration: string;
+  public
+    /// <summary>
+    /// Duration of the video.
+    /// </summary>
+    /// <remarks>
+    /// A duration in seconds with up to nine fractional digits, ending with 's'. Example: "3.5s".
+    /// </remarks>
+    property VideoDuration: string read FVideoDuration write FVideoDuration;
+  end;
+
+  /// <summary>
+  /// The <c>TFileContent</c> class is responsible for handling files uploaded to the API.
+  /// </summary>
+  TFileContent = class
+  private
+    FName: string;
+    FDisplayName: string;
+    FMimeType: string;
+    FSizeBytes: string;
+    FCreateTime: string;
+    FUpdateTime: string;
+    FExpirationTime: string;
+    FSha256Hash: string;
+    FUri: string;
+    FDownloadUri: string;
+    [JsonReflectAttribute(ctString, rtString, TStateTypeInterceptor)]
+    FState: TStateType;
+    FSource: TSourceType;
+    FError: TStatus;
+    FVideoMetadata: TFileVideoFileMetadata;
+  public
+    /// <summary>
+    /// Immutable. Identifier. The File resource name.
+    /// </summary>
+    /// <remarks>
+    /// The ID (name excluding the "files/" prefix) can contain up to 40 characters that are lowercase alphanumeric or dashes (-).
+    /// <para>
+    /// The ID cannot start or end with a dash. If the name is empty on create, a unique name will be generated. Example: files/123-456
+    /// </para>
+    /// </remarks>
+    property Name: string read FName write FName;
+
+    /// <summary>
+    /// Optional. The human-readable display name for the File.
+    /// </summary>
+    /// <remarks>
+    /// The display name must be no more than 512 characters in length, including spaces. Example: "Welcome Image"
+    /// </remarks>
+    property DisplayName: string read FDisplayName write FDisplayName;
+
+    /// <summary>
+    /// Output only. MIME type of the file.
+    /// </summary>
+    property MimeType: string read FMimeType write FMimeType;
+
+    /// <summary>
+    /// Output only. Size of the file in bytes.
+    /// </summary>
+    property SizeBytes: string read FSizeBytes write FSizeBytes;
+
+    /// <summary>
+    /// Output only. The timestamp of when the File was created.
+    /// </summary>
+    /// <remarks>
+    /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional
+    /// digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
+    /// </remarks>
+    property CreateTime: string read FCreateTime write FCreateTime;
+
+    /// <summary>
+    /// Output only. The timestamp of when the File was last updated.
+    /// </summary>
+    /// <remarks>
+    /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
+    /// </remarks>
+    property UpdateTime: string read FUpdateTime write FUpdateTime;
+
+    /// <summary>
+    /// Output only. The timestamp of when the File will be deleted. Only set if the File is scheduled to expire.
+    /// </summary>
+    /// <remarks>
+    /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
+    /// </remarks>
+    property ExpirationTime: string read FExpirationTime write FExpirationTime;
+
+    /// <summary>
+    /// Output only. SHA-256 hash of the uploaded bytes.
+    /// </summary>
+    /// <remarks>
+    /// A base64-encoded string.
+    /// </remarks>
+    property Sha256Hash: string read FSha256Hash write FSha256Hash;
+
+    /// <summary>
+    /// Output only. The uri of the File.
+    /// </summary>
+    property Uri: string read FUri write FUri;
+
+    /// <summary>
+    /// Output only. The download uri of the File.
+    /// </summary>
+    property DownloadUri: string read FDownloadUri write FDownloadUri;
+
+    /// <summary>
+    /// Output only. Processing state of the File.
+    /// </summary>
+    property State: TStateType read FState write FState;
+
+    /// <summary>
+    /// Source of the File.
+    /// </summary>
+    property Source: TSourceType read FSource write FSource;
+
+    /// <summary>
+    /// Output only. Error status if File processing failed.
+    /// </summary>
+    property Error: TStatus read FError write FError;
+
+    /// <summary>
+    /// Output only. Metadata for a video.
+    /// </summary>
+    property VideoMetadata: TFileVideoFileMetadata read FVideoMetadata write FVideoMetadata;
+
+    destructor Destroy; override;
+  end;
+
+  /// <summary>
+  /// Represents a file entity within the Gemini API, encapsulating the file's metadata and content.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TFile</c> class contains a <c>TFileContent</c> object which holds detailed information about the file, such as its name, size, MIME type, and processing state.
+  /// Used to manage file operations, such as uploading, retrieving, listing, and deleting files via the Gemini API.
+  /// </remarks>
+  TFile = class(TJSONFingerprint)
+  private
+    FFile: TFileContent;
+  public
+    /// <summary>
+    /// Gets or sets the metadata content of the file.
+    /// </summary>
+    /// <value>
+    /// An instance of <c>TFileContent</c> containing the file's metadata.
+    /// </value>
+    property &File: TFileContent read FFile write FFile;
+
+    destructor Destroy; override;
+  end;
+
+  /// <summary>
+  /// Represents a collection of file entities retrieved from the Gemini API, including pagination support.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TFiles</c> class contains an array of <c>TFileContent</c> objects, each representing the metadata and content of a file.
+  /// Additionally, it includes a <c>NextPageToken</c> property to handle pagination when listing multiple files.
+  /// This class is used to manage and navigate through the list of files available in the Gemini API.
+  /// </remarks>
+  TFiles = class(TJSONFingerprint)
+  private
+    FFiles: TArray<TFileContent>;
+    FNextPageToken: string;
+  public
+    /// <summary>
+    /// An array of <c>TFileContent</c> objects representing the files retrieved from the API.
+    /// </summary>
+    /// <value>
+    /// Each element in the array contains metadata such as the file's name, size, MIME type, and processing state.
+    /// </value>
+    property Files: TArray<TFileContent> read FFiles write FFiles;
+
+    /// <summary>
+    /// A token used to retrieve the next page of results in a paginated list of files.
+    /// </summary>
+    /// <remarks>
+    /// Use this token in subsequent API requests to continue listing files from where the previous request left off.
+    /// </remarks>
+    property NextPageToken: string read FNextPageToken write FNextPageToken;
+
+    destructor Destroy; override;
+  end;
+
+  /// <summary>
+  /// Class defined for compatibility with asynchrony handling.
+  /// </summary>
+  TFileDelete = class
+  end;
+
+  /// <summary>
+  /// Manages asynchronous chat callBacks for a chat request using <c>TFile</c> as the response type.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TAsynFile</c> type extends the <c>TAsynParams&lt;TFile&gt;</c> record to handle the lifecycle of an asynchronous chat operation.
+  /// It provides event handlers that trigger at various stages, such as when the operation starts, completes successfully, or encounters an error.
+  /// This structure facilitates non-blocking chat operations and is specifically tailored for scenarios where multiple choices from a chat model are required.
+  /// </remarks>
+  TAsynFile = TAsynCallBack<TFile>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TFile</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseFile</c> is a specialization of <c>TPromiseCallback&lt;TFile&gt;</c> intended for promise-based
+  /// file endpoints (for example, async/await wrappers around upload operations). It groups lifecycle callbacks
+  /// that may be invoked while the promise is pending and when it settles (resolved with a <c>TFile</c> or
+  /// rejected with an error).
+  /// <para>
+  /// This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseFile = TPromiseCallback<TFile>;
+
+  /// <summary>
+  /// Manages asynchronous chat callBacks for a chat request using <c>TFiles</c> as the response type.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TAsynFiles</c> type extends the <c>TAsynParams&lt;TFiles&gt;</c> record to handle the lifecycle of an asynchronous chat operation.
+  /// It provides event handlers that trigger at various stages, such as when the operation starts, completes successfully, or encounters an error.
+  /// This structure facilitates non-blocking chat operations and is specifically tailored for scenarios where multiple choices from a chat model are required.
+  /// </remarks>
+  TAsynFiles = TAsynCallBack<TFiles>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TFiles</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseFiles</c> is a specialization of <c>TPromiseCallback&lt;TFiles&gt;</c> intended for promise-based
+  /// file listing endpoints (for example, async/await wrappers around <c>List</c> operations). It groups lifecycle
+  /// callbacks that may be invoked while the promise is pending and when it settles (resolved with a <c>TFiles</c>
+  /// or rejected with an error).
+  /// <para>
+  /// This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseFiles = TPromiseCallback<TFiles>;
+
+  /// <summary>
+  /// Manages asynchronous chat callBacks for a chat request using <c>TFileDelete</c> as the response type.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TAsynFileDelete</c> type extends the <c>TAsynParams&lt;TFileDelete&gt;</c> record to handle the lifecycle of an asynchronous chat operation.
+  /// It provides event handlers that trigger at various stages, such as when the operation starts, completes successfully, or encounters an error.
+  /// This structure facilitates non-blocking chat operations and is specifically tailored for scenarios where multiple choices from a chat model are required.
+  /// </remarks>
+  TAsynFileDelete = TAsynCallBack<TFileDelete>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TFileDelete</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseFileDelete</c> is a specialization of <c>TPromiseCallback&lt;TFileDelete&gt;</c> intended for
+  /// promise-based file deletion endpoints (for example, async/await wrappers around <c>Delete</c> operations).
+  /// It groups lifecycle callbacks that may be invoked while the promise is pending and when it settles (resolved
+  /// with a <c>TFileDelete</c> or rejected with an error).
+  /// <para>
+  /// This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseFileDelete = TPromiseCallback<TFileDelete>;
+
+  /// <summary>
+  /// Manages asynchronous chat callBacks for a chat request using <c>TFileContent</c> as the response type.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TAsynFileContent</c> type extends the <c>TAsynParams&lt;TFileContent&gt;</c> record to handle the lifecycle of an asynchronous chat operation.
+  /// It provides event handlers that trigger at various stages, such as when the operation starts, completes successfully, or encounters an error.
+  /// This structure facilitates non-blocking chat operations and is specifically tailored for scenarios where multiple choices from a chat model are required.
+  /// </remarks>
+  TAsynFileContent = TAsynCallBack<TFileContent>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TFileContent</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseFileContent</c> is a specialization of <c>TPromiseCallback&lt;TFileContent&gt;</c> intended for
+  /// promise-based file retrieval endpoints (for example, async/await wrappers around <c>Retrieve</c> operations).
+  /// It groups lifecycle callbacks that may be invoked while the promise is pending and when it settles (resolved
+  /// with a <c>TFileContent</c> or rejected with an error).
+  /// <para>
+  /// This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseFileContent = TPromiseCallback<TFileContent>;
+
+  /// <summary>
+  /// Manages API routes for file operations within the Gemini API, including uploading and retrieving files.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TFilesRes</c> class inherits from <c>TGeminiAPIRoute</c> and provides methods for constructing necessary HTTP headers,
+  /// extracting upload URIs from API responses, and performing raw file uploads. It serves as a foundational class for handling
+  /// lower-level file operations, facilitating the interaction between the application and the Gemini API for file management tasks.
+  /// </remarks>
+  TFilesRes = class(TGeminiAPIRoute)
+  strict private
+    /// <summary>
+    /// Constructs the HTTP headers required to obtain the upload URI for a specified file.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The local filesystem path to the file for which the upload URI is being requested.
+    /// </param>
+    /// <returns>
+    /// An array of <c>TNetHeader</c> objects containing the necessary headers for the URI request.
+    /// </returns>
+    function GetUriHeaders(const FilePath: string): TNetHeaders;
+
+    /// <summary>
+    /// Constructs the HTTP headers required to perform the actual file upload.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The local filesystem path to the file that is to be uploaded.
+    /// </param>
+    /// <returns>
+    /// An array of <c>TNetHeader</c> objects containing the necessary headers for the upload request.
+    /// </returns>
+    function GetUploadHeaders(const FilePath: string): TNetHeaders;
+
+    /// <summary>
+    /// Extracts the upload URI from the API response headers after initiating a file upload.
+    /// </summary>
+    /// <remarks>
+    /// This method first constructs and sets the necessary custom headers to initiate a URI request
+    /// for the specified file. It sends this request to the 'upload/v1beta/files' endpoint.
+    /// If successful, the URI is extracted from the response header 'x-goog-upload-url', and any
+    /// newline characters are removed. If no URI is provided by the server, this function will
+    /// return an empty string, indicating the operation was unsuccessful.
+    ///
+    /// Use cases:
+    /// - This method is called internally when attempting to upload a file, and a successful response
+    ///   indicates that the server has provided a valid upload URI for the file.
+    /// - If a display name is provided in the `ParamProc` parameter, it will be included as a
+    ///   parameter in the URI request, which can be useful for descriptive logging and retrieval purposes.
+    ///
+    /// </remarks>
+    /// <param name="FilePath">
+    /// The local filesystem path to the file for which the upload URI is being requested.
+    /// </param>
+    /// <param name="ParamProc">
+    /// An optional procedure to configure additional file parameters, such as a display name,
+    /// before extracting the URI.
+    /// </param>
+    /// <returns>
+    /// A string representing the upload URI extracted from the API response headers. If the
+    /// request is unsuccessful, it returns an empty string.
+    /// </returns>
+    function ExtractUriFromHeaders(const FilePath: string; const ParamProc: TProc<TFileParams>): string;
+
+    /// <summary>
+    /// Attempts to obtain the upload URI for a specified file, optionally including a display name.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The local filesystem path to the file for which the upload URI is being requested.
+    /// </param>
+    /// <param name="DisplayName">
+    /// An optional human-readable name for the file. If provided, it will be included in the URI request parameters.
+    /// </param>
+    /// <returns>
+    /// A string representing the obtained upload URI. If the display name is provided, it will be included in the URI parameters.
+    /// </returns>
+    function TryToObtainUriValue(const FilePath: string; const DisplayName: string = ''): string;
+
+  protected
+    /// <summary>
+    /// Uploads a file to the Gemini API using the specified file path and display name.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The local path to the file to be uploaded.
+    /// </param>
+    /// <param name="DisplayName">
+    /// An optional human-readable name for the file. If provided, it will be used as the display name in the API.
+    /// </param>
+    /// <returns>
+    /// An instance of <c>TFile</c> representing the uploaded file's metadata.
+    /// </returns>
+    function UploadRaw(const FilePath: string; const DisplayName: string = ''): TFile;
+  end;
+
+  TAbstractSupport = class(TFilesRes)
+  protected
+    function List: TFiles; overload; virtual; abstract;
+
+    function List(const PageSize: Integer; const PageToken: string): TFiles; overload; virtual; abstract;
+
+    function Delete(const FileName: string): TFileDelete; virtual; abstract;
+
+    function Retrieve(const FileName: string): TFileContent; virtual; abstract;
+
+    function Upload(const FilePath: string; const DisplayName: string = ''): TFile; overload; virtual; abstract;
+  end;
+
+  TAsynchronousSupport = class(TAbstractSupport)
+  protected
+    procedure AsynUpload(const FilePath: string;
+      const DisplayName: string;
+      CallBacks: TFunc<TAsynFile>); overload;
+
+    procedure AsynUpload(const FilePath: string;
+      const CallBacks: TFunc<TAsynFile>); overload;
+
+    procedure AsynList(const CallBacks: TFunc<TAsynFiles>); overload;
+
+    procedure AsynList(const PageSize: Integer; const PageToken: string;
+      const CallBacks: TFunc<TAsynFiles>); overload;
+
+    procedure AsynDelete(const FileName: string;
+      const CallBacks: TFunc<TAsynFileDelete>);
+
+    procedure AsynRetrieve(const FileName: string;
+      const CallBacks: TFunc<TAsynFileContent>);
+  end;
+
+  /// <summary>
+  /// Provides high-level API routes for managing files within the Gemini API, including uploading, listing, deleting, and retrieving files both synchronously and asynchronously.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TFilesRoute</c> class inherits from <c>TFilesRes</c> and extends its functionality by offering both synchronous and asynchronous methods for file operations.
+  /// It facilitates interactions with the Gemini API by encapsulating the complexities of API calls, allowing developers to easily perform file management tasks such as uploading files with optional display names, listing files with pagination support, deleting specific files, and retrieving file content.
+  /// The asynchronous methods leverage callbacks to handle operations without blocking the main thread, enhancing the application's responsiveness.
+  /// </remarks>
+  TFilesRoute = class(TAsynchronousSupport)
+    /// <summary>
+    /// Synchronously retrieves a list of all files from the Gemini API.
+    /// </summary>
+    /// <returns>
+    /// An instance of <c>TFiles</c> containing an array of <c>TFileContent</c> objects and a pagination token.
+    /// </returns>
+    function List: TFiles; overload; override;
+
+    /// <summary>
+    /// Synchronously retrieves a paginated list of files from the Gemini API.
+    /// </summary>
+    /// <param name="PageSize">
+    /// The maximum number of files to return in the response.
+    /// </param>
+    /// <param name="PageToken">
+    /// A token identifying the page of results to retrieve. This is typically obtained from a previous list response.
+    /// </param>
+    /// <returns>
+    /// An instance of <c>TFiles</c> containing an array of <c>TFileContent</c> objects and a pagination token.
+    /// </returns>
+    function List(const PageSize: Integer; const PageToken: string): TFiles; overload; override;
+
+    /// <summary>
+    /// Synchronously deletes a specified file from the Gemini API.
+    /// </summary>
+    /// <param name="FileName">
+    /// Example: files/abc-123 It takes the form files/{filename}.
+    /// </param>
+    /// <returns>
+    /// An instance of <c>TFileDelete</c> representing the result of the delete operation.
+    /// </returns>
+    function Delete(const FileName: string): TFileDelete; override;
+
+    /// <summary>
+    /// Synchronously retrieves the content and metadata of a specified file from the Gemini API.
+    /// </summary>
+    /// <param name="FileName">
+    /// Example: files/abc-123 It takes the form files/{filename}.
+    /// </param>
+    /// <returns>
+    /// An instance of <c>TFileContent</c> containing the file's metadata and content.
+    /// </returns>
+    function Retrieve(const FileName: string): TFileContent; override;
+
+    /// <summary>
+    /// Synchronously uploads a file to the Gemini API with an optional display name.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The local filesystem path to the file that is to be uploaded.
+    /// </param>
+    /// <param name="DisplayName">
+    /// An optional human-readable name for the file. If provided, it will be used as the display name in the API.
+    /// </param>
+    /// <returns>
+    /// An instance of <c>TFile</c> representing the uploaded file's metadata.
+    /// </returns>
+    function Upload(const FilePath: string; const DisplayName: string = ''): TFile; overload; override;
+
+    /// <summary>
+    /// Asynchronously retrieves the list of files using a promise-based interface.
+    /// </summary>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseFiles</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TFiles&gt;</c> that resolves with the resulting <c>TFiles</c> instance, or rejects with an
+    /// exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This overload retrieves the default (non-paginated) list of files.
+    /// </remarks>
+    function AsyncAwaitList(
+      const Callbacks: TFunc<TPromiseFiles> = nil): TPromise<TFiles>; overload;
+
+    /// <summary>
+    /// Asynchronously retrieves a paginated list of files using a promise-based interface.
+    /// </summary>
+    /// <param name="PageSize">
+    /// The maximum number of files to return in the response.
+    /// </param>
+    /// <param name="PageToken">
+    /// A token identifying the page of results to retrieve. This is typically obtained from a previous list response.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseFiles</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TFiles&gt;</c> that resolves with the resulting <c>TFiles</c> instance (including any
+    /// <c>NextPageToken</c>), or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// Use this overload to page through the file list. Pass the <c>NextPageToken</c> from a previous
+    /// <c>TFiles</c> result as <paramref name="PageToken"/> to retrieve the next page.
+    /// </remarks>
+    function AsyncAwaitList(const PageSize: Integer;
+      const PageToken: string;
+      const Callbacks: TFunc<TPromiseFiles> = nil): TPromise<TFiles>; overload;
+
+    /// <summary>
+    /// Asynchronously deletes a file using a promise-based interface.
+    /// </summary>
+    /// <param name="FileName">
+    /// The file resource name to delete (for example, <c>files/abc-123</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseFileDelete</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TFileDelete&gt;</c> that resolves when the delete operation completes successfully, or rejects
+    /// with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// On success, the promise resolves with a <c>TFileDelete</c> instance (used as a compatibility/result marker).
+    /// </remarks>
+    function AsyncAwaitDelete(const FileName: string;
+      const Callbacks: TFunc<TPromiseFileDelete> = nil): TPromise<TFileDelete>;
+
+    /// <summary>
+    /// Asynchronously retrieves the metadata of a file using a promise-based interface.
+    /// </summary>
+    /// <param name="FileName">
+    /// The file resource name to retrieve (for example, <c>files/abc-123</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseFileContent</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TFileContent&gt;</c> that resolves with the resulting <c>TFileContent</c> instance, or rejects
+    /// with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This method retrieves file metadata (and any processing state/error details) associated with the specified
+    /// file resource name.
+    /// </remarks>
+    function AsyncAwaitRetrieve(const FileName: string;
+      const Callbacks: TFunc<TPromiseFileContent> = nil): TPromise<TFileContent>;
+
+    /// <summary>
+    /// Asynchronously uploads a file using a promise-based interface.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The local filesystem path to the file to upload.
+    /// </param>
+    /// <param name="DisplayName">
+    /// An optional human-readable name for the file. If provided, it is sent to the API as the file display name.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseFile</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TFile&gt;</c> that resolves with the resulting <c>TFile</c> instance (including uploaded file
+    /// metadata), or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This overload uploads a local file and optionally assigns a display name to the remote file resource.
+    /// </remarks>
+    function AsyncAwaitUpload(const FilePath: string;
+      const DisplayName: string;
+      const Callbacks: TFunc<TPromiseFile> = nil): TPromise<TFile>; overload;
+
+    /// <summary>
+    /// Asynchronously uploads a file using a promise-based interface.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The local filesystem path to the file to upload.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseFile</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TFile&gt;</c> that resolves with the resulting <c>TFile</c> instance (including uploaded file
+    /// metadata), or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This overload is a convenience wrapper that uploads a local file without specifying a display name.
+    /// </remarks>
+    function AsyncAwaitUpload(const FilePath: string;
+      const Callbacks: TFunc<TPromiseFile> = nil): TPromise<TFile>; overload;
+
+  end;
+
+implementation
+
+uses
+  System.StrUtils, System.Rtti, Rest.Json, Gemini.Net.MediaCodec;
+
+{ TFilesRoute }
+
+function TFilesRoute.AsyncAwaitList(
+  const Callbacks: TFunc<TPromiseFiles>): TPromise<TFiles>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TFiles>(
+    procedure(const CallbackParams: TFunc<TAsynFiles>)
+    begin
+      Self.AsynList(CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TFilesRoute.AsyncAwaitDelete(const FileName: string;
+  const Callbacks: TFunc<TPromiseFileDelete>): TPromise<TFileDelete>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TFileDelete>(
+    procedure(const CallbackParams: TFunc<TAsynFileDelete>)
+    begin
+      Self.AsynDelete(FileName, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TFilesRoute.AsyncAwaitList(const PageSize: Integer;
+  const PageToken: string;
+  const Callbacks: TFunc<TPromiseFiles>): TPromise<TFiles>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TFiles>(
+    procedure(const CallbackParams: TFunc<TAsynFiles>)
+    begin
+      Self.AsynList(PageSize, PageToken, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TFilesRoute.AsyncAwaitRetrieve(const FileName: string;
+  const Callbacks: TFunc<TPromiseFileContent>): TPromise<TFileContent>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TFileContent>(
+    procedure(const CallbackParams: TFunc<TAsynFileContent>)
+    begin
+      Self.AsynRetrieve(FileName, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TFilesRoute.AsyncAwaitUpload(const FilePath: string;
+  const Callbacks: TFunc<TPromiseFile>): TPromise<TFile>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TFile>(
+    procedure(const CallbackParams: TFunc<TAsynFile>)
+    begin
+      Self.ASynUpload(FilePath, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TFilesRoute.AsyncAwaitUpload(const FilePath, DisplayName: string;
+  const Callbacks: TFunc<TPromiseFile>): TPromise<TFile>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TFile>(
+    procedure(const CallbackParams: TFunc<TAsynFile>)
+    begin
+      Self.ASynUpload(FilePath, DisplayName, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TFilesRoute.Delete(const FileName: string): TFileDelete;
+begin
+  Result := API.Delete<TFileDelete>(FileName);
+end;
+
+function TFilesRoute.List: TFiles;
+begin
+  Result := API.Get<TFiles>('files');
+end;
+
+
+function TFilesRoute.List(const PageSize: Integer;
+  const PageToken: string): TFiles;
+begin
+  Result := API.Get<TFiles>('files', ParamsBuilder(PageSize, PageToken));
+end;
+
+function TFilesRoute.Retrieve(const FileName: string): TFileContent;
+begin
+  Result := API.Get<TFileContent>(FileName);
+end;
+
+function TFilesRoute.Upload(const FilePath, DisplayName: string): TFile;
+begin
+  Result := UploadRaw(FilePath, DisplayName);
+end;
+
+{ TFileParams }
+
+function TFileParams.DisplayName(const Value: string): TFileParams;
+begin
+  Result := TFileParams(Add('file', TJSONObject.Create.AddPair('display_name', Value)));
+end;
+
+{ TFilesRes }
+
+function TFilesRes.ExtractUriFromHeaders(const FilePath: string;
+  const ParamProc: TProc<TFileParams>): string;
+begin
+  TMonitor.Enter(API); // ou un lock dédié dans la route
+  try
+    API.CustomHeaders := GetUriHeaders(FilePath);
+    try
+      var Path := 'upload/v1beta/files';
+      var Name := 'x-goog-upload-url';
+      Result := API.Find<TFileParams>(Path, Name, ParamProc).Replace(#10, '').Replace(#13, '');
+    finally
+      API.CustomHeaders := [];
+    end;
+  finally
+    TMonitor.Exit(API);
+  end;
+end;
+
+function TFilesRes.GetUploadHeaders(const FilePath: string): TNetHeaders;
+begin
+  Result :=
+    [TNetHeader.Create('Content-Length', TMediaCodec.GetFileSize(FilePath).ToString)] +
+    [TNetHeader.Create('X-Goog-Upload-Offset', 0.ToString)] +
+    [TNetHeader.Create('X-Goog-Upload-Command', 'upload, finalize')];
+end;
+
+function TFilesRes.GetUriHeaders(const FilePath: string): TNetHeaders;
+begin
+  Result :=
+    [TNetHeader.Create('X-Goog-Upload-Protocol', 'resumable')] +
+    [TNetHeader.Create('X-Goog-Upload-Command', 'start')] +
+    [TNetHeader.Create('X-Goog-Upload-Header-Content-Length', TMediaCodec.GetFileSize(FilePath).ToString)] +
+    [TNetHeader.Create('X-Goog-Upload-Header-Content-Type', TMediaCodec.GetMimeType(FilePath))];
+end;
+
+function TFilesRes.TryToObtainUriValue(const FilePath,
+  DisplayName: string): string;
+begin
+  if Trim(DisplayName).IsEmpty then
+    Result := ExtractUriFromHeaders(FilePath, nil)
+  else
+    Result := ExtractUriFromHeaders(FilePath,
+      procedure (Params: TFileParams)
+      begin
+        Params.DisplayName(DisplayName);
+      end);
+end;
+
+function TFilesRes.UploadRaw(const FilePath, DisplayName: string): TFile;
+begin
+  API.CustomHeaders := [];
+
+  {--- Try to obtain an URI }
+  var URI := TryToObtainUriValue(FilePath, DisplayName);
+  if URI.IsEmpty then
+    raise EGeminiException.Create('The server has not provided a URI as expected.');
+
+  {--- Upload the file using a URI }
+  API.CustomHeaders := GetUploadHeaders(FilePath);
+  try
+    Result := API.UploadRaw<TFile>(URI, FilePath);
+  finally
+    API.CustomHeaders := [];
+  end;
+end;
+
+{ TFile }
+
+destructor TFile.Destroy;
+begin
+  if Assigned(FFile) then
+    FFile.Free;
+  inherited;
+end;
+
+{ TFileContent }
+
+destructor TFileContent.Destroy;
+begin
+  if Assigned(FError) then
+    FError.Free;
+  if Assigned(FVideoMetadata) then
+    FVideoMetadata.Free;
+  inherited;
+end;
+
+{ TFiles }
+
+destructor TFiles.Destroy;
+begin
+  for var Item in FFiles do
+    Item.Free;
+  inherited;
+end;
+
+{ TAsynchronousSupport }
+
+procedure TAsynchronousSupport.AsynDelete(const FileName: string;
+  const CallBacks: TFunc<TAsynFileDelete>);
+begin
+  with TAsynCallBackExec<TAsynFileDelete, TFileDelete>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TFileDelete
+      begin
+        Result := Self.Delete(FileName);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynList(const PageSize: Integer;
+  const PageToken: string; const CallBacks: TFunc<TAsynFiles>);
+begin
+  with TAsynCallBackExec<TAsynFiles, TFiles>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TFiles
+      begin
+        Result := Self.List(PageSize, PageToken);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynList(const CallBacks: TFunc<TAsynFiles>);
+begin
+  with TAsynCallBackExec<TAsynFiles, TFiles>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TFiles
+      begin
+        Result := Self.List;
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynRetrieve(const FileName: string;
+  const CallBacks: TFunc<TAsynFileContent>);
+begin
+  with TAsynCallBackExec<TAsynFileContent, TFileContent>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TFileContent
+      begin
+        Result := Self.Retrieve(FileName);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynUpload(const FilePath, DisplayName: string;
+  CallBacks: TFunc<TAsynFile>);
+begin
+  with TAsynCallBackExec<TAsynFile, TFile>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TFile
+      begin
+        Result := Self.Upload(FilePath, DisplayName);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynUpload(const FilePath: string;
+  const CallBacks: TFunc<TAsynFile>);
+begin
+  AsynUpload(FilePath, EmptyStr, CallBacks);
+end;
+
+end.

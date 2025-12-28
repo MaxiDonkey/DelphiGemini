@@ -1,0 +1,71 @@
+unit Gemini.Tool;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, REST.JsonReflect, System.JSON, REST.Json.Types,
+  Gemini.API.Params, Gemini.API, Gemini.Schema;
+
+type
+  TFunctionDeclaration = class(TJSONParam)
+  public
+    function Name(const Value: string): TFunctionDeclaration;
+    function Description(const Value: string): TFunctionDeclaration;
+    function Parameters(const Value: TSchemaParams): TFunctionDeclaration; overload;
+    function Parameters(const ParamProc: TProcRef<TSchemaParams>): TFunctionDeclaration; overload;
+  end;
+
+  TToolParams = class(TJSONParam)
+  public
+    function FunctionDeclarations(const Value: TArray<TFunctionDeclaration>): TToolParams;
+  end;
+
+implementation
+
+uses
+  System.StrUtils, System.Rtti, Rest.Json;
+
+{ TFunctionDeclaration }
+
+function TFunctionDeclaration.Description(
+  const Value: string): TFunctionDeclaration;
+begin
+  Result := TFunctionDeclaration(Add('description', Value));
+end;
+
+function TFunctionDeclaration.Name(const Value: string): TFunctionDeclaration;
+begin
+  Result := TFunctionDeclaration(Add('name', Value));
+end;
+
+function TFunctionDeclaration.Parameters(
+  const ParamProc: TProcRef<TSchemaParams>): TFunctionDeclaration;
+begin
+  if Assigned(ParamProc) then
+    begin
+      var Value := TSchemaParams.Create;
+      ParamProc(Value);
+      Result := TFunctionDeclaration(Add('parameters', Value.Detach));
+    end
+  else Result := Self;
+end;
+
+function TFunctionDeclaration.Parameters(
+  const Value: TSchemaParams): TFunctionDeclaration;
+begin
+  Result := TFunctionDeclaration(Add('parameters', Value.Detach));
+end;
+
+{ TToolParams }
+
+function TToolParams.FunctionDeclarations(
+  const Value: TArray<TFunctionDeclaration>): TToolParams;
+begin
+  var JSONDeclarations := TJSONArray.Create;
+  for var Item in Value do
+    begin
+      JSONDeclarations.Add(Item.Detach);
+    end;
+end;
+
+end.

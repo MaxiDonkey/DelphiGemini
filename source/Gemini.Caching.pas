@@ -10,8 +10,11 @@ unit Gemini.Caching;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.JSON, Gemini.API.Params, Gemini.API,
-  Gemini.Tools, Gemini.Async.Support, Gemini.Chat, Gemini.Functions.Core;
+  System.SysUtils, System.JSON,
+  Gemini.API.Params, Gemini.API,
+  Gemini.Async.Support, Gemini.Async.Promise,
+  Gemini.Tools, Gemini.Functions.Core,
+  Gemini.Chat.Request, Gemini.Chat.Request.Tools, Gemini.Chat.Request.ToolConfig;
 
 type
   /// <summary>
@@ -22,7 +25,6 @@ type
   /// Supports method chaining for setting multiple parameters in a fluent style.
   /// </remarks>
   TCacheParams = class(TJSONParam)
-  public
     /// <summary>
     /// Sets the content of the current conversation with the model.
     /// </summary>
@@ -36,6 +38,7 @@ type
     /// For single-turn queries, this array contains a single message. For multi-turn conversations, include the entire conversation history and the latest message.
     /// </remarks>
     function Contents(const Value: TArray<TContentPayload>): TCacheParams;
+
     /// <summary>
     /// Specifies a list of tools that the model may use to generate the next response.
     /// </summary>
@@ -50,6 +53,7 @@ type
     /// Supported tools include functions and code execution capabilities. Refer to the Function Calling and Code Execution guides for more information.
     /// </remarks>
     function Tools(const Value: TArray<IFunctionCore>): TCacheParams; overload;
+
     /// <summary>
     /// Specifies whether code execution is available as a tool for the model.
     /// </summary>
@@ -63,26 +67,27 @@ type
     /// When enabled, the model can generate code that can be executed to perform tasks.
     /// </remarks>
     function Tools(const CodeExecution: Boolean): TCacheParams; overload;
+
     /// <summary>
-    /// Configures the tool settings for any tools specified in the request.
+    /// Optional. Input only. Immutable. A list of Tools the model may use to generate the next response
+    /// </summary>
+    function Tools(const Value: TArray<TToolParams>): TCacheParams; overload;
+
+    /// <summary>
+    /// Timestamp in UTC of when this resource is considered expired.
     /// </summary>
     /// <param name="Value">
-    /// A <c>TToolMode</c> value specifying the mode in which tools are used by the model.
+    /// • Examples: "2014-10-02T15:01:23Z", "2014-10-02T15:01:23.045123456Z" or "2014-10-02T15:01:23+05:30".
     /// </param>
-    /// <param name="AllowedFunctionNames">
-    /// Optional. An array of strings representing the names of functions that the model is allowed to use.
-    /// </param>
-    /// <returns>
-    /// Returns the updated <c>TCacheParams</c> instance, allowing for method chaining.
-    /// </returns>
     /// <remarks>
-    /// Use this method to specify how the model should use the available tools, including restricting which functions can be called.
-    /// Refer to the Function Calling guide for usage examples.
+    /// This is always provided on output, regardless of what was sent on input.
     /// <para>
-    /// - This config is shared for all tools.
+    /// • Uses RFC 3339, where generated output will always be Z-normalized and use 0, 3, 6 or 9 fractional
+    /// digits. Offsets other than "Z" are also accepted.
     /// </para>
     /// </remarks>
-    function ToolConfig(const Value: TToolMode; AllowedFunctionNames: TArray<string> = []): TCacheParams;
+    function ExpireTime(const Value: string): TCacheParams;
+
     /// <summary>
     /// Input only. New TTL for this resource, input only.
     /// </summary>
@@ -96,16 +101,7 @@ type
     /// The JSON representation for Duration is a String that ends in s to indicate seconds and is preceded by the number of seconds, with nanoseconds expressed as fractional seconds.
     /// </remarks>
     function ttl(const Value: string): TCacheParams;
-    /// <summary>
-    /// Optional. Identifier. The resource name referring to the cached content.
-    /// </summary>
-    /// <param name="Value">
-    /// Format: cachedContents/{id}
-    /// </param>
-    /// <returns>
-    /// Returns the updated <c>TCacheParams</c> instance, allowing for method chaining.
-    /// </returns>
-    function Name(const Value: string): TCacheParams;
+
     /// <summary>
     /// Optional. Immutable. The user-generated meaningful display name of the cached content.
     /// </summary>
@@ -116,6 +112,7 @@ type
     /// Returns the updated <c>TCacheParams</c> instance, allowing for method chaining.
     /// </returns>
     function DisplayName(const Value: string): TCacheParams;
+
     /// <summary>
     /// Required. Immutable. The name of the Model to use for cached content
     /// </summary>
@@ -126,6 +123,7 @@ type
     /// Returns the updated <c>TCacheParams</c> instance, allowing for method chaining.
     /// </returns>
     function Model(const Value: string): TCacheParams;
+
     /// <summary>
     /// Optional. Input only. Immutable. Developer set system instruction.
     /// </summary>
@@ -136,16 +134,19 @@ type
     /// Returns the updated <c>TCacheParams</c> instance, allowing for method chaining.
     /// </returns>
     function SystemInstruction(const Value: string): TCacheParams;
+
     /// <summary>
-    /// Creates a new <c>TCacheParams</c> instance and allows configuration through a procedure reference.
+    /// Optional. Tool configuration for any Tool specified in the request.
     /// </summary>
-    /// <param name="ParamProc">
-    /// A procedure reference that receives a <c>TCacheParams</c> instance to configure its properties.
-    /// </param>
-    /// <returns>
-    /// Returns a new configured <c>TCacheParams</c> instance.
-    /// </returns>
-    class function New(ParamProc: TProcRef<TCacheParams>): TCacheParams; static;
+    /// <remarks>
+    /// Refer to the Function calling guide for a usage example.
+    /// <para>
+    /// • https://ai.google.dev/gemini-api/docs/function-calling?example=meeting#function_calling_mode
+    /// </para>
+    /// </remarks>
+    function ToolConfig(const Value: TToolConfig): TCacheParams;
+
+    class function NewCacheParams(const Model: string): TCacheParams;
   end;
 
   /// <summary>
@@ -155,7 +156,6 @@ type
   /// Only expiration is updatable
   /// </remarks>
   TCacheUpdateParams = class(TJSONParam)
-  public
     /// <summary>
     /// Input only. New TTL for this resource, input only.
     /// </summary>
@@ -165,7 +165,8 @@ type
     /// <returns>
     /// Returns the updated <c>TCacheUpdateParams</c> instance, allowing for method chaining.
     /// </returns>
-    function ttl(const Value: string): TCacheParams;
+    function ttl(const Value: string): TCacheUpdateParams;
+
     /// <summary>
     /// Optional. Identifier. The resource name referring to the cached content.
     /// </summary>
@@ -175,7 +176,14 @@ type
     /// <returns>
     /// Returns the updated <c>TCacheUpdateParams</c> instance, allowing for method chaining.
     /// </returns>
-    function Name(const Value: string): TCacheParams;
+    function Name(const Value: string): TCacheUpdateParams;
+  end;
+
+  TCacheUsageMetadata = class
+  private
+    FTotalTokenCount: Int64;
+  public
+    property TotalTokenCount: Int64 read FTotalTokenCount write FTotalTokenCount;
   end;
 
   /// <summary>
@@ -184,11 +192,11 @@ type
   /// <remarks>
   /// Cached content can be only used with model it was created for.
   /// </remarks>
-  TCache = class
+  TCache = class(TJSONFingerprint)
   private
     FCreateTime: string;
     FUpdateTime: string;
-    FUsageMetadata: TUsageMetadata;
+    FUsageMetadata: TCacheUsageMetadata;
     FExpireTime: string;
     FName: string;
     FDisplayName: string;
@@ -201,6 +209,7 @@ type
     /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
     /// </remarks>
     property CreateTime: string read FCreateTime write FCreateTime;
+
     /// <summary>
     /// When the cache entry was last updated in UTC time.
     /// </summary>
@@ -208,10 +217,12 @@ type
     /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
     /// </remarks>
     property UpdateTime: string read FUpdateTime write FUpdateTime;
+
     /// <summary>
     /// Metadata on the usage of the cached content.
     /// </summary>
-    property UsageMetadata: TUsageMetadata read FUsageMetadata write FUsageMetadata;
+    property UsageMetadata: TCacheUsageMetadata read FUsageMetadata write FUsageMetadata;
+
     /// <summary>
     /// Timestamp in UTC of when this resource is considered expired. This is always provided on output, regardless of what was sent on input.
     /// </summary>
@@ -219,6 +230,7 @@ type
     /// A timestamp in RFC3339 UTC "Zulu" format, with nanosecond resolution and up to nine fractional digits. Examples: "2014-10-02T15:01:23Z" and "2014-10-02T15:01:23.045123456Z".
     /// </remarks>
     property ExpireTime: string read FExpireTime write FExpireTime;
+
     /// <summary>
     /// Identifier. The resource name referring to the cached content.
     /// </summary>
@@ -226,6 +238,7 @@ type
     /// Format: cachedContents/{id}
     /// </remarks>
     property Name: string read FName write FName;
+
     /// <summary>
     /// Optional. Immutable. The user-generated meaningful display name of the cached content.
     /// </summary>
@@ -233,6 +246,7 @@ type
     /// Maximum 128 Unicode characters.
     /// </remarks>
     property DisplayName: string read FDisplayName write FDisplayName;
+
     /// <summary>
     /// Required. Immutable. The name of the Model to use for cached content.
     /// </summary>
@@ -240,13 +254,14 @@ type
     /// Format: models/{model}
     /// </remarks>
     property Model: string read FModel write FModel;
+
     destructor Destroy; override;
   end;
 
   /// <summary>
   /// Lists CachedContents.
   /// </summary>
-  TCacheContents = class
+  TCacheContents = class(TJSONFingerprint)
   private
     FCachedContents: TArray<TCache>;
     FNextPageToken: string;
@@ -255,6 +270,7 @@ type
     /// List of cached contents.
     /// </summary>
     property CachedContents: TArray<TCache> read FCachedContents write FCachedContents;
+
     /// <summary>
     /// A token, which can be sent as pageToken to retrieve the next page.
     /// </summary>
@@ -262,13 +278,14 @@ type
     /// If this field is omitted, there are no subsequent pages.
     /// </remarks>
     property NextPageToken: string read FNextPageToken write FNextPageToken;
+
     destructor Destroy; override;
   end;
 
   /// <summary>
   /// Class defined for compatibility with asynchrony handling.
   /// </summary>
-  TCacheDelete = class
+  TCacheDelete = class(TJSONFingerprint)
   end;
 
   /// <summary>
@@ -282,6 +299,23 @@ type
   TAsynCache = TAsynCallBack<TCache>;
 
   /// <summary>
+  /// Promise-style callback container for operations that return a <c>TCache</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseCache</c> is a specialization of <c>TPromiseCallback&lt;TCache&gt;</c> intended for
+  /// promise-based caching endpoints (for example, async/await wrappers around <c>Create</c>,
+  /// <c>Retrieve</c>, or <c>Update</c> operations).
+  /// <para>
+  /// • It groups lifecycle callbacks that may be invoked while the promise is pending and when it settles
+  /// (resolved with a <c>TCache</c> instance or rejected with an error).
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseCache = TPromiseCallback<TCache>;
+
+  /// <summary>
   /// Manages asynchronous chat callBacks for a chat request using <c>TCacheContents</c> as the response type.
   /// </summary>
   /// <remarks>
@@ -290,6 +324,22 @@ type
   /// This structure facilitates non-blocking chat operations and is specifically tailored for scenarios where multiple choices from a chat model are required.
   /// </remarks>
   TAsynCacheContents = TAsynCallBack<TCacheContents>;
+
+  /// <summary>
+  /// Promise-style callback container for operations that return a <c>TCacheContents</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseCacheContents</c> is a specialization of <c>TPromiseCallback&lt;TCacheContents&gt;</c> intended for
+  /// promise-based cached-content listing endpoints (for example, async/await wrappers around <c>List</c> operations).
+  /// <para>
+  /// • It groups lifecycle callbacks that may be invoked while the promise is pending and when it settles
+  /// (resolved with a <c>TCacheContents</c> instance or rejected with an error).
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseCacheContents = TPromiseCallback<TCacheContents>;
 
   /// <summary>
   /// Manages asynchronous chat callBacks for a chat request using <c>TCacheDelete</c> as the response type.
@@ -302,293 +352,70 @@ type
   TAsynCacheDelete = TAsynCallBack<TCacheDelete>;
 
   /// <summary>
+  /// Promise-style callback container for operations that return a <c>TCacheDelete</c>.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseCacheDelete</c> is a specialization of <c>TPromiseCallback&lt;TCacheDelete&gt;</c> intended for
+  /// promise-based cached-content deletion endpoints (for example, async/await wrappers around <c>Delete</c> operations).
+  /// <para>
+  /// • It groups lifecycle callbacks that may be invoked while the promise is pending and when it settles
+  /// (resolved with a <c>TCacheDelete</c> instance or rejected with an error).
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle; it does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseCacheDelete = TPromiseCallback<TCacheDelete>;
+
+  TAbstractSupport = class(TGeminiAPIRoute)
+  protected
+    function Create(const ParamProc: TProc<TCacheParams>): TCache; virtual; abstract;
+
+    function List(const PageSize: Integer; const PageToken: string): TCacheContents; overload; virtual; abstract;
+
+    function List: TCacheContents; overload; virtual; abstract;
+
+    function Retrieve(const CacheName: string): TCache; virtual; abstract;
+
+    function Update(const CacheName: string; const ttl: string): TCache; overload; virtual; abstract;
+
+    function Update(const CacheName: string;
+      const ParamProc: TProc<TCacheUpdateParams>): TCache; overload; virtual; abstract;
+
+    function Delete(const CacheName: string): TCacheDelete; virtual; abstract;
+  end;
+
+  TAsynchronousSupport = class(TAbstractSupport)
+  protected
+    procedure AsynCreate(const ParamProc: TProc<TCacheParams>;
+      const CallBacks: TFunc<TAsynCache>);
+
+    procedure AsynList(const PageSize: Integer;
+      const PageToken: string;
+      const CallBacks: TFunc<TAsynCacheContents>); overload;
+
+    procedure AsynList(
+      const CallBacks: TFunc<TAsynCacheContents>); overload;
+
+    procedure AsynRetrieve(const CacheName: string;
+      const CallBacks: TFunc<TAsynCache>);
+
+    procedure AsynUpdate(const CacheName: string;
+      const ttl: string;
+      const CallBacks: TFunc<TAsynCache>); overload;
+
+    procedure AsynUpdate(const CacheName: string;
+      const ParamProc: TProc<TCacheUpdateParams>;
+      const CallBacks: TFunc<TAsynCache>); overload;
+
+    procedure AsynDelete(const CacheName: string;
+      const CallBacks: TFunc<TAsynCacheDelete>);
+  end;
+
+  /// <summary>
   /// Provides methods to interact with the caching API for creating, retrieving, updating, listing, and deleting cached content both asynchronously and synchronously.
   /// </summary>
-  TCachingRoute = class(TGeminiAPIRoute)
-    /// <summary>
-    /// Asynchronously creates a new cached content using specified parameters.
-    /// </summary>
-    /// <param name="ParamProc">A procedure to configure the cache parameters.</param>
-    /// <param name="CallBacks">A function that returns asynchronous callbacks for handling the operation's lifecycle.</param>
-    /// <remarks>
-    /// This method initiates an asynchronous operation to create cached content.
-    /// The provided callbacks will be invoked to handle success, error, and progress updates.
-    /// <para>
-    /// Example :
-    /// </para>
-    /// <code>
-    ///   ASynCreate(
-    ///    procedure (Params: TCacheParams)
-    ///    begin
-    ///      // Set parameters
-    ///    end,
-    ///
-    ///    function : TAsynCache
-    ///    begin
-    ///      Result.Sender := my_display_component;
-    ///
-    ///      Result.OnStart :=
-    ///        procedure (Sender: TObject)
-    ///        begin
-    ///           // Trigger the start method
-    ///        end;
-    ///
-    ///      Result.OnSuccess :=
-    ///        procedure (Sender: TObject; Cache: TCache)
-    ///        begin
-    ///          // Trigger the success method
-    ///        end;
-    ///
-    ///      Result.OnError :=
-    ///        procedure (Sender: TObject; Error: string)
-    ///        begin
-    ///          // Trigger the error method
-    ///        end;
-    ///    end);
-    /// </code>
-    /// </remarks>
-    procedure ASynCreate(ParamProc: TProc<TCacheParams>; CallBacks: TFunc<TAsynCache>); overload;
-    /// <summary>
-    /// Asynchronously creates a new cached content from a JSON object.
-    /// </summary>
-    /// <param name="Value">A JSON object containing the cache parameters.</param>
-    /// <param name="CallBacks">A function that returns asynchronous callbacks for handling the operation's lifecycle.</param>
-    /// <remarks>
-    /// Use this method when you have the cache parameters prepared in a JSON format.
-    /// The method takes ownership of the provided JSON object and will free it after use.
-    /// <para>
-    /// Example :
-    /// </para>
-    /// <code>
-    ///   ASynCreate(Value,
-    ///    function : TAsynCache
-    ///    begin
-    ///      Result.Sender := my_display_component;
-    ///
-    ///      Result.OnStart :=
-    ///        procedure (Sender: TObject)
-    ///        begin
-    ///           // Trigger the start method
-    ///        end;
-    ///
-    ///      Result.OnSuccess :=
-    ///        procedure (Sender: TObject; Cache: TCache)
-    ///        begin
-    ///          // Trigger the success method
-    ///        end;
-    ///
-    ///      Result.OnError :=
-    ///        procedure (Sender: TObject; Error: string)
-    ///        begin
-    ///          // Trigger the error method
-    ///        end;
-    ///    end);
-    /// </code>
-    /// </remarks>
-    procedure ASynCreate(const Value: TJSONObject; CallBacks: TFunc<TAsynCache>); overload;
-    /// <summary>
-    /// Asynchronously lists cached contents with pagination support.
-    /// </summary>
-    /// <param name="PageSize">The maximum number of cached contents to return per page.</param>
-    /// <param name="PageToken">The token for the page of results to retrieve.</param>
-    /// <param name="CallBacks">A function that returns asynchronous callbacks for handling the operation's lifecycle.</param>
-    /// <remarks>
-    /// If <c>PageToken</c> is empty, the first page is returned.
-    /// The provided callbacks will be invoked as the operation progresses.
-    /// <para>
-    /// Example :
-    /// </para>
-    /// <code>
-    ///   // Declare the variable "Next" as a string type earlier in the code.
-    ///   ASynList(PageSize, Next
-    ///    function : TAsynCacheContents
-    ///    begin
-    ///      Result.Sender := my_display_component;
-    ///
-    ///      Result.OnStart :=
-    ///        procedure (Sender: TObject)
-    ///        begin
-    ///           // Trigger the start method
-    ///        end;
-    ///
-    ///      Result.OnSuccess :=
-    ///        procedure (Sender: TObject; CacheContents: TCacheContents)
-    ///        begin
-    ///          // Trigger the success method
-    ///          Next := CacheContents.NextPageToken;
-    ///        end;
-    ///
-    ///      Result.OnError :=
-    ///        procedure (Sender: TObject; Error: string)
-    ///        begin
-    ///          // Trigger the error method
-    ///        end;
-    ///    end);
-    /// </code>
-    /// </remarks>
-    procedure ASynList(const PageSize: Integer; const PageToken: string;
-      CallBacks: TFunc<TAsynCacheContents>);
-    /// <summary>
-    /// Asynchronously retrieves a cached content by its name.
-    /// </summary>
-    /// <param name="CacheName">The unique name of the cached content to retrieve, in the format 'cachedContents/{id}'.</param>
-    /// <param name="CallBacks">A function that returns asynchronous callbacks for handling the operation's lifecycle.</param>
-    /// <remarks>
-    /// <code>
-    ///   ASynRetrieve('CacheName_to_retrieve',
-    ///    function : TAsynCache
-    ///    begin
-    ///      Result.Sender := my_display_component;
-    ///
-    ///      Result.OnStart :=
-    ///        procedure (Sender: TObject)
-    ///        begin
-    ///           // Trigger the start method
-    ///        end;
-    ///
-    ///      Result.OnSuccess :=
-    ///        procedure (Sender: TObject; Cache: TCache)
-    ///        begin
-    ///          // Trigger the success method
-    ///        end;
-    ///
-    ///      Result.OnError :=
-    ///        procedure (Sender: TObject; Error: string)
-    ///        begin
-    ///          // Trigger the error method
-    ///        end;
-    ///    end);
-    /// </code>
-    /// </remarks>
-    procedure ASynRetrieve(const CacheName: string; CallBacks: TFunc<TAsynCache>);
-    /// <summary>
-    /// Asynchronously updates the TTL (Time To Live) of a cached content.
-    /// </summary>
-    /// <param name="CacheName">The unique name of the cached content to update.</param>
-    /// <param name="ttl">The new TTL value, specified as a duration string (e.g., '3600s' for one hour).</param>
-    /// <param name="CallBacks">A function that returns asynchronous callbacks for handling the operation's lifecycle.</param>
-    /// <remarks>
-    /// This overload simplifies updating the TTL without the need to specify other parameters.
-    /// <para>
-    /// Example :
-    /// </para>
-    /// <code>
-    ///   ASynUpdate(CacheName, '2500s',
-    ///    function : TAsynCache
-    ///    begin
-    ///      Result.Sender := my_display_component;
-    ///
-    ///      Result.OnStart :=
-    ///        procedure (Sender: TObject)
-    ///        begin
-    ///           // Trigger the start method
-    ///        end;
-    ///
-    ///      Result.OnSuccess :=
-    ///        procedure (Sender: TObject; Cache: TCache)
-    ///        begin
-    ///          // Trigger the success method
-    ///        end;
-    ///
-    ///      Result.OnError :=
-    ///        procedure (Sender: TObject; Error: string)
-    ///        begin
-    ///          // Trigger the error method
-    ///        end;
-    ///    end);
-    /// </code>
-    /// </remarks>
-    procedure ASynUpdate(const CacheName: string; const ttl: string;
-      CallBacks: TFunc<TAsynCache>); overload;
-    /// <summary>
-    /// Asynchronously updates a cached content using specified parameters.
-    /// </summary>
-    /// <param name="CacheName">The unique name of the cached content to update.</param>
-    /// <param name="ParamProc">A procedure to configure the update parameters.</param>
-    /// <param name="CallBacks">A function that returns asynchronous callbacks for handling the operation's lifecycle.</param>
-    /// <remarks>
-    /// Only the TTL can be updated for a cached content.
-    /// <para>
-    /// Example :
-    /// </para>
-    /// <code>
-    ///   ASynUpdate(CacheName,
-    ///    procedure (Params: TCacheUpdateParams)
-    ///    begin
-    ///      // Set parameters
-    ///    end,
-    ///    function : TAsynCache
-    ///    begin
-    ///      Result.Sender := my_display_component;
-    ///
-    ///      Result.OnStart :=
-    ///        procedure (Sender: TObject)
-    ///        begin
-    ///           // Trigger the start method
-    ///        end;
-    ///
-    ///      Result.OnSuccess :=
-    ///        procedure (Sender: TObject; Cache: TCache)
-    ///        begin
-    ///          // Trigger the success method
-    ///        end;
-    ///
-    ///      Result.OnError :=
-    ///        procedure (Sender: TObject; Error: string)
-    ///        begin
-    ///          // Trigger the error method
-    ///        end;
-    ///    end);
-    /// </code>
-    /// </remarks>
-    procedure ASynUpdate(const CacheName: string; ParamProc: TProc<TCacheUpdateParams>;
-      CallBacks: TFunc<TAsynCache>); overload;
-    /// <summary>
-    /// Asynchronously deletes a cached content by its name.
-    /// </summary>
-    /// <param name="CacheName">The unique name of the cached content to delete.</param>
-    /// <param name="CallBacks">A function that returns asynchronous callbacks for handling the operation's lifecycle.</param>
-    /// <remarks>
-    /// Upon successful deletion, the callbacks will be invoked with the result.
-    /// <para>
-    /// Example :
-    /// </para>
-    /// <code>
-    ///   ASynDelete(CacheName,
-    ///    function : TAsynCacheDelete
-    ///    begin
-    ///      Result.Sender := my_display_component;
-    ///
-    ///      Result.OnStart :=
-    ///        procedure (Sender: TObject)
-    ///        begin
-    ///           // Trigger the start method
-    ///        end;
-    ///
-    ///      Result.OnSuccess :=
-    ///        procedure (Sender: TObject; Cache: TCacheDelete)
-    ///        begin
-    ///          // Trigger the success method
-    ///        end;
-    ///
-    ///      Result.OnError :=
-    ///        procedure (Sender: TObject; Error: string)
-    ///        begin
-    ///          // Trigger the error method
-    ///        end;
-    ///    end);
-    /// </code>
-    /// </remarks>
-    procedure ASynDelete(const CacheName: string; CallBacks: TFunc<TAsynCacheDelete>);
-    /// <summary>
-    /// Synchronously creates a new cached content from a JSON object.
-    /// </summary>
-    /// <param name="Value">A <c>TJSONObject</c> containing the cache parameters.</param>
-    /// <returns>The created <c>TCache</c> object representing the cached content.</returns>
-    /// <remarks>
-    /// The method takes ownership of the provided JSON object and will free it after use.
-    /// </remarks>
-    function Create(const Value: TJSONObject): TCache; overload;
+  TCachingRoute = class(TAsynchronousSupport)
     /// <summary>
     /// Synchronously creates a new cached content using specified parameters.
     /// </summary>
@@ -597,7 +424,7 @@ type
     /// <remarks>
     /// This method blocks until the cached content is created.
     /// <para>
-    /// Example
+    /// • Example
     /// </para>
     /// <code>
     ///   var Cache := Create(
@@ -612,7 +439,8 @@ type
     ///   end;
     /// </code>
     /// </remarks>
-    function Create(ParamProc: TProc<TCacheParams>): TCache; overload;
+    function Create(const ParamProc: TProc<TCacheParams>): TCache; override;
+
     /// <summary>
     /// Synchronously lists cached contents with pagination support.
     /// </summary>
@@ -622,23 +450,28 @@ type
     /// <remarks>
     /// If <c>PageToken</c> is empty, the first page is returned.
     /// </remarks>
-    function List(const PageSize: Integer; const PageToken: string): TCacheContents; overload;
+    function List(const PageSize: Integer; const PageToken: string): TCacheContents; overload; override;
+
+    /// <summary>
+    /// Synchronously retrieves the list of cached contents.
+    /// </summary>
+    /// <returns>
+    /// A <c>TCacheContents</c> instance containing the current page of cached contents and, when applicable,
+    /// a <c>NextPageToken</c> value for retrieving subsequent pages.
+    /// </returns>
+    /// <remarks>
+    /// This overload performs a non-paginated list request (default server behavior). If more results are available,
+    /// use the returned <c>NextPageToken</c> with the paginated <c>List(PageSize, PageToken)</c> overload.
+    /// </remarks>
+    function List: TCacheContents; overload; override;
+
     /// <summary>
     /// Synchronously retrieves a cached content by its name.
     /// </summary>
     /// <param name="CacheName">The unique name of the cached content to retrieve.</param>
     /// <returns>The retrieved <c>TCache</c> object representing the cached content.</returns>
-    function Retrieve(const CacheName: string): TCache;
-    /// <summary>
-    /// Synchronously updates a cached content from a JSON object.
-    /// </summary>
-    /// <param name="CacheName">The unique name of the cached content to update.</param>
-    /// <param name="Value">A <c>TJSONObject</c> containing the update parameters.</param>
-    /// <returns>The updated <c>TCache</c> object representing the cached content.</returns>
-    /// <remarks>
-    /// The method takes ownership of the provided JSON object and will free it after use.
-    /// </remarks>
-    function Update(const CacheName: string; const Value: TJSONObject): TCache; overload;
+    function Retrieve(const CacheName: string): TCache; override;
+
     /// <summary>
     /// Synchronously updates the TTL (Time To Live) of a cached content.
     /// </summary>
@@ -648,7 +481,8 @@ type
     /// <remarks>
     /// This overload simplifies updating the TTL without the need to specify other parameters.
     /// </remarks>
-    function Update(const CacheName: string; const ttl: string): TCache; overload;
+    function Update(const CacheName: string; const ttl: string): TCache; overload; override;
+
     /// <summary>
     /// Synchronously updates a cached content using specified parameters.
     /// </summary>
@@ -658,7 +492,7 @@ type
     /// <remarks>
     /// Only the TTL can be updated for a cached content.
     /// <para>
-    /// Example
+    /// • Example
     /// </para>
     /// <code>
     ///   var Cache := Create(
@@ -673,13 +507,169 @@ type
     ///   end;
     /// </code>
     /// </remarks>
-    function Update(const CacheName: string; ParamProc: TProc<TCacheUpdateParams>): TCache; overload;
+    function Update(const CacheName: string;
+      const ParamProc: TProc<TCacheUpdateParams>): TCache; overload; override;
+
     /// <summary>
     /// Synchronously deletes a cached content by its name.
     /// </summary>
     /// <param name="CacheName">The unique name of the cached content to delete.</param>
     /// <returns>A <c>TCacheDelete</c> object indicating the result of the deletion.</returns>
-    function Delete(const CacheName: string): TCacheDelete;
+    function Delete(const CacheName: string): TCacheDelete; override;
+
+    /// <summary>
+    /// Asynchronously creates a cached content resource using a promise-based interface.
+    /// </summary>
+    /// <param name="ParamProc">
+    /// A procedure that configures the cache creation parameters (model, contents, tools, TTL/expiration, etc.).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseCache</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TCache&gt;</c> that resolves with the created <c>TCache</c> instance, or rejects with an
+    /// exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This method is a promise/async-await wrapper around <c>AsynCreate</c>, enabling non-blocking cache creation.
+    /// </remarks>
+    function AsyncAwaitCreate(
+      const ParamProc: TProc<TCacheParams>;
+      const Callbacks: TFunc<TPromiseCache> = nil): TPromise<TCache>;
+
+    /// <summary>
+    /// Asynchronously retrieves a paginated list of cached contents using a promise-based interface.
+    /// </summary>
+    /// <param name="PageSize">
+    /// The maximum number of cached contents to return in the response.
+    /// </param>
+    /// <param name="PageToken">
+    /// A token identifying the page of results to retrieve. This is typically obtained from a previous list response.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseCacheContents</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TCacheContents&gt;</c> that resolves with the resulting <c>TCacheContents</c> instance
+    /// (including any <c>NextPageToken</c>), or rejects with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// Use this overload to page through cached content listings. Pass the <c>NextPageToken</c> from a previous
+    /// <c>TCacheContents</c> result as <paramref name="PageToken"/> to retrieve the next page.
+    /// </remarks>
+    function AsyncAwaitList(const PageSize: Integer;
+      const PageToken: string;
+      const Callbacks: TFunc<TPromiseCacheContents> = nil): TPromise<TCacheContents>; overload;
+
+    /// <summary>
+    /// Asynchronously retrieves the list of cached contents using a promise-based interface.
+    /// </summary>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseCacheContents</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TCacheContents&gt;</c> that resolves with the resulting <c>TCacheContents</c> instance, or rejects
+    /// with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This overload retrieves the default (non-paginated) list of cached contents.
+    /// </remarks>
+    function AsyncAwaitList(
+      const Callbacks: TFunc<TPromiseCacheContents> = nil): TPromise<TCacheContents>; overload;
+
+    /// <summary>
+    /// Asynchronously retrieves a cached content resource using a promise-based interface.
+    /// </summary>
+    /// <param name="CacheName">
+    /// The resource name of the cached content to retrieve (format: <c>cachedContents/{id}</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseCache</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TCache&gt;</c> that resolves with the retrieved <c>TCache</c> instance, or rejects with an
+    /// exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This method is a promise/async-await wrapper around <c>AsynRetrieve</c>, enabling non-blocking cache retrieval.
+    /// </remarks>
+    function AsyncAwaitRetrieve(const CacheName: string;
+      const Callbacks: TFunc<TPromiseCache> = nil): TPromise<TCache>;
+
+    /// <summary>
+    /// Asynchronously updates a cached content resource TTL using a promise-based interface.
+    /// </summary>
+    /// <param name="CacheName">
+    /// The resource name of the cached content to update (format: <c>cachedContents/{id}</c>).
+    /// </param>
+    /// <param name="ttl">
+    /// The new time-to-live for the cached content, expressed as a duration string in seconds ending with <c>s</c>
+    /// (for example, <c>3600s</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseCache</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TCache&gt;</c> that resolves with the updated <c>TCache</c> instance, or rejects with an
+    /// exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// This overload is a convenience wrapper that updates only the TTL for a cached content resource.
+    /// </remarks>
+    function AsyncAwaitUpdate(const CacheName: string;
+      const ttl: string;
+      const Callbacks: TFunc<TPromiseCache> = nil): TPromise<TCache>; overload;
+
+    /// <summary>
+    /// Asynchronously updates a cached content resource using a promise-based interface.
+    /// </summary>
+    /// <param name="CacheName">
+    /// The resource name of the cached content to update (format: <c>cachedContents/{id}</c>).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure that configures the update parameters. Only the TTL is updatable for cached content resources.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseCache</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TCache&gt;</c> that resolves with the updated <c>TCache</c> instance, or rejects with an
+    /// exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// Use this overload when you want to build the update payload via <c>TCacheUpdateParams</c>
+    /// (for example, to set a new TTL).
+    /// </remarks>
+    function AsyncAwaitUpdate(const CacheName: string;
+      const ParamProc: TProc<TCacheUpdateParams>;
+      const Callbacks: TFunc<TPromiseCache> = nil): TPromise<TCache>; overload;
+
+    /// <summary>
+    /// Asynchronously deletes a cached content resource using a promise-based interface.
+    /// </summary>
+    /// <param name="CacheName">
+    /// The resource name of the cached content to delete (format: <c>cachedContents/{id}</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional. A function that returns a <c>TPromiseCacheDelete</c> record containing lifecycle callbacks that may be
+    /// invoked while the promise is pending and when it settles (success or error).
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TCacheDelete&gt;</c> that resolves when the delete operation completes successfully, or rejects
+    /// with an exception on failure.
+    /// </returns>
+    /// <remarks>
+    /// On success, the promise resolves with a <c>TCacheDelete</c> instance (used as a compatibility/result marker).
+    /// </remarks>
+    function AsyncAwaitDelete(const CacheName: string;
+      const Callbacks: TFunc<TPromiseCacheDelete> = nil): TPromise<TCacheDelete>; overload;
+
   end;
 
 implementation
@@ -689,10 +679,8 @@ implementation
 function TCacheParams.Contents(
   const Value: TArray<TContentPayload>): TCacheParams;
 begin
-  var JSONContents := TJSONArray.Create;
-  for var Item in Value do
-    JSONContents.Add(Item.Detach);
-  Result := TCacheParams(Add('contents', JSONContents));
+  Result := TCacheParams(Add('contents',
+    TJSONHelper.ToJsonArray<TContentPayload>(Value)));
 end;
 
 function TCacheParams.DisplayName(const Value: string): TCacheParams;
@@ -700,21 +688,19 @@ begin
   Result := TCacheParams(Add('displayName', Value));
 end;
 
+function TCacheParams.ExpireTime(const Value: string): TCacheParams;
+begin
+  Result := TCacheParams(Add('expireTime', Value));
+end;
+
 function TCacheParams.Model(const Value: string): TCacheParams;
 begin
   Result := TCacheParams(Add('model', Value));
 end;
 
-function TCacheParams.Name(const Value: string): TCacheParams;
+class function TCacheParams.NewCacheParams(const Model: string): TCacheParams;
 begin
-  Result := TCacheParams(Add('name', Value));
-end;
-
-class function TCacheParams.New(ParamProc: TProcRef<TCacheParams>): TCacheParams;
-begin
-  Result := TCacheParams.Create;
-  if Assigned(ParamProc) then
-    ParamProc(Result);
+  Result := TCacheParams.Create.Model(Model);
 end;
 
 function TCacheParams.SystemInstruction(const Value: string): TCacheParams;
@@ -723,27 +709,22 @@ begin
   Result := TCacheParams(Add('systemInstruction', PartsJSON));
 end;
 
-function TCacheParams.ToolConfig(const Value: TToolMode;
-  AllowedFunctionNames: TArray<string>): TCacheParams;
+function TCacheParams.ToolConfig(const Value: TToolConfig): TCacheParams;
 begin
-  var JSONResult := TJSONObject.Create.AddPair('mode', Value.ToString);
-  if Length(AllowedFunctionNames) > 0 then
-    begin
-      var JSONArray := TJSONArray.Create;
-      for var Item in AllowedFunctionNames do
-        begin
-          JSONArray.Add(Item);
-        end;
-      JSONResult.AddPair('allowedFunctionNames', JSONArray);
-    end;
-  Result := TCacheParams(Add('toolConfig',
-              TJSONObject.Create.AddPair('function_calling_config', JSONResult)));
+  Result := TCacheParams(Add('toolConfig', Value.Detach));
+end;
+
+function TCacheParams.Tools(const Value: TArray<TToolParams>): TCacheParams;
+begin
+  Result := TCacheParams(Add('tools',
+    TJSONHelper.ToJsonArray<TToolParams>(Value)));
 end;
 
 function TCacheParams.Tools(const CodeExecution: Boolean): TCacheParams;
 begin
   if not CodeExecution then
     Exit(Self);
+
   var JSONCodeExecution := TJSONObject.Create.AddPair('codeExecution', TJSONObject.Create);
   Result := TCacheParams(Add('tools', TJSONArray.Create.Add(JSONCodeExecution)));
 end;
@@ -753,9 +734,8 @@ function TCacheParams.Tools(
 begin
   var JSONFuncs := TJSONArray.Create;
   for var Item in value do
-    begin
-      JSONFuncs.Add(TToolPluginParams.Add(Item).ToJson);
-    end;
+    JSONFuncs.Add(TToolPluginParams.Add(Item).ToJson);
+
   var JSONDeclaration := TJSONObject.Create.AddPair('function_declarations', JSONFuncs);
   Result := TCacheParams(Add('tools', TJSONArray.Create.Add(JSONDeclaration)));
 end;
@@ -776,8 +756,152 @@ end;
 
 { TCachingRoute }
 
-procedure TCachingRoute.ASynCreate(ParamProc: TProc<TCacheParams>;
-  CallBacks: TFunc<TAsynCache>);
+function TCachingRoute.AsyncAwaitCreate(const ParamProc: TProc<TCacheParams>;
+  const Callbacks: TFunc<TPromiseCache>): TPromise<TCache>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TCache>(
+    procedure(const CallbackParams: TFunc<TAsynCache>)
+    begin
+      Self.AsynCreate(ParamProc, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TCachingRoute.AsyncAwaitDelete(const CacheName: string;
+  const Callbacks: TFunc<TPromiseCacheDelete>): TPromise<TCacheDelete>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TCacheDelete>(
+    procedure(const CallbackParams: TFunc<TAsynCacheDelete>)
+    begin
+      Self.AsynDelete(CacheName, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TCachingRoute.AsyncAwaitList(
+  const Callbacks: TFunc<TPromiseCacheContents>): TPromise<TCacheContents>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TCacheContents>(
+    procedure(const CallbackParams: TFunc<TAsynCacheContents>)
+    begin
+      Self.AsynList(CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TCachingRoute.AsyncAwaitList(const PageSize: Integer;
+  const PageToken: string;
+  const Callbacks: TFunc<TPromiseCacheContents>): TPromise<TCacheContents>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TCacheContents>(
+    procedure(const CallbackParams: TFunc<TAsynCacheContents>)
+    begin
+      Self.AsynList(PageSize, PageToken, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TCachingRoute.AsyncAwaitRetrieve(const CacheName: string;
+  const Callbacks: TFunc<TPromiseCache>): TPromise<TCache>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TCache>(
+    procedure(const CallbackParams: TFunc<TAsynCache>)
+    begin
+      Self.AsynRetrieve(CacheName, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TCachingRoute.AsyncAwaitUpdate(const CacheName: string;
+  const ParamProc: TProc<TCacheUpdateParams>;
+  const Callbacks: TFunc<TPromiseCache>): TPromise<TCache>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TCache>(
+    procedure(const CallbackParams: TFunc<TAsynCache>)
+    begin
+      Self.AsynUpdate(CacheName, ParamProc, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TCachingRoute.AsyncAwaitUpdate(const CacheName, ttl: string;
+  const Callbacks: TFunc<TPromiseCache>): TPromise<TCache>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TCache>(
+    procedure(const CallbackParams: TFunc<TAsynCache>)
+    begin
+      Self.AsynUpdate(CacheName, ttl, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TCachingRoute.Create(const ParamProc: TProc<TCacheParams>): TCache;
+begin
+  Result := API.Post<TCache, TCacheParams>('cachedContents', ParamProc);
+end;
+
+function TCachingRoute.Delete(const CacheName: string): TCacheDelete;
+begin
+  Result := API.Delete<TCacheDelete>(CacheName);
+end;
+
+function TCachingRoute.List: TCacheContents;
+begin
+  Result := API.Get<TCacheContents>('cachedContents');
+end;
+
+function TCachingRoute.List(const PageSize: Integer;
+  const PageToken: string): TCacheContents;
+begin
+  Result := API.Get<TCacheContents>('cachedContents', ParamsBuilder(PageSize, PageToken));
+end;
+
+function TCachingRoute.Retrieve(const CacheName: string): TCache;
+begin
+  Result := API.Get<TCache>(CacheName);
+end;
+
+function TCachingRoute.Update(const CacheName, ttl: string): TCache;
+begin
+  var Cache := TCacheUpdateParams.Create.ttl(ttl);
+  try
+    Result := API.Patch<TCache>(CacheName, Cache.JSON);
+  finally
+    Cache.Free;
+  end;
+end;
+
+function TCachingRoute.Update(const CacheName: string;
+  const ParamProc: TProc<TCacheUpdateParams>): TCache;
+begin
+  Result := API.Patch<TCache, TCacheUpdateParams>(CacheName, ParamProc);
+end;
+
+{ TCacheContents }
+
+destructor TCacheContents.Destroy;
+begin
+  for var Item in FCachedContents do
+    Item.Free;
+  inherited;
+end;
+
+{ TCacheUpdateParams }
+
+function TCacheUpdateParams.Name(const Value: string): TCacheUpdateParams;
+begin
+  Result := TCacheUpdateParams(Add('name', Value));
+end;
+
+function TCacheUpdateParams.ttl(const Value: string): TCacheUpdateParams;
+begin
+  Result := TCacheUpdateParams(Add('ttl', Value));
+end;
+
+{ TAsynchronousSupport }
+
+procedure TAsynchronousSupport.AsynCreate(const ParamProc: TProc<TCacheParams>;
+  const CallBacks: TFunc<TAsynCache>);
 begin
   with TAsynCallBackExec<TAsynCache, TCache>.Create(CallBacks) do
   try
@@ -795,27 +919,8 @@ begin
   end;
 end;
 
-procedure TCachingRoute.ASynCreate(const Value: TJSONObject;
-  CallBacks: TFunc<TAsynCache>);
-begin
-  with TAsynCallBackExec<TAsynCache, TCache>.Create(CallBacks) do
-  try
-    Sender := Use.Param.Sender;
-    OnStart := Use.Param.OnStart;
-    OnSuccess := Use.Param.OnSuccess;
-    OnError := Use.Param.OnError;
-    Run(
-      function: TCache
-      begin
-        Result := Self.Create(Value);
-      end);
-  finally
-    Free;
-  end;
-end;
-
-procedure TCachingRoute.ASynDelete(const CacheName: string;
-  CallBacks: TFunc<TAsynCacheDelete>);
+procedure TAsynchronousSupport.AsynDelete(const CacheName: string;
+  const CallBacks: TFunc<TAsynCacheDelete>);
 begin
   with TAsynCallBackExec<TAsynCacheDelete, TCacheDelete>.Create(CallBacks) do
   try
@@ -833,8 +938,8 @@ begin
   end;
 end;
 
-procedure TCachingRoute.ASynList(const PageSize: Integer;
-  const PageToken: string; CallBacks: TFunc<TAsynCacheContents>);
+procedure TAsynchronousSupport.AsynList(const PageSize: Integer;
+  const PageToken: string; const CallBacks: TFunc<TAsynCacheContents>);
 begin
   with TAsynCallBackExec<TAsynCacheContents, TCacheContents>.Create(CallBacks) do
   try
@@ -852,8 +957,27 @@ begin
   end;
 end;
 
-procedure TCachingRoute.ASynRetrieve(const CacheName: string;
-  CallBacks: TFunc<TAsynCache>);
+procedure TAsynchronousSupport.AsynList(
+  const CallBacks: TFunc<TAsynCacheContents>);
+begin
+  with TAsynCallBackExec<TAsynCacheContents, TCacheContents>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TCacheContents
+      begin
+        Result := Self.List;
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynRetrieve(const CacheName: string;
+  const CallBacks: TFunc<TAsynCache>);
 begin
   with TAsynCallBackExec<TAsynCache, TCache>.Create(CallBacks) do
   try
@@ -871,8 +995,8 @@ begin
   end;
 end;
 
-procedure TCachingRoute.ASynUpdate(const CacheName, ttl: string;
-  CallBacks: TFunc<TAsynCache>);
+procedure TAsynchronousSupport.AsynUpdate(const CacheName, ttl: string;
+  const CallBacks: TFunc<TAsynCache>);
 begin
   with TAsynCallBackExec<TAsynCache, TCache>.Create(CallBacks) do
   try
@@ -890,8 +1014,9 @@ begin
   end;
 end;
 
-procedure TCachingRoute.ASynUpdate(const CacheName: string;
-  ParamProc: TProc<TCacheUpdateParams>; CallBacks: TFunc<TAsynCache>);
+procedure TAsynchronousSupport.AsynUpdate(const CacheName: string;
+  const ParamProc: TProc<TCacheUpdateParams>;
+  const CallBacks: TFunc<TAsynCache>);
 begin
   with TAsynCallBackExec<TAsynCache, TCache>.Create(CallBacks) do
   try
@@ -907,79 +1032,6 @@ begin
   finally
     Free;
   end;
-end;
-
-function TCachingRoute.Create(const Value: TJSONObject): TCache;
-begin
-  try
-    Result := API.Post<TCache>('cachedContents', Value);
-  finally
-    Value.Free;
-  end;
-end;
-
-function TCachingRoute.Create(ParamProc: TProc<TCacheParams>): TCache;
-begin
-  Result := API.Post<TCache, TCacheParams>('cachedContents', ParamProc);
-end;
-
-function TCachingRoute.Delete(const CacheName: string): TCacheDelete;
-begin
-  Result := API.Delete<TCacheDelete>(CacheName);
-end;
-
-function TCachingRoute.List(const PageSize: Integer;
-  const PageToken: string): TCacheContents;
-begin
-  Result := API.Get<TCacheContents>('cachedContents', ParamsBuilder(PageSize, PageToken));
-end;
-
-function TCachingRoute.Retrieve(const CacheName: string): TCache;
-begin
-  Result := API.Get<TCache>(CacheName);
-end;
-
-function TCachingRoute.Update(const CacheName: string;
-  const Value: TJSONObject): TCache;
-begin
-  Result := API.Patch<TCache>(CacheName, Value);
-end;
-
-function TCachingRoute.Update(const CacheName, ttl: string): TCache;
-begin
-  var Cache := TCacheUpdateParams.Create.ttl(ttl);
-  try
-    Result := Update(CacheName, Cache.JSON)
-  finally
-    Cache.Free;
-  end;
-end;
-
-function TCachingRoute.Update(const CacheName: string;
-  ParamProc: TProc<TCacheUpdateParams>): TCache;
-begin
-  Result := API.Patch<TCache, TCacheUpdateParams>(CacheName, ParamProc);
-end;
-
-{ TCacheContents }
-
-destructor TCacheContents.Destroy;
-begin
-  for var Item in FCachedContents do
-    Item.Free;
-  inherited;
-end;
-
-{ TCacheUpdateParams }
-
-function TCacheUpdateParams.Name(const Value: string): TCacheParams;
-begin
-  Result := TCacheParams(Add('name', Value));
-end;
-
-function TCacheUpdateParams.ttl(const Value: string): TCacheParams;
-begin
-  Result := TCacheParams(Add('ttl', Value));
 end;
 
 end.

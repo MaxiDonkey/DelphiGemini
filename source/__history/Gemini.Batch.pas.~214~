@@ -1,0 +1,919 @@
+unit Gemini.Batch;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils, System.JSON,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Exceptions,
+  Gemini.Operation, Gemini.Chat.Request, Gemini.Chat.Request.Content,
+  Gemini.Chat.Request.Tools, Gemini.Chat.Request.ToolConfig, Gemini.Safety,
+  Gemini.Chat.Request.GenerationConfig,
+  Gemini.Async.Support, Gemini.Async.Promise;
+
+type
+  TGenerateContentRequestParams = class(TChatParams)
+    /// <summary>
+    /// Required. The name of the Model to use for generating the completion.
+    /// </summary>
+    function Model(const Value: string): TGenerateContentRequestParams;
+
+    function Contents(const Value: TArray<TContentPayload>): TGenerateContentRequestParams;
+
+    function Tools(const Value: TArray<TToolParams>): TGenerateContentRequestParams;
+
+    function ToolConfig(const Value: TToolConfig): TGenerateContentRequestParams;
+
+    function SafetySettings(const Value: TArray<TSafety>): TGenerateContentRequestParams;
+
+    function SystemInstruction(const Value: string): TGenerateContentRequestParams;
+
+    function GenerationConfig(const Value: TGenerationConfig): TGenerateContentRequestParams;
+
+    function CachedContent(const Value: string): TGenerateContentRequestParams;
+  end;
+
+  TInlinedRequestParams = class(TJSONParam)
+    /// <summary>
+    /// Required. The request to be processed in the batch.
+    /// </summary>
+    function Request(const Value: TGenerateContentRequestParams): TInlinedRequestParams;
+
+    /// <summary>
+    /// Optional. The metadata to be associated with the request.
+    /// </summary>
+    function Metadata(const Value: TJSONObject): TInlinedRequestParams;
+
+    class function NewRequest(
+      const Value: TGenerateContentRequestParams): TInlinedRequestParams; overload;
+
+    class function NewRequest(const Key: string;
+      const Value: TGenerateContentRequestParams): TInlinedRequestParams; overload;
+  end;
+
+  TInlinedRequestsParams = class(TJSONParam)
+    /// <summary>
+    /// Required. The requests to be processed in the batch.
+    /// </summary>
+    function Requests(const Value: TArray<TInlinedRequestParams>): TInlinedRequestsParams;
+  end;
+
+  TInputConfigParams = class(TJSONParam)
+    /// <summary>
+    /// The name of the File containing the input requests.
+    /// </summary>
+    function FileName(const Value: string): TInputConfigParams;
+
+    /// <summary>
+    /// The requests to be processed in the batch.
+    /// </summary>
+    function Requests(const Value: TInlinedRequestsParams): TInputConfigParams;
+  end;
+
+  TBatchContentParams = class(TJSONParam)
+    /// <summary>
+    /// Required. The user-defined name of this batch.
+    /// </summary>
+    function DisplayName(const Value: string): TBatchContentParams;
+
+    /// <summary>
+    /// Required. Input configuration of the instances on which batch processing are performed.
+    /// </summary>
+    function InputConfig(const Value: TInputConfigParams): TBatchContentParams;
+
+    /// <summary>
+    /// Optional. The priority of the batch. Batches with a higher priority value will be processed before
+    /// batches with a lower priority value. Negative values are allowed. Default is 0.
+    /// </summary>
+    function Priority(const Value: Integer): TBatchContentParams;
+  end;
+
+  TBatchParams = class(TJSONParam)
+    function Batch(const Value: TBatchContentParams): TBatchParams;
+  end;
+
+  TBatchCancel = class
+  end;
+
+  TBatchDelete = class
+  end;
+
+  TJsonlDownload = class(TJSONFingerprint)
+    function SaveToJsonl(const FileName: string): Boolean;
+  end;
+
+  /// <summary>
+  /// Asynchronous callback container for batch cancel operations.
+  /// </summary>
+  /// <remarks>
+  /// <c>TAsynBatchCancel</c> is an alias of <c>TAsynCallBack&lt;TBatchCancel&gt;</c> and is used to configure
+  /// lifecycle callbacks for asynchronous calls to the Batch Cancel endpoint (see <c>TBatchRoute.AsynCancel</c>
+  /// and <c>TBatchRoute.AsyncAwaitCancel</c>).
+  /// <para>
+  /// • Typical handlers include <c>OnStart</c> (invoked when the asynchronous work begins),
+  /// <c>OnSuccess</c> (invoked with the resulting <c>TBatchCancel</c>), and <c>OnError</c>
+  /// (invoked with an error message if the call fails).
+  /// </para>
+  /// <para>
+  /// • The <c>TBatchCancel</c> type is an empty marker result used to indicate that the cancel request
+  /// was accepted by the service. It does not carry a payload; callers should typically poll the related
+  /// <c>TOperation</c> (via <c>Retrieve</c>/<c>AsynRetrieve</c>) to observe state transitions and completion.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TAsynBatchCancel = TAsynCallBack<TBatchCancel>;
+
+  /// <summary>
+  /// Promise-style callback container for batch cancel operations.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseBatchCancel</c> is an alias of <c>TPromiseCallback&lt;TBatchCancel&gt;</c> and is intended for
+  /// promise-based APIs that call the Batch Cancel endpoint (see <c>TBatchRoute.AsyncAwaitCancel</c>).
+  /// <para>
+  /// • It allows callers to register lifecycle callbacks that are invoked while the promise is pending
+  /// and when it settles, either resolved with a <c>TBatchCancel</c> or rejected with an error.
+  /// </para>
+  /// <para>
+  /// • The <c>TBatchCancel</c> type is an empty marker result used to indicate that the cancel request
+  /// was accepted by the service. It does not carry a payload; callers should typically poll the related
+  /// <c>TOperation</c> (via <c>Retrieve</c>/<c>AsynRetrieve</c>) to observe state transitions and completion.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseBatchCancel = TPromiseCallback<TBatchCancel>;
+
+  /// <summary>
+  /// Asynchronous callback container for batch delete operations.
+  /// </summary>
+  /// <remarks>
+  /// <c>TAsynBatchDelete</c> is an alias of <c>TAsynCallBack&lt;TBatchDelete&gt;</c> and is used to configure
+  /// lifecycle callbacks for asynchronous calls to the Batch Delete endpoint (see <c>TBatchRoute.AsynDelete</c>
+  /// and <c>TBatchRoute.AsyncAwaitDelete</c>).
+  /// <para>
+  /// • Typical handlers include <c>OnStart</c> (invoked when the asynchronous work begins),
+  /// <c>OnSuccess</c> (invoked with the resulting <c>TBatchDelete</c>), and <c>OnError</c>
+  /// (invoked with an error message if the call fails).
+  /// </para>
+  /// <para>
+  /// • The <c>TBatchDelete</c> type is an empty marker result used to indicate that the delete request
+  /// was accepted by the service. It does not carry a payload; callers should typically verify the outcome
+  /// by listing or retrieving operations/batches as appropriate for the API workflow.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TAsynBatchDelete = TAsynCallBack<TBatchDelete>;
+
+  /// <summary>
+  /// Promise-style callback container for batch delete operations.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseBatchDelete</c> is an alias of <c>TPromiseCallback&lt;TBatchDelete&gt;</c> and is intended for
+  /// promise-based APIs that call the Batch Delete endpoint (see <c>TBatchRoute.AsyncAwaitDelete</c>).
+  /// <para>
+  /// • It allows callers to register lifecycle callbacks that are invoked while the promise is pending
+  /// and when it settles, either resolved with a <c>TBatchDelete</c> or rejected with an error.
+  /// </para>
+  /// <para>
+  /// • The <c>TBatchDelete</c> type is an empty marker result used to indicate that the delete request
+  /// was accepted by the service. It does not carry a payload; callers should typically verify the outcome
+  /// by listing or retrieving operations/batches as appropriate for the API workflow.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseBatchDelete = TPromiseCallback<TBatchDelete>;
+
+  /// <summary>
+  /// Asynchronous callback container for JSONL download operations.
+  /// </summary>
+  /// <remarks>
+  /// <c>TAsynJsonlDownload</c> is an alias of <c>TAsynCallBack&lt;TJsonlDownload&gt;</c> and is used to configure
+  /// lifecycle callbacks for asynchronous calls that download a batch response file as JSONL
+  /// (see <c>TBatchRoute.AsynJsonlDownload</c> and <c>TBatchRoute.AsyncAwaitJsonlDownload</c>).
+  /// <para>
+  /// • Typical handlers include <c>OnStart</c> (invoked when the asynchronous work begins),
+  /// <c>OnSuccess</c> (invoked with the resulting <c>TJsonlDownload</c>), and <c>OnError</c>
+  /// (invoked with an error message if the call fails).
+  /// </para>
+  /// <para>
+  /// • The resulting <c>TJsonlDownload</c> instance typically exposes the downloaded content via its
+  /// <c>JSONResponse</c> fingerprint and can be persisted using <c>SaveToJsonl</c>.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TAsynJsonlDownload = TAsynCallBack<TJsonlDownload>;
+
+  /// <summary>
+  /// Promise-style callback container for JSONL download operations.
+  /// </summary>
+  /// <remarks>
+  /// <c>TPromiseJsonlDownload</c> is an alias of <c>TPromiseCallback&lt;TJsonlDownload&gt;</c> and is intended for
+  /// promise-based APIs that download a batch response file as JSONL (see <c>TBatchRoute.AsyncAwaitJsonlDownload</c>).
+  /// <para>
+  /// • It allows callers to register lifecycle callbacks that are invoked while the promise is pending
+  /// and when it settles, either resolved with a <c>TJsonlDownload</c> or rejected with an error.
+  /// </para>
+  /// <para>
+  /// • The resolved <c>TJsonlDownload</c> instance typically exposes the downloaded content via its
+  /// <c>JSONResponse</c> fingerprint and can be persisted using <c>SaveToJsonl</c>.
+  /// </para>
+  /// <para>
+  /// • This type only defines the callback bundle and does not execute any asynchronous work by itself.
+  /// </para>
+  /// </remarks>
+  TPromiseJsonlDownload = TPromiseCallback<TJsonlDownload>;
+
+  TAbstractSupport = class(TGeminiAPIRoute)
+  protected
+    function Create(const ModelName: string; const ParamProc: TProc<TBatchParams>): TOperation; virtual; abstract;
+
+    function List: TOperationList; virtual; abstract;
+
+    function Retrieve(const Name: string): TOperation; virtual; abstract;
+
+    function Cancel(const Name: string): TBatchCancel; virtual; abstract;
+
+    function Delete(const Name: string): TBatchDelete; virtual; abstract;
+
+    function JsonlDownload(const FileName: string): TJsonlDownload; virtual; abstract;
+  end;
+
+  TAsynchronousSupport = class(TAbstractSupport)
+  protected
+    procedure AsynCreate(const ModelName: string; const ParamProc: TProc<TBatchParams>;
+      const CallBacks: TFunc<TAsynOperation>);
+
+    procedure AsynList(
+      const CallBacks: TFunc<TAsynOperationList>);
+
+    procedure AsynRetrieve(const Name: string;
+      const CallBacks: TFunc<TAsynOperation>);
+
+    procedure AsynCancel(const Name: string;
+      const CallBacks: TFunc<TAsynBatchCancel>);
+
+    procedure AsynDelete(const Name: string;
+      const CallBacks: TFunc<TAsynBatchDelete>);
+
+    procedure AsynJsonlDownload(const FileName: string;
+      const CallBacks: TFunc<TAsynJsonlDownload>);
+  end;
+
+  TBatchRoute = class(TAsynchronousSupport)
+  private
+    class function BatchNameNormalize(const Value: string): string;
+
+  public
+    /// <summary>
+    /// Creates a new batch generation request and returns the corresponding long-running operation.
+    /// </summary>
+    /// <param name="ModelName">
+    /// The model resource name used to execute the batch (for example, <c>models/{model}</c>).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A parameter builder callback used to populate the batch request payload (<c>TBatchParams</c>).
+    /// </param>
+    /// <returns>
+    /// A <c>TOperation</c> representing the server-side long-running operation (LRO) for this batch.
+    /// </returns>
+    /// <remarks>
+    /// This method is synchronous and blocks until the create request completes.
+    /// <para>
+    /// The returned <c>TOperation</c> can be inspected to track progress and completion via <c>Done</c>, and may
+    /// include an <c>Error</c> on failure depending on the endpoint semantics. To observe completion over time,
+    /// poll the operation using <c>Retrieve</c> (or use <c>AsyncAwaitCreate</c> / <c>AsynCreate</c> for asynchronous
+    /// variants).
+    /// </para>
+    /// </remarks>
+    function Create(const ModelName: string; const ParamProc: TProc<TBatchParams>): TOperation; override;
+
+    /// <summary>
+    /// Lists batch long-running operations and returns the current page of results.
+    /// </summary>
+    /// <returns>
+    /// A <c>TOperationList</c> containing the operations in the current page and a <c>NextPageToken</c> for
+    /// pagination.
+    /// </returns>
+    /// <remarks>
+    /// This method is synchronous and blocks until the list request completes.
+    /// <para>
+    /// If <c>NextPageToken</c> is not empty, you can request the next page using the underlying route/list
+    /// mechanism supported by the API.
+    /// </para>
+    /// </remarks>
+    function List: TOperationList; override;
+
+    /// <summary>
+    /// Retrieves a batch long-running operation by name and returns the operation snapshot.
+    /// </summary>
+    /// <param name="Name">
+    /// The batch/operation resource name to retrieve (for example, <c>batches/{id}</c>). A raw identifier may
+    /// also be accepted and normalized by the route.
+    /// </param>
+    /// <returns>
+    /// The retrieved <c>TOperation</c>.
+    /// </returns>
+    /// <remarks>
+    /// This method is synchronous and blocks until the retrieve request completes.
+    /// <para>
+    /// Use the returned <c>TOperation</c> to observe progress (<c>Done</c>) and inspect success or failure
+    /// (<c>Error</c>) according to the endpoint semantics.
+    /// </para>
+    /// </remarks>
+    function Retrieve(const Name: string): TOperation; override;
+
+    /// <summary>
+    /// Requests cancellation of a batch by name.
+    /// </summary>
+    /// <param name="Name">
+    /// The batch resource name to cancel (for example, <c>batches/{id}</c>). A raw identifier may also be
+    /// accepted and normalized by the route.
+    /// </param>
+    /// <returns>
+    /// A <c>TBatchCancel</c> marker result indicating that the service accepted the cancellation request.
+    /// </returns>
+    /// <remarks>
+    /// This method is synchronous and blocks until the cancel request completes.
+    /// <para>
+    /// The <c>TBatchCancel</c> result does not carry a payload; it indicates that the cancellation request was
+    /// accepted by the service. To observe when the batch actually stops and reaches a terminal state, poll
+    /// the related <c>TOperation</c> using <c>Retrieve</c> (or use the asynchronous variants).
+    /// </para>
+    /// </remarks>
+    function Cancel(const Name: string): TBatchCancel; override;
+
+    /// <summary>
+    /// Deletes a batch by name.
+    /// </summary>
+    /// <param name="Name">
+    /// The batch resource name to delete (for example, <c>batches/{id}</c>). A raw identifier may also be
+    /// accepted and normalized by the route.
+    /// </param>
+    /// <returns>
+    /// A <c>TBatchDelete</c> marker result indicating that the service accepted the delete request.
+    /// </returns>
+    /// <remarks>
+    /// This method is synchronous and blocks until the delete request completes.
+    /// <para>
+    /// The <c>TBatchDelete</c> result does not carry a payload; it indicates that the delete request was accepted
+    /// by the service. Callers should typically verify the outcome by listing or retrieving batches/operations
+    /// as appropriate for the API workflow.
+    /// </para>
+    /// </remarks>
+    function Delete(const Name: string): TBatchDelete; override;
+
+    function JsonlDownload(const FileName: string): TJsonlDownload; override;
+
+    /// <summary>
+    /// Asynchronously creates a new batch generation request and returns a promise that resolves to the
+    /// corresponding long-running operation.
+    /// </summary>
+    /// <param name="ModelName">
+    /// The model resource name used to execute the batch (for example, <c>models/{model}</c>).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A parameter builder callback used to populate the batch request payload (<c>TBatchParams</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional promise-style lifecycle callbacks (<c>TPromiseOperation</c>) invoked while the asynchronous
+    /// request is pending and when it settles.
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TOperation&gt;</c> that resolves to the created <c>TOperation</c> representing the server-side
+    /// long-running operation (LRO) for this batch.
+    /// </returns>
+    /// <remarks>
+    /// This method is asynchronous and returns immediately with a promise. The promise is resolved once the
+    /// create request completes.
+    /// <para>
+    /// The returned <c>TOperation</c> typically indicates progress and completion via <c>Done</c> and may include
+    /// either <c>Error</c> or a successful response payload, depending on the endpoint semantics. To observe
+    /// completion, you can poll the operation using <c>AsyncAwaitRetrieve</c> / <c>Retrieve</c>.
+    /// </para>
+    /// </remarks>
+    function AsyncAwaitCreate(
+      const ModelName: string;
+      const ParamProc: TProc<TBatchParams>;
+      const Callbacks: TFunc<TPromiseOperation> = nil): TPromise<TOperation>;
+
+    /// <summary>
+    /// Asynchronously lists batch long-running operations and returns a promise that resolves to the current page
+    /// of results.
+    /// </summary>
+    /// <param name="Callbacks">
+    /// Optional promise-style lifecycle callbacks (<c>TPromiseOperationList</c>) invoked while the asynchronous
+    /// request is pending and when it settles.
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TOperationList&gt;</c> that resolves to a <c>TOperationList</c> containing the operations in the
+    /// current page and a <c>NextPageToken</c> for pagination.
+    /// </returns>
+    /// <remarks>
+    /// This method is asynchronous and returns immediately with a promise. The promise is resolved once the
+    /// list request completes.
+    /// <para>
+    /// If <c>NextPageToken</c> is not empty, you can request the next page using the underlying route/list
+    /// mechanism supported by the API.
+    /// </para>
+    /// </remarks>
+    function AsyncAwaitList(
+      const Callbacks: TFunc<TPromiseOperationList> = nil): TPromise<TOperationList>;
+
+    /// <summary>
+    /// Asynchronously retrieves a batch long-running operation by name and returns a promise that resolves
+    /// to the operation snapshot.
+    /// </summary>
+    /// <param name="Name">
+    /// The batch/operation resource name to retrieve (for example, <c>batches/{id}</c>). A raw identifier may
+    /// also be accepted and normalized by the route.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional promise-style lifecycle callbacks (<c>TPromiseOperation</c>) invoked while the asynchronous
+    /// request is pending and when it settles.
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TOperation&gt;</c> that resolves to the retrieved <c>TOperation</c>.
+    /// </returns>
+    /// <remarks>
+    /// This method is asynchronous and returns immediately with a promise. The promise is resolved once the
+    /// retrieve request completes.
+    /// <para>
+    /// Use the returned <c>TOperation</c> to observe progress (<c>Done</c>) and inspect success or failure
+    /// (<c>Error</c>) according to the endpoint semantics.
+    /// </para>
+    /// </remarks>
+    function AsyncAwaitRetrieve(const Name: string;
+      const Callbacks: TFunc<TPromiseOperation> = nil): TPromise<TOperation>;
+
+    /// <summary>
+    /// Asynchronously requests cancellation of a batch by name and returns a promise that resolves when the
+    /// cancel request completes.
+    /// </summary>
+    /// <param name="Name">
+    /// The batch resource name to cancel (for example, <c>batches/{id}</c>). A raw identifier may also be
+    /// accepted and normalized by the route.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional promise-style lifecycle callbacks (<c>TPromiseBatchCancel</c>) invoked while the asynchronous
+    /// request is pending and when it settles.
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TBatchCancel&gt;</c> that resolves to a <c>TBatchCancel</c> marker result when the service
+    /// accepts the cancellation request.
+    /// </returns>
+    /// <remarks>
+    /// This method is asynchronous and returns immediately with a promise. The promise is resolved once the
+    /// cancel request completes.
+    /// <para>
+    /// The <c>TBatchCancel</c> result does not carry a payload; it indicates that the cancellation request was
+    /// accepted by the service. To observe when the batch actually stops and reaches a terminal state, poll
+    /// the related <c>TOperation</c> using <c>AsyncAwaitRetrieve</c> / <c>Retrieve</c>.
+    /// </para>
+    /// </remarks>
+    function AsyncAwaitCancel(const Name: string;
+      const Callbacks: TFunc<TPromiseBatchCancel> = nil): TPromise<TBatchCancel>;
+
+    /// <summary>
+    /// Asynchronously deletes a batch by name and returns a promise that resolves when the delete request completes.
+    /// </summary>
+    /// <param name="Name">
+    /// The batch resource name to delete (for example, <c>batches/{id}</c>). A raw identifier may also be
+    /// accepted and normalized by the route.
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional promise-style lifecycle callbacks (<c>TPromiseBatchDelete</c>) invoked while the asynchronous
+    /// request is pending and when it settles.
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TBatchDelete&gt;</c> that resolves to a <c>TBatchDelete</c> marker result when the service
+    /// accepts the delete request.
+    /// </returns>
+    /// <remarks>
+    /// This method is asynchronous and returns immediately with a promise. The promise is resolved once the
+    /// delete request completes.
+    /// <para>
+    /// The <c>TBatchDelete</c> result does not carry a payload; it indicates that the delete request was accepted
+    /// by the service. Callers should typically verify the outcome by listing or retrieving batches/operations
+    /// as appropriate for the API workflow.
+    /// </para>
+    /// </remarks>
+    function AsyncAwaitDelete(const Name: string;
+      const Callbacks: TFunc<TPromiseBatchDelete> = nil): TPromise<TBatchDelete>;
+
+    /// <summary>
+    /// Asynchronously downloads a JSONL response file and returns a promise that resolves to the downloaded content.
+    /// </summary>
+    /// <param name="FileName">
+    /// The file resource name (or identifier) to download (for example, the value returned by <c>TOperation.ResponseFile</c>).
+    /// </param>
+    /// <param name="Callbacks">
+    /// Optional promise-style lifecycle callbacks (<c>TPromiseJsonlDownload</c>) invoked while the asynchronous
+    /// request is pending and when it settles.
+    /// </param>
+    /// <returns>
+    /// A <c>TPromise&lt;TJsonlDownload&gt;</c> that resolves to a <c>TJsonlDownload</c> instance containing the
+    /// downloaded JSONL payload.
+    /// </returns>
+    /// <remarks>
+    /// This method is asynchronous and returns immediately with a promise. The promise is resolved once the
+    /// download request completes.
+    /// <para>
+    /// The resolved <c>TJsonlDownload</c> typically exposes the downloaded content via its <c>JSONResponse</c>
+    /// fingerprint and can be persisted using <c>SaveToJsonl</c>.
+    /// </para>
+    /// </remarks>
+    function AsyncAwaitJsonlDownload(const FileName: string;
+      const Callbacks: TFunc<TPromiseJsonlDownload> = nil): TPromise<TJsonlDownload>;
+
+  end;
+
+implementation
+
+uses
+  System.IOUtils;
+
+{ TBatchParams }
+
+function TBatchParams.Batch(const Value: TBatchContentParams): TBatchParams;
+begin
+  Result := TBatchParams(Add('batch', Value.Detach));
+end;
+
+{ TBatchContentParams }
+
+function TBatchContentParams.DisplayName(const Value: string): TBatchContentParams;
+begin
+  Result := TBatchContentParams(Add('displayName', Value));
+end;
+
+function TBatchContentParams.InputConfig(
+  const Value: TInputConfigParams): TBatchContentParams;
+begin
+  Result := TBatchContentParams(Add('inputConfig', Value.Detach));
+end;
+
+function TBatchContentParams.Priority(
+  const Value: Integer): TBatchContentParams;
+begin
+  Result := TBatchContentParams(Add('priority', Value));
+end;
+
+{ TInputConfigParams }
+
+function TInputConfigParams.FileName(const Value: string): TInputConfigParams;
+begin
+  Result := TInputConfigParams(Add('fileName', Value));
+end;
+
+function TInputConfigParams.Requests(
+  const Value: TInlinedRequestsParams): TInputConfigParams;
+begin
+  Result := TInputConfigParams(Add('requests', Value.Detach));
+end;
+
+{ TInlinedRequestsParams }
+
+function TInlinedRequestsParams.Requests(
+  const Value: TArray<TInlinedRequestParams>): TInlinedRequestsParams;
+begin
+  Result := TInlinedRequestsParams(Add('requests',
+    TJSONHelper.ToJsonArray<TInlinedRequestParams>(Value)));
+end;
+
+{ TInlinedRequestParams }
+
+function TInlinedRequestParams.Metadata(
+  const Value: TJSONObject): TInlinedRequestParams;
+begin
+  Result := TInlinedRequestParams(Add('metadata', Value));
+end;
+
+class function TInlinedRequestParams.NewRequest(
+  const Value: TGenerateContentRequestParams): TInlinedRequestParams;
+begin
+  Result := TInlinedRequestParams.Create.Request(Value);
+end;
+
+class function TInlinedRequestParams.NewRequest(const Key: string;
+  const Value: TGenerateContentRequestParams): TInlinedRequestParams;
+begin
+  Result := TInlinedRequestParams.Create
+    .Metadata(TJSONObject.Create.AddPair('key', Key))
+    .Request(Value);
+end;
+
+function TInlinedRequestParams.Request(
+  const Value: TGenerateContentRequestParams): TInlinedRequestParams;
+begin
+  Result := TInlinedRequestParams(Add('request', Value.Detach));
+end;
+
+{ TGenerateContentRequestParams }
+
+function TGenerateContentRequestParams.CachedContent(
+  const Value: string): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(inherited CachedContent(Value));
+end;
+
+function TGenerateContentRequestParams.Contents(
+  const Value: TArray<TContentPayload>): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(inherited Contents(Value));
+end;
+
+function TGenerateContentRequestParams.GenerationConfig(
+  const Value: TGenerationConfig): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(inherited GenerationConfig(Value));
+end;
+
+function TGenerateContentRequestParams.Model(
+  const Value: string): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(Add('model', TGeminiAPIModel.ModelNormalize(Value)));
+end;
+
+function TGenerateContentRequestParams.SafetySettings(
+  const Value: TArray<TSafety>): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(inherited SafetySettings(Value));
+end;
+
+function TGenerateContentRequestParams.SystemInstruction(
+  const Value: string): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(inherited SystemInstruction(Value));
+end;
+
+function TGenerateContentRequestParams.ToolConfig(
+  const Value: TToolConfig): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(inherited ToolConfig(Value));
+end;
+
+function TGenerateContentRequestParams.Tools(
+  const Value: TArray<TToolParams>): TGenerateContentRequestParams;
+begin
+  Result := TGenerateContentRequestParams(inherited Tools(Value));
+end;
+
+{ TBatchRoute }
+
+function TBatchRoute.AsyncAwaitCancel(const Name: string;
+  const Callbacks: TFunc<TPromiseBatchCancel>): TPromise<TBatchCancel>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TBatchCancel>(
+    procedure(const CallbackParams: TFunc<TAsynBatchCancel>)
+    begin
+      Self.AsynCancel(Name, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TBatchRoute.AsyncAwaitCreate(const ModelName: string;
+  const ParamProc: TProc<TBatchParams>;
+  const Callbacks: TFunc<TPromiseOperation>): TPromise<TOperation>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TOperation>(
+    procedure(const CallbackParams: TFunc<TAsynOperation>)
+    begin
+      Self.AsynCreate(ModelName, ParamProc, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TBatchRoute.AsyncAwaitDelete(const Name: string;
+  const Callbacks: TFunc<TPromiseBatchDelete>): TPromise<TBatchDelete>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TBatchDelete>(
+    procedure(const CallbackParams: TFunc<TAsynBatchDelete>)
+    begin
+      Self.AsynDelete(Name, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TBatchRoute.AsyncAwaitJsonlDownload(const FileName: string;
+  const Callbacks: TFunc<TPromiseJsonlDownload>): TPromise<TJsonlDownload>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TJsonlDownload>(
+    procedure(const CallbackParams: TFunc<TAsynJsonlDownload>)
+    begin
+      Self.AsynJsonlDownload(FileName, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TBatchRoute.AsyncAwaitList(
+  const Callbacks: TFunc<TPromiseOperationList>): TPromise<TOperationList>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TOperationList>(
+    procedure(const CallbackParams: TFunc<TAsynOperationList>)
+    begin
+      Self.AsynList(CallbackParams);
+    end,
+    Callbacks);
+end;
+
+function TBatchRoute.AsyncAwaitRetrieve(const Name: string;
+  const Callbacks: TFunc<TPromiseOperation>): TPromise<TOperation>;
+begin
+  Result := TAsyncAwaitHelper.WrapAsyncAwait<TOperation>(
+    procedure(const CallbackParams: TFunc<TAsynOperation>)
+    begin
+      Self.AsynRetrieve(Name, CallbackParams);
+    end,
+    Callbacks);
+end;
+
+class function TBatchRoute.BatchNameNormalize(const Value: string): string;
+begin
+  if not Value.StartsWith('batches/') then
+    Result := 'batches/' + Value.TrimLeft(['/']).Trim
+  else
+    Result := Value;
+end;
+
+function TBatchRoute.Cancel(const Name: string): TBatchCancel;
+begin
+
+  Result := API.Post<TBatchCancel>(BatchNameNormalize(Name) + ':cancel');
+end;
+
+function TBatchRoute.Create(const ModelName: string;
+  const ParamProc: TProc<TBatchParams>): TOperation;
+begin
+  Result := API.Post<TOperation, TBatchParams>(ModelNormalize(ModelName) + ':batchGenerateContent', ParamProc)
+end;
+
+function TBatchRoute.Delete(const Name: string): TBatchDelete;
+begin
+  Result := API.Delete<TBatchDelete>(BatchNameNormalize(Name));
+end;
+
+function TBatchRoute.JsonlDownload(const FileName: string): TJsonlDownload;
+begin
+  var Version := API.Version;
+  API.Version := 'download/v1beta';
+  try
+    Result := API.Get<TJsonlDownload>(FileName + ':download?alt=media');
+  finally
+    API.Version := Version;
+  end;
+end;
+
+function TBatchRoute.List: TOperationList;
+begin
+  Result := API.Get<TOperationList>('batches');
+end;
+
+function TBatchRoute.Retrieve(const Name: string): TOperation;
+begin
+  Result := API.Get<TOperation>(BatchNameNormalize(Name));
+end;
+
+{ TJsonlDownload }
+
+function TJsonlDownload.SaveToJsonl(const FileName: string): Boolean;
+begin
+  if JSONResponse.IsEmpty then
+    raise EGeminiException.Create('No data to save');
+
+  Result := True;
+  System.IOUtils.TFile.WriteAllLines(FileName, JSONResponse.Split([#10]), TEncoding.UTF8);
+end;
+
+{ TAsynchronousSupport }
+
+procedure TAsynchronousSupport.AsynCancel(const Name: string;
+  const CallBacks: TFunc<TAsynBatchCancel>);
+begin
+  with TAsynCallBackExec<TAsynBatchCancel, TBatchCancel>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TBatchCancel
+      begin
+        Result := Self.Cancel(Name);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynCreate(const ModelName: string;
+  const ParamProc: TProc<TBatchParams>; const CallBacks: TFunc<TAsynOperation>);
+begin
+  with TAsynCallBackExec<TAsynOperation, TOperation>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TOperation
+      begin
+        Result := Self.Create(ModelName, ParamProc);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynDelete(const Name: string;
+  const CallBacks: TFunc<TAsynBatchDelete>);
+begin
+  with TAsynCallBackExec<TAsynBatchDelete, TBatchDelete>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TBatchDelete
+      begin
+        Result := Self.Delete(Name);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynJsonlDownload(const FileName: string;
+  const CallBacks: TFunc<TAsynJsonlDownload>);
+begin
+    with TAsynCallBackExec<TAsynJsonlDownload, TJsonlDownload>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TJsonlDownload
+      begin
+        Result := Self.JsonlDownload(FileName);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynList(
+  const CallBacks: TFunc<TAsynOperationList>);
+begin
+  with TAsynCallBackExec<TAsynOperationList, TOperationList>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TOperationList
+      begin
+        Result := Self.List;
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TAsynchronousSupport.AsynRetrieve(const Name: string;
+  const CallBacks: TFunc<TAsynOperation>);
+begin
+  with TAsynCallBackExec<TAsynOperation, TOperation>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TOperation
+      begin
+        Result := Self.Retrieve(Name);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+end.

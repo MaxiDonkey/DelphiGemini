@@ -1,0 +1,701 @@
+unit Gemini.Chat.Request.Parts;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.JSON, Gemini.API.Params, Gemini.Types,
+  Gemini.Core.ArrayBuilder;
+
+type
+  TAttachedManager = record
+  public
+    class function ToJson(const FilePath: string): TJSONObject; static;
+  end;
+
+  TDataPart = class(TJSONParam);
+
+  TInlineData = class(TDataPart)
+    /// <summary>
+    /// The IANA standard MIME type of the source data.
+    /// </summary>
+    /// <remarks>
+    /// Examples: - image/png - image/jpeg If an unsupported MIME type is provided, an error will be returned.
+    /// </remarks>
+    function MimeType(const Value: string): TInlineData;
+
+    /// <summary>
+    /// Raw bytes for media formats.
+    /// </summary>
+    /// <remarks>
+    /// A base64-encoded string.
+    /// </remarks>
+    function Data(const Value: string): TInlineData;
+  end;
+
+  TFunctionCall = class(TDataPart)
+    /// <summary>
+    /// Optional. The unique id of the function call. If populated, the client to execute the functionCall
+    /// and return the response with the matching id.
+    /// </summary>
+    function Id(const Value: string): TFunctionCall;
+
+    /// <summary>
+    /// Required. The name of the function to call. Must be a-z, A-Z, 0-9, or contain underscores and dashes,
+    /// with a maximum length of 64.
+    /// </summary>
+    function Name(const Value: string): TFunctionCall;
+
+    /// <summary>
+    /// Optional. The function parameters and values in JSON object format.
+    /// </summary>
+    function Args(const Value: TJSONObject): TFunctionCall;
+  end;
+
+  TFunctionResponsePart = class(TJSONParam)
+    /// <summary>
+    /// Inline media bytes.
+    /// </summary>
+    function InlineData(const Value: TInlineData): TFunctionResponsePart;
+  end;
+
+  TFunctionResponse = class(TDataPart)
+    /// <summary>
+    /// Optional. The id of the function call this response is for. Populated by the client to match
+    /// the corresponding function call id.
+    /// </summary>
+    function Id(const Value: string): TFunctionResponse;
+
+    /// <summary>
+    /// Required. The name of the function to call. Must be a-z, A-Z, 0-9, or contain underscores and
+    /// dashes, with a maximum length of 64.
+    /// </summary>
+    function Name(const Value: string): TFunctionResponse;
+
+    /// <summary>
+    /// Required. The function response in JSON object format. Callers can use any keys of their choice
+    /// that fit the function's syntax to return the function output, e.g. "output", "result", etc.
+    /// In particular, if the function call failed to execute, the response can have an "error" key to
+    /// return error details to the model.
+    /// </summary>
+    function Response(const Value: TJSONObject): TFunctionResponse;
+
+    /// <summary>
+    /// Optional. Ordered Parts that constitute a function response. Parts may have different IANA MIME types.
+    /// </summary>
+    function Parts(const Value: TArray<TFunctionResponsePart>): TFunctionResponse;
+
+    /// <summary>
+    /// Optional. Signals that function call continues, and more responses will be returned, turning the
+    /// function call into a generator. Is only applicable to NON_BLOCKING function calls, is ignored
+    /// otherwise. If set to false, future responses will not be considered. It is allowed to return empty
+    /// response with willContinue=False to signal that the function call is finished. This may still trigger
+    /// the model generation. To avoid triggering the generation and finish the function call, additionally
+    /// set scheduling to SILENT.
+    /// </summary>
+    function WillContinue(const Value: Boolean): TFunctionResponse;
+
+    /// <summary>
+    /// Optional. Specifies how the response should be scheduled in the conversation. Only applicable to
+    /// NON_BLOCKING function calls, is ignored otherwise. Defaults to WHEN_IDLE.
+    /// </summary>
+    function Scheduling(const Value: TSchedulingType): TFunctionResponse;
+  end;
+
+  TFileData = class(TDataPart)
+    /// <summary>
+    /// The IANA standard MIME type of the source data.
+    /// </summary>
+    function MimeType(const Value: string): TFileData;
+
+    /// <summary>
+    /// Uri of thsdata
+    /// </summary>
+    function FileUri(const Value: string): TFileData;
+  end;
+
+  TExecutableCode = class(TDataPart)
+    /// <summary>
+    /// Required. Programming language of the code.
+    /// </summary>
+    function Language(const Value: TLanguageType): TExecutableCode;
+
+    /// <summary>
+    /// Required. The code to be executed.
+    /// </summary>
+    function Code(const Value: string): TExecutableCode;
+  end;
+
+  TCodeExecutionResult = class(TDataPart)
+    /// <summary>
+    /// Required. Outcome of the code execution.
+    /// </summary>
+    function Outcome(const Value: TOutcomeType): TCodeExecutionResult;
+
+    /// <summary>
+    /// Optional. Contains stdout when code execution is successful, stderr or other description otherwise.
+    /// </summary>
+    function Output(const Value: string): TCodeExecutionResult;
+  end;
+
+  TMetadataPart = class(TJSONParam);
+
+  TVideoMetadata = class(TMetadataPart)
+    /// <summary>
+    /// Optional. The start offset of the video.
+    /// </summary>
+    /// <remarks>
+    /// A duration in seconds with up to nine fractional digits,
+    /// </remarks>
+    function StartOffset(const Value: string): TVideoMetadata;
+
+    /// <summary>
+    /// Optional. The end offset of the video.
+    /// </summary>
+    /// <remarks>
+    /// A duration in seconds with up to nine fractional digits, ending with 's'. Example: "3.5s".
+    /// </remarks>
+    function EndOffset(const Value: string): TVideoMetadata;
+
+    /// <summary>
+    /// Optional. The frame rate of the video sent to the model. If not specified, the default value will be 1.0.
+    /// The fps range is (0.0, 24.0].
+    /// </summary>
+    function Fps(const Value: Double): TVideoMetadata;
+  end;
+
+  TPartParams = class(TJSONParam)
+    /// <summary>
+    /// Optional. Indicates if the part is thought from the model.
+    /// </summary>
+    function Thought(const Value: Boolean): TPartParams;
+
+    /// <summary>
+    /// Optional. An opaque signature for the thought so it can be reused in subsequent requests.
+    /// </summary>
+    /// <remarks>
+    /// A base64-encoded string.
+    /// </remarks>
+    function ThoughtSignature(const Value: string): TPartParams;
+
+    /// <summary>
+    /// Custom metadata associated with the Part. Agents using genai.Part as content representation may need
+    /// to keep track of the additional information. For example it can be name of a file/source from which
+    /// the Part originates or a way to multiplex multiple Part streams.
+    /// </summary>
+    function PartMetadata(const Value: TJSONObject): TPartParams;
+
+    /// <summary>
+    /// Inline text.
+    /// </summary>
+    function Text(const Value: string): TPartParams;
+
+    /// <summary>
+    /// Inline media bytes.
+    /// </summary>
+    function InlineData(const Value: TInlineData): TPartParams;
+
+    /// <summary>
+    /// A predicted FunctionCall returned from the model that contains a string representing
+    /// the FunctionDeclaration.name with the arguments and their values.
+    /// </summary>
+    function FunctionCall(const Value: TFunctionCall): TPartParams;
+
+    /// <summary>
+    /// The result output of a FunctionCall that contains a string representing the FunctionDeclaration.name
+    /// and a structured JSON object containing any output from the function is used as context to the model.
+    /// </summary>
+    function FunctionResponse(const Value: TFunctionResponse): TPartParams;
+
+    /// <summary>
+    /// URI based data.
+    /// </summary>
+    function FileData(const Value: TFileData): TPartParams;
+
+    /// <summary>
+    /// Code generated by the model that is meant to be executed.
+    /// </summary>
+    function ExecutableCode(const Value: TExecutableCode): TPartParams;
+
+    /// <summary>
+    /// Result of executing the ExecutableCode.
+    /// </summary>
+    function CodeExecutionResult(const Value: TCodeExecutionResult): TPartParams;
+
+    /// <summary>
+    /// Optional. Video metadata. The metadata should only be specified while the video data is presented
+    /// in inlineData or fileData.
+    /// </summary>
+    function VideoMetadata(const Value: TVideoMetadata): TPartParams;
+
+    class function NewText(const Text: string;
+      Thought: Boolean = False): TPartParams;
+
+    class function NewInlineData(const PathOrUrl: string): TPartParams; overload;
+
+    class function NewInlineData(const MimeType: string; const Base64: string): TPartParams; overload;
+
+    class function NewInlineData(const MimeType: string; const Stream: TStream): TPartParams; overload;
+
+    class function NewInlineData(const MimeType: string; const ABytes: TBytes): TPartParams; overload;
+
+    class function NewFileData(const PathOrUrl: string): TPartParams;
+
+    class function NewFunctionCall(const Name: string): TPartParams;
+
+    class function NewFunctionResponse(const Name: string;
+      const Response: TJSONObject): TPartParams;
+
+    class function NewExecutableCode(const Language: TLanguageType;
+      const Code: string): TPartParams;
+
+    class function NewCodeExecutionResult(const Outcome: TOutcomeType): TPartParams;
+  end;
+
+  TParts = TArrayBuilder<TPartParams>;
+
+  TPartsHelper = record Helper for TParts
+    function AddText(const Text: string; Thought: Boolean = False): TParts;
+
+    function AddInlineData(const PathOrUrl: string): TParts; overload;
+
+    function AddInlineData(const MimeType: string; const Base64: string): TParts; overload;
+
+    function AddInlineData(const MimeType: string; const Stream: TStream): TParts; overload;
+
+    function AddInlineData(const MimeType: string; const ABytes: TBytes): TParts; overload;
+
+    function AddFileData(const PathOrUrl: string): TParts;
+
+    function AddFunctionCall(const Name: string): TParts;
+
+    function AddFunctionResponse(const Name: string;
+      const Response: TJSONObject): TParts;
+
+    function AddExecutableCode(const Language: TLanguageType;
+      const Code: string): TParts;
+
+    function AddCodeExecutionResult(const Outcome: TOutcomeType): TParts;
+  end;
+
+implementation
+
+uses
+  Gemini.Net.ContentHelpers;
+
+{ TAttachedManager }
+
+
+class function TAttachedManager.ToJson(const FilePath: string): TJSONObject;
+begin
+  if TContentHelper.IsUri(FilePath) then
+    begin
+      Result := TFileData.Create
+        .FileUri(FilePath)
+        .Detach;
+
+      Result := TJSONObject.Create.AddPair('fileData', Result);
+    end
+  else
+    begin
+      Result := TInlineData.Create
+        .MimeType(TContentHelper.GetMimeType(FilePath))
+        .Data(TContentHelper.GetEncoded(FilePath))
+        .Detach;
+
+      Result := TJSONObject.Create.AddPair('inlineData', Result);
+    end;
+end;
+
+{ TInlineData }
+
+function TInlineData.Data(const Value: string): TInlineData;
+begin
+  Result := TInlineData(Add('data', Value));
+end;
+
+function TInlineData.MimeType(const Value: string): TInlineData;
+begin
+  Result := TInlineData(Add('mimeType', Value));
+end;
+
+
+{ TFileData }
+
+function TFileData.FileUri(const Value: string): TFileData;
+begin
+  Result := TFileData(Add('fileUri', Value));
+end;
+
+function TFileData.MimeType(const Value: string): TFileData;
+begin
+  Result := TFileData(Add('mimeType', Value));
+end;
+
+{ TPartParams }
+
+function TPartParams.CodeExecutionResult(
+  const Value: TCodeExecutionResult): TPartParams;
+begin
+  Result := TPartParams(Add('codeExecutionResult', Value.Detach));
+end;
+
+function TPartParams.ExecutableCode(const Value: TExecutableCode): TPartParams;
+begin
+  Result := TPartParams(Add('executableCode', Value.Detach));
+end;
+
+function TPartParams.FileData(const Value: TFileData): TPartParams;
+begin
+  Result := TPartParams(Add('fileData', Value.Detach));
+end;
+
+function TPartParams.FunctionCall(const Value: TFunctionCall): TPartParams;
+begin
+  Result := TPartParams(Add('functionCall', Value.Detach));
+end;
+
+function TPartParams.FunctionResponse(
+  const Value: TFunctionResponse): TPartParams;
+begin
+  Result := TPartParams(Add('functionResponse', Value.Detach));
+end;
+
+function TPartParams.InlineData(const Value: TInlineData): TPartParams;
+begin
+  Result := TPartParams(Add('inlineData', Value.Detach));
+end;
+
+class function TPartParams.NewCodeExecutionResult(
+  const Outcome: TOutcomeType): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var CodeExecutionResult :=
+    TCodeExecutionResult.Create
+      .Outcome(Outcome);
+
+  Result.CodeExecutionResult(CodeExecutionResult);
+end;
+
+class function TPartParams.NewExecutableCode(const Language: TLanguageType;
+  const Code: string): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var ExecutableCode :=
+    TExecutableCode.Create
+      .Language(Language)
+      .Code(Code);
+
+  Result.ExecutableCode(ExecutableCode);
+end;
+
+class function TPartParams.NewFileData(const PathOrUrl: string): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var FileData :=
+    TFileData.Create
+      .MimeType(TContentHelper.GetMimeType(PathOrUrl))
+      .FileUri(PathOrUrl);
+
+  Result.FileData(FileData);
+end;
+
+class function TPartParams.NewFunctionCall(const Name: string): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var FunctionCall := TFunctionCall.Create.Name(Name);
+
+  Result.FunctionCall(FunctionCall);
+end;
+
+class function TPartParams.NewFunctionResponse(const Name: string;
+  const Response: TJSONObject): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var FunctionResponse := TFunctionResponse.Create
+        .Name(Name)
+        .Response(Response);
+
+  Result.FunctionResponse(FunctionResponse);
+end;
+
+class function TPartParams.NewInlineData(const MimeType: string;
+  const ABytes: TBytes): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var InlineData :=
+    TInlineData.Create
+      .MimeType(MimeType)
+      .Data(TContentHelper.BytesToBase64(ABytes));
+
+  Result.InlineData(InlineData);
+end;
+
+class function TPartParams.NewInlineData(const MimeType,
+  Base64: string): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var InlineData :=
+    TInlineData.Create
+      .MimeType(MimeType)
+      .Data(Base64);
+
+  Result.InlineData(InlineData);
+end;
+
+class function TPartParams.NewInlineData(const MimeType: string; const Stream: TStream): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  var InlineData :=
+    TInlineData.Create
+      .MimeType(MimeType)
+      .Data(TContentHelper.StreamToBase64(Stream));
+
+  Result.InlineData(InlineData);
+end;
+
+class function TPartParams.NewInlineData(const PathOrUrl: string): TPartParams;
+var
+  MimeType: string;
+  Stream: TMemoryStream;
+begin
+  if TContentHelper.IsUri(PathOrUrl) then
+    begin
+      Stream := TMemoryStream.Create;
+      try
+        if TContentHelper.UrlToStream(PathOrUrl, Stream, MimeType) then
+          begin
+            Result := TPartParams.Create;
+            var InlineData :=
+              TInlineData.Create
+                .MimeType(MimeType)
+                .Data(TContentHelper.StreamToBase64(Stream));
+
+            Result.InlineData(InlineData);
+            Exit;
+          end
+        else
+          raise Exception.CreateFmt('Invalid url : %s', [PathOrUrl]);
+      finally
+        Stream.Free;
+      end;
+    end;
+
+  Result := TPartParams.Create;
+
+  var InlineData :=
+    TInlineData.Create
+      .MimeType(TContentHelper.GetMimeType(PathOrUrl))
+      .Data(TContentHelper.GetEncoded(PathOrUrl));
+
+  Result.InlineData(InlineData);
+end;
+
+class function TPartParams.NewText(const Text: string; Thought: Boolean): TPartParams;
+begin
+  Result := TPartParams.Create;
+
+  if Thought then
+    Result.Thought(True);
+
+  Result.Text(Text);
+end;
+
+function TPartParams.PartMetadata(const Value: TJSONObject): TPartParams;
+begin
+  Result := TPartParams(Add('partMetadata', Value));
+end;
+
+function TPartParams.Text(const Value: string): TPartParams;
+begin
+  Result := TPartParams(Add('text', Value));
+end;
+
+function TPartParams.Thought(const Value: Boolean): TPartParams;
+begin
+  Result := TPartParams(Add('thought', Value));
+end;
+
+function TPartParams.ThoughtSignature(const Value: string): TPartParams;
+begin
+  Result := TPartParams(Add('thoughtSignature', Value));
+end;
+
+function TPartParams.VideoMetadata(const Value: TVideoMetadata): TPartParams;
+begin
+  Result := TPartParams(Add('videoMetadata', Value.Detach));
+end;
+
+{ TFunctionCall }
+
+function TFunctionCall.Args(const Value: TJSONObject): TFunctionCall;
+begin
+  Result := TFunctionCall(Add('args', Value));
+end;
+
+function TFunctionCall.Id(const Value: string): TFunctionCall;
+begin
+  Result := TFunctionCall(Add('id', Value));
+end;
+
+function TFunctionCall.Name(const Value: string): TFunctionCall;
+begin
+  Result := TFunctionCall(Add('name', Value));
+end;
+
+{ TFunctionResponse }
+
+function TFunctionResponse.Id(const Value: string): TFunctionResponse;
+begin
+  Result := TFunctionResponse(Add('id', Value));
+end;
+
+function TFunctionResponse.Name(const Value: string): TFunctionResponse;
+begin
+  Result := TFunctionResponse(Add('name', Value));
+end;
+
+function TFunctionResponse.Parts(
+  const Value: TArray<TFunctionResponsePart>): TFunctionResponse;
+begin
+  var JSONArray := TJSONArray.Create;
+  for var Item in Value do
+    JSONArray.Add(Item.Detach);
+  Result := TFunctionResponse(Add('parts', JSONArray));
+end;
+
+function TFunctionResponse.Response(
+  const Value: TJSONObject): TFunctionResponse;
+begin
+  Result := TFunctionResponse(Add('response', Value));
+end;
+
+function TFunctionResponse.Scheduling(
+  const Value: TSchedulingType): TFunctionResponse;
+begin
+  Result := TFunctionResponse(Add('scheduling', Value.ToString));
+end;
+
+function TFunctionResponse.WillContinue(
+  const Value: Boolean): TFunctionResponse;
+begin
+  Result := TFunctionResponse(Add('willContinue', Value));
+end;
+
+{ TFunctionResponsePart }
+
+function TFunctionResponsePart.InlineData(
+  const Value: TInlineData): TFunctionResponsePart;
+begin
+  Result := TFunctionResponsePart(Add('inlineData', Value.Detach));
+end;
+
+{ TExecutableCode }
+
+function TExecutableCode.Code(const Value: string): TExecutableCode;
+begin
+  Result := TExecutableCode(Add('code', Value));
+end;
+
+function TExecutableCode.Language(const Value: TLanguageType): TExecutableCode;
+begin
+  Result := TExecutableCode(Add('language', Value.ToString));
+end;
+
+{ TCodeExecutionResult }
+
+function TCodeExecutionResult.Outcome(
+  const Value: TOutcomeType): TCodeExecutionResult;
+begin
+  Result := TCodeExecutionResult(Add('outcome', Value.ToString));
+end;
+
+function TCodeExecutionResult.Output(const Value: string): TCodeExecutionResult;
+begin
+  Result := TCodeExecutionResult(Add('output', Value));
+end;
+
+{ TVideoMetadata }
+
+function TVideoMetadata.EndOffset(const Value: string): TVideoMetadata;
+begin
+  Result := TVideoMetadata(Add('endOffset', Value));
+end;
+
+function TVideoMetadata.Fps(const Value: Double): TVideoMetadata;
+begin
+  Result := TVideoMetadata(Add('fps', Value));
+end;
+
+function TVideoMetadata.StartOffset(const Value: string): TVideoMetadata;
+begin
+  Result := TVideoMetadata(Add('startOffset', Value));
+end;
+
+{ TPartsHelper }
+
+function TPartsHelper.AddInlineData(const PathOrUrl: string): TParts;
+begin
+  Result := Self.Add(TPartParams.NewInlineData(PathOrUrl));
+end;
+
+function TPartsHelper.AddInlineData(const MimeType, Base64: string): TParts;
+begin
+  Result := Self.Add(TPartParams.NewInlineData(MimeType, Base64));
+end;
+
+function TPartsHelper.AddInlineData(const MimeType: string;
+  const Stream: TStream): TParts;
+begin
+  Result := Self.Add(TPartParams.NewInlineData(MimeType, Stream));
+end;
+
+function TPartsHelper.AddInlineData(const MimeType: string;
+  const ABytes: TBytes): TParts;
+begin
+  Result := Self.Add(TPartParams.NewInlineData(MimeType, ABytes));
+end;
+
+function TPartsHelper.AddCodeExecutionResult(
+  const Outcome: TOutcomeType): TParts;
+begin
+  Result := Self.Add(TPartParams.NewCodeExecutionResult(Outcome));
+end;
+
+function TPartsHelper.AddExecutableCode(const Language: TLanguageType;
+  const Code: string): TParts;
+begin
+  Result := Self.Add(TPartParams.NewExecutableCode(Language, Code));
+end;
+
+function TPartsHelper.AddFileData(const PathOrUrl: string): TParts;
+begin
+  Result := Self.Add(TPartParams.NewFileData(PathOrUrl));
+end;
+
+function TPartsHelper.AddFunctionCall(const Name: string): TParts;
+begin
+  Result := Self.Add(TPartParams.NewFunctionCall(Name));
+end;
+
+function TPartsHelper.AddFunctionResponse(const Name: string;
+  const Response: TJSONObject): TParts;
+begin
+  Result := Self.Add(TPartParams.NewFunctionResponse(Name, Response));
+end;
+
+
+
+function TPartsHelper.AddText(const Text: string; Thought: Boolean): TParts;
+begin
+  Result := Self.Add(TPartParams.NewText(Text, Thought));
+end;
+
+end.

@@ -1,0 +1,127 @@
+unit Gemini.Types.EnumWire;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils, System.TypInfo, System.Rtti;
+
+type
+  EEnumWireError = class(Exception);
+
+  TEnumWire = record
+  private
+    class function TypeName<T>: string; static;
+    class procedure ValidateEnumMap<T>(const Map: array of string); static;
+    class function EnumMin<T>: Integer; static;
+    class function EnumMax<T>: Integer; static;
+    class function EnumOrdinal<T>(const V: T): Integer; static;
+  public
+    class function TryParse<T>(const S: string; const Map: array of string; out V: T): Boolean; static;
+    class function Parse<T>(const S: string; const Map: array of string): T; static;
+    class function ToWire<T>(const V: T; const Map: array of string): string; static;
+  end;
+
+implementation
+
+{ TEnumWire }
+
+class function TEnumWire.TypeName<T>: string;
+var
+  ti: PTypeInfo;
+begin
+  ti := PTypeInfo(System.TypeInfo(T));
+  if ti = nil then
+    Exit('<nil>');
+  Result := System.TypInfo.GetTypeName(ti);
+end;
+
+class function TEnumWire.EnumMin<T>: Integer;
+var
+  td: PTypeData;
+begin
+  td := GetTypeData(PTypeInfo(System.TypeInfo(T)));
+  Result := td^.MinValue;
+end;
+
+class function TEnumWire.EnumMax<T>: Integer;
+var
+  td: PTypeData;
+begin
+  td := GetTypeData(PTypeInfo(System.TypeInfo(T)));
+  Result := td^.MaxValue;
+end;
+
+class function TEnumWire.EnumOrdinal<T>(const V: T): Integer;
+begin
+  Result := TValue.From<T>(V).AsOrdinal;
+end;
+
+class procedure TEnumWire.ValidateEnumMap<T>(const Map: array of string);
+var
+  ti: PTypeInfo;
+  minV, maxV, expected: Integer;
+begin
+  ti := PTypeInfo(System.TypeInfo(T));
+  if (ti = nil) or (ti^.Kind <> tkEnumeration) then
+    raise EEnumWireError.CreateFmt('TEnumWire: type "%s" is not an enumeration', [TypeName<T>]);
+
+  minV := EnumMin<T>;
+  maxV := EnumMax<T>;
+  expected := (maxV - minV) + 1;
+
+  if Length(Map) <> expected then
+    raise EEnumWireError.CreateFmt(
+      'TEnumWire: map length mismatch for %s (got %d, expected %d)',
+      [TypeName<T>, Length(Map), expected]
+    );
+end;
+
+class function TEnumWire.TryParse<T>(const S: string; const Map: array of string; out V: T): Boolean;
+var
+  i: Integer;
+  ordVal: Integer;
+  td: PTypeData;
+  ti: PTypeInfo;
+begin
+  ValidateEnumMap<T>(Map);
+
+  Result := False;
+  ti := PTypeInfo(System.TypeInfo(T));
+  td := GetTypeData(ti);
+
+  for i := 0 to High(Map) do
+    if SameText(S, Map[i]) then
+      begin
+        ordVal := td^.MinValue + i;
+        V := TValue.FromOrdinal(ti, ordVal).AsType<T>;
+        Exit(True);
+      end;
+end;
+
+class function TEnumWire.Parse<T>(const S: string; const Map: array of string): T;
+begin
+  if not TryParse<T>(S, Map, Result) then
+    raise EEnumWireError.CreateFmt('Unknown enum wire value "%s" for %s', [S, TypeName<T>]);
+end;
+
+class function TEnumWire.ToWire<T>(const V: T; const Map: array of string): string;
+var
+  idx: Integer;
+begin
+  ValidateEnumMap<T>(Map);
+
+  idx := EnumOrdinal<T>(V) - EnumMin<T>;
+  if (idx < 0) or (idx > High(Map)) then
+    raise EEnumWireError.CreateFmt('Enum value out of range for %s', [TypeName<T>]);
+
+  Result := Map[idx];
+end;
+
+end.

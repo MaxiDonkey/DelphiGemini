@@ -1,0 +1,2359 @@
+unit GeminiTest;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages,
+  System.SysUtils, System.Variants, System.Classes, System.JSON, System.UITypes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls,
+
+  Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL,
+
+  //Plugin example
+  Gemini.Functions.Example;
+
+const
+  REQ_CHAT1 = '''
+    {
+    "candidates": [
+        {
+            "content": {
+                "parts": [
+                    {
+                        "text": "The backpack was a hand-me-down, a faded denim monstrosity with mismatched patches and a lingering smell of old crayons and forgotten lunchboxes."
+                    }
+                ],
+                "role": "model"
+            },
+            "finishReason": "STOP",
+            "avgLogprobs": -0.57802078862895878,
+            "tableau": ["toto", "titi"]
+        }
+    ],
+    "usageMetadata": {
+        "promptTokenCount": 8,
+        "candidatesTokenCount": 892,
+        "totalTokenCount": 900,
+        "promptTokensDetails": [
+            {
+                "modality": "TEXT",
+                "tokenCount": 8
+            }
+        ],
+        "candidatesTokensDetails": [
+            {
+                "modality": "TEXT",
+                "tokenCount": 892
+            }
+        ]
+    },
+    "modelVersion": "gemini-2.0-flash",
+    "responseId": "W9xIaaD-CrOtkdUPgszp0Ak"
+   }
+
+  ''';
+
+ REQ_FUNCTION_CALL =
+ '''
+   {
+      "type": "function_call",
+      "name": "get_weather",
+      "id": "gth23981",
+      "arguments": {
+        "language": "python",
+        "code": "print('hello world')",
+        "candidatesTokensDetails": [
+            {
+                "modality": "TEXT",
+                "tokenCount": 892
+            }
+        ]
+      }
+   }
+ ''';
+
+ REQ_FUNCTION_CALL1 =
+ '''
+   {
+      "type": "function_call",
+      "name": "get_weather",
+      "id": "gth23981",
+      "arguments": "Boston, MA"
+   }
+ ''';
+
+  REQ_FUNCTION_CALL2 =
+ '''
+   {
+    "type": "function_result",
+    "name": "get_weather",
+    "call_id": "gth23981",
+    "result": {
+      "weather": "sunny"
+    }
+   }
+ ''';
+
+ REQ_FUNCTION_CALL3 =
+ '''
+  {
+    "type": "code_execution_call",
+    "id": "call_123456",
+    "arguments": {
+      "language": "python",
+      "code": "print('hello world')"
+    }
+  }
+ ''';
+
+ REQ_FUNCTION_CALL4 =
+ '''
+  {
+    "type": "code_execution_result",
+    "call_id": "call_123456",
+    "result": "hello world\n"
+  }
+ ''';
+
+ REQ_FUNCTION_CALL5 =
+ '''
+  {
+    "type": "url_context_call",
+    "id": "call_123456",
+    "arguments": {
+      "urls": [
+        "https://www.example.com"
+      ]
+    }
+  }
+ ''';
+
+ REQ_FUNCTION_CALL6 =
+ '''
+  {
+    "type": "url_context_result",
+    "call_id": "call_123456",
+    "result": [
+      {
+        "url": "https://www.example.com",
+        "status": "SUCCESS"
+      }
+    ]
+  }
+ ''';
+
+ REQ_FUNCTION_CALL7 =
+ '''
+  {
+    "type": "google_search_call",
+    "id": "call_123456",
+    "arguments": {
+      "queries": [
+        "weather in Boston"
+      ]
+    }
+  }
+ ''';
+
+  REQ_FUNCTION_CALL8 =
+ '''
+  {
+    "type": "google_search_result",
+    "call_id": "call_123456",
+    "result": [
+      {
+        "url": "https://www.google.com/search?q=weather+in+Boston",
+        "title": "Weather in Boston"
+      }
+    ]
+  }
+ ''';
+
+  REQ_FUNCTION_CALL9 =
+ '''
+  {
+    "type": "mcp_server_tool_call",
+    "id": "call_123456",
+    "name": "get_forecast",
+    "server_name": "weather_server",
+    "arguments": {
+      "city": "London"
+    }
+  }
+ ''';
+
+  REQ_FUNCTION_CALL10 =
+ '''
+  {
+    "type": "mcp_server_tool_result",
+    "name": "get_forecast",
+    "server_name": "weather_server",
+    "call_id": "call_123456",
+    "result": "sunny"
+  }
+ ''';
+
+  REQ_FUNCTION_CALL11 =
+ '''
+  {
+    "type": "FILE_SEARCH_RESULT",
+    "result": [
+      {
+        "text": "search result chunk",
+        "file_search_store": "file_search_store"
+      }
+    ]
+  }
+ ''';
+
+  REQ_FUNCTION_CALL12 =
+ '''
+  {
+    "created": "2025-11-26T12:25:15Z",
+    "id": "v1_ChdPU0F4YWFtNkFwS2kxZThQZ05lbXdROBIXT1NBeGFhbTZBcEtpMWU4UGdOZW13UTg",
+    "model": "gemini-2.5-flash",
+    "object": "interaction",
+    "outputs": [
+      {
+        "signature":"EuEGCt4GAXLI2nwSOxKd0SYc",
+        "type":"thought"
+      },
+      {
+        "text": "Hello! I'm functioning perfectly and ready to assist you.\n\nHow are you doing today?",
+        "type": "text"
+      }
+    ],
+    "role": "model",
+    "status": "completed",
+    "updated": "2025-11-26T12:25:15Z",
+    "usage": {
+      "input_tokens_by_modality": [
+        {
+          "modality": "text",
+          "tokens": 7
+        }
+      ],
+      "total_cached_tokens": 0,
+      "total_input_tokens": 7,
+      "total_output_tokens": 20,
+      "total_reasoning_tokens": 22,
+      "total_tokens": 49,
+      "total_tool_use_tokens": 0
+    }
+  }
+ ''';
+
+  REQ_FUNCTION_CALL13=
+ '''
+  {"delta":{"text":"Salut ! Ça va très bien, merci. Et toi, comment vas-tu ? \n\nComment puis-je t'aider aujourd'hui ?","type":"text"},"event_type":"content.delta","index":1}
+ ''';
+
+type
+  TForm1 = class(TForm)
+    Memo1: TMemo;
+    Memo2: TMemo;
+    Memo3: TMemo;
+    Memo4: TMemo;
+    Edit1: TEdit;
+    PageControl1: TPageControl;
+    TabSheet1: TTabSheet;
+    Button1: TButton;
+    Button2: TButton;
+    Label1: TLabel;
+    Button3: TButton;
+    Button4: TButton;
+    TabSheet2: TTabSheet;
+    Label2: TLabel;
+    Button5: TButton;
+    Button6: TButton;
+    Label3: TLabel;
+    Button7: TButton;
+    Button8: TButton;
+    TabSheet3: TTabSheet;
+    Label4: TLabel;
+    Button9: TButton;
+    Button10: TButton;
+    Button11: TButton;
+    Button12: TButton;
+    TabSheet4: TTabSheet;
+    Label5: TLabel;
+    Button13: TButton;
+    Button14: TButton;
+    Button15: TButton;
+    Button16: TButton;
+    Button17: TButton;
+    Label6: TLabel;
+    Button18: TButton;
+    Button19: TButton;
+    Button20: TButton;
+    Button21: TButton;
+    Button22: TButton;
+    Edit2: TEdit;
+    Button23: TButton;
+    Button24: TButton;
+    Label7: TLabel;
+    Button25: TButton;
+    Button26: TButton;
+    Button27: TButton;
+    Label8: TLabel;
+    TabSheet5: TTabSheet;
+    Label9: TLabel;
+    Button28: TButton;
+    Button29: TButton;
+    Button30: TButton;
+    Button31: TButton;
+    Button32: TButton;
+    Button33: TButton;
+    Button34: TButton;
+    TabSheet6: TTabSheet;
+    Label10: TLabel;
+    Button35: TButton;
+    Button36: TButton;
+    Button37: TButton;
+    Button38: TButton;
+    Button39: TButton;
+    Button40: TButton;
+    Button41: TButton;
+    Button42: TButton;
+    procedure FormCreate(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
+    procedure Button6Click(Sender: TObject);
+    procedure Button7Click(Sender: TObject);
+    procedure Button8Click(Sender: TObject);
+    procedure Upload(Sender: TObject);
+    procedure Button10Click(Sender: TObject);
+    procedure Button11Click(Sender: TObject);
+    procedure Button12Click(Sender: TObject);
+    procedure Button13Click(Sender: TObject);
+    procedure Button14Click(Sender: TObject);
+    procedure Button15Click(Sender: TObject);
+    procedure Button16Click(Sender: TObject);
+    procedure Button17Click(Sender: TObject);
+    procedure Button18Click(Sender: TObject);
+    procedure Button19Click(Sender: TObject);
+    procedure Button22Click(Sender: TObject);
+    procedure Button21Click(Sender: TObject);
+    procedure Button20Click(Sender: TObject);
+    procedure Button23Click(Sender: TObject);
+    procedure Button24Click(Sender: TObject);
+    procedure Button25Click(Sender: TObject);
+    procedure Button26Click(Sender: TObject);
+    procedure Button27Click(Sender: TObject);
+    procedure Button28Click(Sender: TObject);
+    procedure Button29Click(Sender: TObject);
+    procedure Button30Click(Sender: TObject);
+    procedure Button31Click(Sender: TObject);
+    procedure Button32Click(Sender: TObject);
+    procedure Button33Click(Sender: TObject);
+    procedure Button34Click(Sender: TObject);
+    procedure Button35Click(Sender: TObject);
+    procedure Button36Click(Sender: TObject);
+    procedure Button37Click(Sender: TObject);
+    procedure Button38Click(Sender: TObject);
+    procedure Button39Click(Sender: TObject);
+    procedure Button40Click(Sender: TObject);
+    procedure Button41Click(Sender: TObject);
+    procedure Button42Click(Sender: TObject);
+  private
+    Client: IGemini;
+  public
+
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+procedure TForm1.Button10Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var FilePath := 'D:\2026-developpement\OpenAI\sample\File_Search_file.pdf';
+//  var FilePath := 'BatchText.jsonl';
+  var DisplayName := 'batch_file';
+
+  //Asynchronous promise example
+  var Promise := Client.Files.AsyncAwaitUpload(FilePath, DisplayName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TFile): string
+      begin
+        Result := Value.&File.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Files.UpLoad(FilePath, DisplayName);
+//  try
+//    Display(Memo1, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button11Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var FileCode := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Files.AsyncAwaitDelete(FileCode);
+
+  Promise
+    .&Then<string>(
+      function (Value: TFileDelete): string
+      begin
+        Result := 'File Deleted';
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Files.Delete(FileCode);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button12Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var FileCode := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Files.AsyncAwaitRetrieve(Filecode);
+
+  Promise
+    .&Then<string>(
+      function (Value: TFileContent): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Files.Retrieve(FileCode);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button13Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var a11 := 'a11.txt';
+  var CacheName := '';
+
+  //Asynchronous promise example
+  var Promise := Client.Caching.AsyncAwaitCreate(
+    procedure (Params: TCacheParams)
+    begin
+      Params.Contents([TPayload.User([a11])]);
+      Params.SystemInstruction('You are an expert on cache using with Claude (Anthropic).');
+      Params.ttl('800s');
+      Params.Model('models/gemini-2.0-flash');
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TCache): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Caching.Create(
+//    procedure (Params: TCacheParams)
+//    begin
+//      Params.Contents([TPayload.User([a11])]);
+//      Params.SystemInstruction('You are an expert on cache using with Claude (Anthropic).');
+//      Params.ttl('800s');
+//      Params.Model('models/gemini-2.0-flash');
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button14Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+
+  //Asynchronous promise example
+  var Promise := Client.Caching.AsyncAwaitList;
+
+  Promise
+    .&Then<string>(
+      function (Value: TCacheContents): string
+      begin
+        Result := Value.NextPageToken;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Caching.List;
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button15Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var CacheName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Caching.AsyncAwaitRetrieve(CacheName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TCache): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Caching.Retrieve(CacheName);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button16Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var CacheName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Caching.AsyncAwaitUpdate(CacheName, '2700s');
+
+  Promise
+    .&Then<string>(
+      function (Value: TCache): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Caching.Update(CacheName, '2700s');
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button17Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var CacheName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Caching.AsyncAwaitDelete(CacheName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TCacheDelete): string
+      begin
+        Result := 'deleted';
+        Display(TutorialHub, Result);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Caching.Delete(CacheName);
+//  try
+//    Display(TutorialHub, 'deleted');
+//  finally
+//    Value.Free;
+//  end;
+
+end;
+
+procedure TForm1.Button18Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+
+  //Asynchronous promise example
+  var Promise := Client.VectorFiles.AsyncAwaitCreate(
+    procedure (Params: TFileSearchStoreParams)
+    begin
+      Params
+        .DisplayName('first VectorStore');
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TFileSearchStore): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.VectorFiles.Create(
+//    procedure (Params: TFileSearchStoreParams)
+//    begin
+//      Params
+//        .DisplayName('first VectorStore');
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button19Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+
+  //Asynchronous promise example
+  var Promise := Client.VectorFiles.AsyncAwaitList;
+
+  Promise
+    .&Then<string>(
+      function (Value: TFileSearchStoreList): string
+      begin
+        Result := Value.NextPageToken;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.VectorFiles.List;
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button20Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var Name := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.VectorFiles.AsyncAwaitRetrieve(Name);
+
+  Promise
+    .&Then<string>(
+      function (Value: TFileSearchStore): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.VectorFiles.Retrieve(Name);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button21Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var VectorName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.VectorFiles.AsyncAwaitDeleteForced(VectorName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TFileSearchStoreDelete): string
+      begin
+        Result := 'Deleted';
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.VectorFiles.DeleteForced(VectorName);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button22Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var VectorName := Edit1.Text;
+  var FileName := Edit2.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.VectorFiles.AsyncAwaitImport(VectorName,
+    procedure (Params: TImportFileParams)
+    begin
+      Params
+        .FileName(FileName);
+//        .CustomMetadata([TCustomMetadata.Create]);
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TOperation): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.VectorFiles.Import(VectorName,
+//    procedure (Params: TImportFileParams)
+//    begin
+//      Params
+//        .FileName(FileName);
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button23Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var VectorName := Edit1.Text;
+  var FileName := Edit2.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.VectorFiles.AsyncAwaitUpload(VectorName,
+    procedure (Params: TUploadFileParams)
+    begin
+      Params
+        .DisplayName(FileName);
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TOperation): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.VectorFiles.Upload(VectorName,
+//    procedure (Params: TUploadFileParams)
+//    begin
+//      Params
+//        .DisplayName(FileName);
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button24Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var Name := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.VectorFiles.AsyncAwaitOperationsGet(Name);
+
+  Promise
+    .&Then<string>(
+      function (Value: TOperation): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.VectorFiles.OperationsGet(Name);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button25Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var Parent := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Documents.AsyncAwaitList(Parent);
+
+  Promise
+    .&Then<string>(
+      function (Value: TDocumentList): string
+      begin
+        Result := Value.NextPageToken;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Documents.List(Parent);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button26Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var Parent := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Documents.AsyncAwaitRetrieve(Parent);
+
+  Promise
+    .&Then<string>(
+      function (Value: TDocument): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Documents.Retrieve(Parent);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button27Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var Parent := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Documents.AsyncAwaitDeleteForced(Parent);
+
+  Promise
+    .&Then<string>(
+      function (Value: TDocumentDelete): string
+      begin
+        Result := 'Deleted';
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Documents.DeleteForced(Parent);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button28Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+
+  //Asynchronous promise example
+  var Promise := Client.Batch.AsyncAwaitList;
+
+  Promise
+    .&Then<string>(
+      function (Value: TOperationList): string
+      begin
+        Result := Value.NextPageToken;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Batch.List;
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button29Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var ModelName := 'gemini-2.0-flash';
+
+//  var BatchValue :=
+//        TBatchContentParams.Create
+//          .DisplayName('First batch')
+//          .InputConfig(
+//             TInputConfigParams.Create
+//               .FileName('files/d8n88km072oc')
+//           );
+  var BatchValue := NewBatchContent('First batch', 'files/d8n88km072oc');
+
+  //Asynchronous promise example
+  var Promise := Client.Batch.AsyncAwaitCreate(ModelName,
+    procedure (Params: TBatchParams)
+    begin
+      Params.Batch(BatchValue);
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TOperation): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Batch.Create(ModelName,
+//    procedure (Params: TBatchParams)
+//    begin
+//      Params.Batch(BatchValue);
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button2Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  Display(TutorialHub, 'This may take a few seconds.');
+
+  var FilePath := 'D:\2026-developpement\OpenAI\images\GptImageMask.png';
+  var Document := 'D:\2026-developpement\OpenAI\sample\File_Search_file.pdf';
+  var Uri := 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg';
+
+
+  //Asynchronous promise example
+  var Promise := Client.Chat.AsyncAwaitCreate('models/gemini-2.5-flash',
+    procedure (Params: TChatParams)
+    begin
+      Params
+        .Contents([
+          TPayload.Add('Résume en quelques lignes le document', [Document]) ]);
+//        .Tools(
+//           TTools.Create
+//             .AddGoogleSearch(TGoogleSearch.Create)
+//           );
+
+
+//        .CachedContent('cachedContents/mckr6klpnolyxq8m1io0mn6twpq498u84bg9nomp');
+
+//      Params.Contents([ TPayload.Add('Write a story about a magic backpack.') ]);
+//      Params.Contents([ TPayload.Add('Quel niveau mathématique nécéssite ce document?', [Document]) ]);
+
+//      Params
+//        .SystemInstruction('rédiger le réponse en espagnol')
+//        .Contents(
+//          TContent.Create
+//            .User(
+//              TParts.Create
+//                .AddText('Décrire l''image')
+//                .AddInlineData(Uri)
+//             )
+//      );
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TChat): string
+      begin
+        Result := Value.Candidates[0].Content.Parts[0].Text;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Asynchronous example
+//  Client.Chat.AsynCreate('models/gemini-2.0-flash',
+//    procedure (Params: TChatParams)
+//    begin
+//      Params.Contents([ TPayload.Add('Write a story about a magic backpack.') ]);
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end,
+//    function : TAsynChat
+//    begin
+//      Result.Sender := TutorialHub;
+//      Result.OnStart := Start;
+//      Result.OnSuccess :=
+//        procedure (Sender: TObject; Chat: TChat)
+//        begin
+//          Display(Sender, Chat);
+//        end;
+//      Result.OnError := Display;
+//    end);
+
+  //Synchronous example
+//  var Chat := Client.Chat.Create('models/gemini-2.0-flash',
+//    procedure (Params: TChatParams)
+//    begin
+//      Params.Contents([ TPayload.Add('Write a story about a magic backpack.') ]);
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(Memo1, Chat);
+//  finally
+//    Chat.Free;
+//  end;
+end;
+
+procedure TForm1.Button30Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var BatchName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Batch.AsyncAwaitRetrieve(BatchName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TOperation): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Batch.Retrieve(BatchName);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button31Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var FileName := Edit1.Text;
+  TutorialHub.FileName := 'Result.jsonl';
+
+  //Asynchronous promise example
+  var Promise := Client.Batch.AsyncAwaitJsonlDownload(FileName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TJsonlDownload): string
+      begin
+        Result := TutorialHub.FileName;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Batch.JsonlDownload(FileName);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button32Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var BatchName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Batch.AsyncAwaitCancel(BatchName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TBatchCancel): string
+      begin
+        Result := 'cancelled';
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Batch.Cancel(BatchName);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button33Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var BatchName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Batch.AsyncAwaitDelete(BatchName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TBatchDelete): string
+      begin
+        Result := 'deleted';
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Batch.Delete(BatchName);
+//  try
+//    Display(TutorialHub, 'Batch deleted');
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TInteraction>(REQ_FUNCTION_CALL12);
+//  try
+//    Display(TutorialHub, Value.Model);
+//    Display(TutorialHub, Value.Role.ToString);
+//    Display(TutorialHub, Value.Outputs[1].Text);
+////    for var Item in Value.Outputs do
+////      begin
+////        Display(TutorialHub, Item.&Type.ToString);
+////        case Item.&Type of
+////          TContentType.text:
+////            Display(TutorialHub, Item.Text);
+////        end;
+////      end;
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+
+//procedure (Params: TInteractionParams)
+//    begin
+//      Params
+//        .Model('gemini-3-flash-preview')
+////        .Input('Salut comment ça va ?');
+//        .Input(
+//          '''
+//           "Who won the last euro?"
+//          '''
+//         )
+//        .Tools(
+//          '''
+//          [{"type": "google_search"}]
+//          '''
+//         )
+//        .ResponseFormat(
+//          '''
+//          {
+//              "type": "object",
+//              "properties": {
+//                  "winning_team": {"type": "string"},
+//                  "score": {"type": "string"}
+//              }
+//          }
+//          '''
+//         )
+//        .GenerationConfig(
+//          '''
+//          {
+//            "thinking_summaries": "auto"
+//          }
+//          '''
+//         )
+//        .Store()
+//        ;
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+
+procedure TForm1.Button35Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  Display(TutorialHub, 'This may take a few seconds.'#10);
+
+  var FileLocation := 'D:\2026-developpement\OpenAI\sample\File_Search_file.pdf';
+  var ImageUri := 'https://assets.visitorscoverage.com/production/wp-content/uploads/2024/04/AdobeStock_626542468-min-1024x683.jpeg';
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitCreate(
+    procedure (Params: TInteractionParams)
+    begin
+      Params
+        .Model('gemini-3-flash-preview')
+        .Input(
+          TInput.Create()
+            .AddText('Décrire l''image?')
+            .AddImage(ImageUri)
+         )
+
+
+
+//        .Input(
+//          Format(
+//            '''
+//              [
+//                  {"type": "text", "text": "Avec un niveau collège puis-je comprendre le document?"},
+//                  {"type": "document", "data": "%s", "mime_type": "%s"}
+//              ]
+//            ''',
+//            [ TMediaCodec.EncodeBase64(FileLocation), TMediaCodec.GetMimeType(FileLocation) ])
+//         )
+//        .GenerationConfig(
+//          '''
+//          {
+//            "thinking_summaries": "auto"
+//          }
+//          '''
+//         )
+//        .Store()
+        ;
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: TInteraction): string
+      begin
+        Result := Value.Id;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Interactions.Create(
+//    procedure (Params: TInteractionParams)
+//    begin
+//      Params
+//        .Model('gemini-3-flash-preview')
+//        .Input('Salut comment ça va ?');
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button36Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var InteractionId := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitRetrieve(InteractionId);
+
+  Promise
+    .&Then<string>(
+      function (Value: TInteraction): string
+      begin
+        Result := Value.Id;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Interactions.Retrieve(InteractionId);
+////    procedure (Params: TUrlRetrieving)
+////    begin
+//////      Params
+//////        .Stream(True)
+//////        .LastEventId('&commercial+plus=equel#sharp')
+//////        .ApiVersion('17.3');
+////    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button37Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var InteractionId := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitDelete(InteractionId);
+
+  Promise
+    .&Then<string>(
+      function (Value: TCRUDDeleted): string
+      begin
+        Result := 'Deleted';
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Interactions.Delete(InteractionId);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button38Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+  var InteractionId := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitCancel(InteractionId);
+
+  Promise
+    .&Then<string>(
+      function (Value: TInteraction): string
+      begin
+        Result := Value.Id;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Interactions.Cancel(InteractionId);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button39Click(Sender: TObject);
+
+begin
+  TutorialHub.JSONUIClear;
+
+  var ContextEvent := TEventEngineManagerFactory.CreateInstance(
+        function : TStreamEventCallBack
+        begin
+          Result.Sender := TutorialHub;
+          Result.OnInteractionStart := DisplayInteractionStart;
+          Result.OnInteractionStatusUpdate := DisplayInteractionStatusUpdate;
+          Result.OnInteractionComplete := DisplayInteractionComplete;
+          Result.OnContentStart := DisplayContentStart;
+          Result.OnContentDelta := DisplayContentDelta;
+          Result.OnContentStop := DisplayContentStop;
+          Result.OnError := DisplayInteractionError;
+          Result.OnCancellation := Cancellation;
+          Result.OnDoCancel := DoCancellation;
+        end);
+
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('A partir de quelle version de Delphi, les chaînes multilignes ont été introduites?' )
+            .GenerationConfig(
+              TGenerationConfigIxParams.Create
+                .ThinkingSummaries('auto') //Include "thougth"
+               )
+            .Stream;
+          TutorialHub.JSONRequest := Params.ToFormat();
+        end;
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitCreateStream(Params, ContextEvent);
+
+  Promise
+    .&Then<TEventData>(
+      function (Value: TEventData): TEventData
+      begin
+        Result := Value;
+        ShowMessage(Value.Id);
+        ShowMessage(Value.Thought);
+        ShowMessage(Value.Text);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+end;
+
+procedure TForm1.Button34Click(Sender: TObject);
+begin
+  var Value := TApiDeserializer.Parse<TInteractionStream>(REQ_FUNCTION_CALL13);
+  try
+    Display(TutorialHub, Value.EventType.ToString);
+    if Assigned(Value.Interaction) then
+      begin
+        Display(TutorialHub, Value.Interaction.id);
+        Display(TutorialHub, Value.Interaction.Model);
+        Display(TutorialHub, Value.Interaction.&Object);
+        Display(TutorialHub, Value.Interaction.Status.ToString);
+      end;
+  finally
+    Value.Free;
+  end;
+end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TIxFileSearchResultContent>(REQ_FUNCTION_CALL11);
+//  try
+//    Display(TutorialHub, Value.&Type.ToString);
+//    Display(TutorialHub, TJsonReader.Parse(Value.Result).Format());
+//    for var Item in Value.FileSearchResult.Data do
+//      begin
+//        Display(TutorialHub, Item.Title);
+//        Display(TutorialHub, Item.Text);
+//        Display(TutorialHub, Item.FileSearchStore);
+//      end;
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TIxMcpServerToolResultContent>(REQ_FUNCTION_CALL10);
+//  try
+//    Display(TutorialHub, Value.&Type.ToString);
+//    Display(TutorialHub, Value.Name);
+//    Display(TutorialHub, Value.ServerName);
+//    Display(TutorialHub, Value.CallId);
+//    if Value.ResultIsJSONObject then
+//      begin
+//        Display(TutorialHub, 'is TJONObject');
+//        Display(TutorialHub, TJsonReader.Parse(Value.Result).Format());
+//      end
+//    else
+//      begin
+//        Display(TutorialHub, 'is string');
+//        Display(TutorialHub, Value.Result);
+//      end;
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TIxMcpServerToolCallContent>(REQ_FUNCTION_CALL9);
+//  try
+//    Display(TutorialHub, Value.&Type.ToString);
+//    Display(TutorialHub, Value.Name);
+//    Display(TutorialHub, Value.ServerName);
+//    Display(TutorialHub, Value.Id);
+//    Display(TutorialHub, TJsonReader.Parse(Value.Arguments).Format());
+//    Display(TutorialHub, TJsonReader.Parse(Value.Arguments).AsString('city'));
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TIxGoogleSearchResultContent>(REQ_FUNCTION_CALL8);
+//  try
+//    Display(TutorialHub, Value.&Type.ToString);
+//    Display(TutorialHub, Value.CallId);
+//    Display(TutorialHub, TJsonReader.Parse(Value.Result).Format());
+//    for var Item in Value.GoogleSearchResult.Data do
+//      begin
+//        Display(TutorialHub, Item.Url);
+//        Display(TutorialHub, Item.Title);
+//        Display(TutorialHub, Item.RenderedContent);
+//      end;
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TIxGoogleSearchCallContent>(REQ_FUNCTION_CALL7);
+//  try
+//    Display(TutorialHub, Value.Name);
+//    Display(TutorialHub, Value.&Type.ToString);
+//    Display(TutorialHub, TJsonReader.Parse(Value.Arguments).Format());
+//    for var Item in Value.GoogleSearchCallArguments.Queries do
+//      begin
+//        Display(TutorialHub, Item);
+//      end;
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TIxUrlContextResultContent>(REQ_FUNCTION_CALL6);
+//  try
+//    Display(TutorialHub, Value.Name);
+//    Display(TutorialHub, Value.&Type.ToString);
+//    Display(TutorialHub, TJsonReader.Parse(Value.Result).Format());
+//    for var Item in Value.UrlContextArguments.Data do
+//      begin
+//        Display(TutorialHub, Item.Url);
+//        Display(TutorialHub, Item.Status);
+//      end;
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+//procedure TForm1.Button34Click(Sender: TObject);
+//begin
+//  var Value := TApiDeserializer.Parse<TIxUrlContextResultContent>(REQ_FUNCTION_CALL6);
+//  try
+//    Display(TutorialHub, Value.Name);
+////    if Value.ArgumentsIsJSONObject then
+////      begin
+//        Display(TutorialHub, Value.&Type.ToString);
+//        Display(TutorialHub, TJsonReader.Parse(Value.Result).Format());
+//        for var Item in Value.UrlContextResultList.Result do
+//          begin
+//            Display(TutorialHub, Item.Url);
+//            Display(TutorialHub, Item.Status);
+//          end;
+//
+//
+////        Display(TutorialHub, Value.CodeExecuteArguments.Language);
+////        Display(TutorialHub, Value.Id);
+////        Display(TutorialHub, TJsonReader.Parse(Value.Result).Format());
+////        Display(TutorialHub, TJsonReader.Parse(Value.Result).AsString('code'));
+////      end
+////    else
+////      begin
+////        Display(TutorialHub, 'string');
+////        Display(TutorialHub, Value.Result);
+////      end;
+//  finally
+//    Value.Free;
+//  end;
+//end;
+
+procedure TForm1.Button3Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+
+  //Asynchronous promise example
+  var Promise := Client.Chat.AsyncAwaitCreateStream('models/gemini-2.5-flash',
+    procedure (Params: TChatParams)
+    begin
+      Params
+        .SystemInstruction('You must speak in French.')
+        .Contents([ TPayload.Add('Une théorie de Gallois motivique peut-elle résoudre la conjecture de Ram ?') ])
+//        .SafetySettings(TSafety.DontBlock)
+        .GenerationConfig(
+          TGenerationConfig.Create
+            .MaxOutputTokens(1024)
+            .ThinkingConfig(
+              TThinkingConfig.Create
+                .IncludeThoughts(True)
+                .ThinkingBudget(512)
+//                .ThinkingLevel(TThinkingLevelType.LOW)
+              )
+        );
+
+
+//      Params.GenerationConfig(
+//        procedure (var Params: TGenerationConfig)
+//        begin
+//          Params.MaxOutputTokens(1024);
+//        end);
+
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end,
+    function : TPromiseChatStream
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+
+      Result.OnProgress :=
+        procedure (Sender: TObject; Chunk: TChat)
+        begin
+          DisplayStream(Sender, Chunk);
+        end;
+
+      Result.OnDoCancel := DoCancellation;
+
+      Result.OnCancellation :=
+        function (Sender: TObject): string
+        begin
+          Cancellation(Sender);
+        end
+    end);
+
+  Promise
+    .&Then<string>(
+      function (Value: string): string
+      begin
+        Result := Value;
+        ShowMessage(Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Asynchronous example
+//  Client.Chat.AsynCreateStream('models/gemini-2.0-flash',
+//    procedure (Params: TChatParams)
+//    begin
+//      Params.SystemInstruction('You must speak in French.');
+//      Params.Contents([ TPayload.Add('Write a story about a magic backpack.') ]);
+//      Params.SafetySettings(TSafety.DontBlock);
+//      Params.GenerationConfig(
+//        procedure (var Params: TGenerationConfig)
+//        begin
+//          Params.MaxOutputTokens(2048); //1024);
+//        end);
+//
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end,
+//    function : TAsynChatStream
+//    begin
+//      Result.Sender := TutorialHub;
+//      Result.OnStart := Start;
+//      Result.OnProgress := DisplayStream;
+//      Result.OnDoCancel := DoCancellation;
+//      Result.OnCancellation := Cancellation;
+//      Result.OnError := Display;
+//    end);
+
+  //Synchronous example
+//  Client.Chat.CreateStream('models/gemini-2.0-flash',
+//    procedure (Params: TChatParams)
+//    begin
+//      Params.SystemInstruction('You must speak in French.');
+//      Params.Contents([ TPayload.Add('Write a story about a magic backpack.') ]);
+//      Params.SafetySettings(TSafety.DontBlock);
+//      Params.GenerationConfig(
+//        procedure (var Params: TGenerationConfig)
+//        begin
+//          Params.MaxOutputTokens(1024);
+//        end);
+//
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end,
+//    procedure (var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
+//    begin
+//      if (not IsDone) and Assigned(Chat) then
+//        begin
+//          DisplayStream(TutorialHub, Chat);
+//        end;
+//    end);
+end;
+
+procedure TForm1.Button40Click(Sender: TObject);
+begin
+  TutorialHub.JSONUIClear;
+
+  var ContexteSequence: TFunc<TPromiseInteractionStream> :=
+    function : TPromiseInteractionStream
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnProgress := DisplayStream;
+      Result.OnDoCancel := DoCancellation;
+      Result.OnCancellation := DoCancellationStream;
+    end;
+
+  var Params: TProc<TInteractionParams> :=
+    procedure (Params: TInteractionParams)
+    begin
+      Params
+        .Model('gemini-3-flash-preview')
+        .Input('A partir de quelle version de Delphi, les chaînes multilignes ont-elles été introduites?' )
+        .GenerationConfig(
+          TGenerationConfigIxParams.Create
+            .ThinkingSummaries('auto') //Include "thougth"
+           )
+        .Stream;
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end;
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitCreateStream(Params, ContexteSequence);
+
+  Promise
+    .&Then<TEventData>(
+      function (Value: TEventData): TEventData
+      begin
+        Result := Value;
+        ShowMessage(Value.Id);
+        ShowMessage(Value.Thought);
+        ShowMessage(Value.Text);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+end;
+
+procedure TForm1.Button41Click(Sender: TObject);
+begin
+  var Params: TProc<TInteractionParams> :=
+    procedure (Params: TInteractionParams)
+    begin
+      Params
+        .Model('gemini-3-flash-preview')
+        .Input('A partir de quelle version de Delphi, les chaînes multilignes ont-elles été introduites?' )
+        .Stream;
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end;
+
+  var DisplayContext: TInteractionEvent :=
+    procedure (var Event: TInteractionStream; IsDone: Boolean; var Cancel: Boolean)
+    begin
+      if (not IsDone) and Assigned(Event) then
+        begin
+          DisplayStream(TutorialHub, Event);
+        end;
+    end;
+
+
+  //Synchronous example
+  Client.Interactions.CreateStream(Params, DisplayContext);
+//    procedure (var Event: TInteractionStream; IsDone: Boolean; var Cancel: Boolean)
+//    begin
+//      if (not IsDone) and Assigned(Event) then
+//        begin
+//          DisplayStream(TutorialHub, Event);
+//        end;
+//    end);
+end;
+
+procedure TForm1.Button42Click(Sender: TObject);
+begin
+  var Params: TProc<TInteractionParams> :=
+    procedure (Params: TInteractionParams)
+    begin
+      Params
+        .Model('gemini-3-flash-preview')
+        .Input('A partir de quelle version de Delphi, les chaînes multilignes ont-elles été introduites?' )
+        .GenerationConfig(
+          TGenerationConfigIxParams.Create
+            .ThinkingSummaries('auto') //Include "thougth"
+           )
+        .Stream;
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end;
+
+  //Asynchronous promise example
+  var Promise := Client.Interactions.AsyncAwaitCreateStream(Params);
+
+  Promise
+    .&Then<TEventData>(
+      function (Value: TEventData): TEventData
+      begin
+        Result := Value;
+        ShowMessage(Value.Id);
+        ShowMessage(Value.Thought);
+        ShowMessage(Value.Text);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+end;
+
+procedure TForm1.Button4Click(Sender: TObject);
+begin
+  var K :=
+    TInteractionParams.Create
+      .Input(
+        TInput.Create()
+          .AddText('salut mon brave')
+          .AddImage('database64', TImageMimeTypeOption.image_png.ToString)
+          .AddImage(TImageContentIxParams.New
+              .Data('seondeImage64')
+              .MimeType('image/png')
+              .Resolution(TMediaResolution.high)
+           )
+          .AddAudio('AudioBase64', TAudioMimeTypeOption.audio_wav.ToString)
+          .AddAudio('https://mon_site/audio.wav')
+          .AddDocument('BASE64_ENCODED_DOCUMEN', 'application/pdf')
+          .AddDocument('http://my_site/my_doc.pdf')
+          .AddVideo('https://www.youtube.com/watch?v=9hE5-98ZeCg')
+          .AddFunctionResult('{"weather": "sunny", "temperature": 17}', 'gth23981')
+          .AddFileSearchResult(
+              TFileSearchResult.Create()
+                .AddItem('search result chunk', 'file_search_store')
+                .AddItem('My title', 'search result chunk prime', 'file_search_store')
+           )
+//          .AddRaw(
+//            TFunctionResultContentIxParams.New
+//              .Name('get_weather')
+//              .CallId('gth23981') //là il faut reprendre le callId de la réponses fournie par Google
+//              .Result('{"weather": "sunny", "temperature": 17}')
+//           )
+       )
+//      .Input(
+//        TTurn.Create()
+//          .AddUser('titi est dans la place')
+//          .AddAssistant('merci pour cette info')
+//          .AddUser(
+//             TInput.Create()
+//               .AddText('salut mon brave')
+//               .AddImage('database64', TImageMimeTypeOption.image_png.ToString)
+//               .AddImage(TImageContentIxParams.New
+//                  .Data('seondeImage64')
+//                  .MimeType('image/png')
+//                  .Resolution(TMediaResolution.high)
+//                )
+//               .AddAudio('AudioBase64', TAudioMimeTypeOption.audio_wav.ToString)
+//           )
+//        )
+
+    ;
+  Memo1.Text := K.ToFormat(True);
+
+
+  Exit;
+
+  var FileLocation := 'D:\2025-developpement\Images\cat.jpg';
+  var Base64 := TMediaCodec.EncodeBase64(FileLocation, True);
+  var MimeType := TMediaCodec.GetMimeType(FileLocation);
+  var DataURI := TMediaCodec.EncodeDataUri(FileLocation, MimeType);
+  var MimeType1 := '';
+
+
+  TMediaCodec.TryDecodeDataUriToFile(DataUri, 'D:\2025-developpement\Images\cat_02.jpg', MimeType1);
+  TMediaCodec.TryDecodeBase64ToFile(Base64, 'D:\2025-developpement\Images\cat_01.jpg');
+
+  Memo2.Text := MimeType1;
+  Memo1.Text := Base64;
+  Memo4.Text := DataURI;
+
+
+
+  Exit;
+
+  var Y :=
+    TInteractionParams.Create
+      .Tools(
+        TToolIx.Create
+          .AddFunction(
+             TFunctionIxParams.New
+               .Name('my function')
+               .Description('the fisrt function')
+           )
+          .AddGoogleSearch(
+             TGoogleSearchIxParams.New
+           )
+       )
+//      .GenerationConfig(
+//        '''
+//          {
+//              "temperature": 0.7,
+//              "max_output_tokens": 500,
+//              "thinking_level": "low"
+//          }
+//        '''
+//       );
+
+
+      .GenerationConfig(
+         TGenerationConfigIxParams.Create
+           .Temperature(0.7)
+           .ToolChoice(
+             TAllowedToolsIxParams.Create
+               .Mode(TToolChoiceType.validated)
+               .Tools(['un', 'deux', 'trois'])
+            )
+       );
+
+var Z := Y.Detach;
+
+//
+//    TThoughtContent.New
+//      .Summary(
+//        TThoughtSummary.Create
+//          .AddText('The user is asking about the weather. I should use the get_weather tool.')
+//          .AddText('The second')
+//       );
+
+//    TInteractionParams.Create
+//      .Input([
+//         TTextContentParams.New('mon texte'),
+//         TImageContentParams.New.Data('base64Image')
+//       ]);
+
+//  var Y :=
+//    TBatchContentParams.Create
+//      .DisplayName('First batch')
+//      .InputConfig(
+//         TInputConfigParams.Create
+//           .Requests(
+//              TInlinedRequestsParams.Create
+//                .Requests(
+//                  TInlineRequest.Create
+//                    .AddRequest('request-1',
+//                      TGenerateContentRequestParams.Create
+//                        .Model('ModelName')
+//                        .Contents(
+//                           TContent.Create
+//                             .AddText('Describe the process of photosynthesis.')
+//                             .AddText('What are the main ingredients in a Margherita pizza?')
+//                         )
+//                        .GenerationConfig(
+//                           TGenerationConfig.Create
+//                             .Temperature(0.7)
+//                         )
+//                     )
+//                    .AddRequest('request-2',
+//                       TGenerateContentRequestParams.Create
+//                         .Model('ModelName')
+//                         .Contents(
+//                           TContent.Create
+//                             .AddText('Describe differences between JSON and XML')
+//                          )
+//                     )
+//                 )
+//            )
+//       );
+
+//  var Y :=
+//    TGenerateContentRequestParams.Create
+//      .Model('my model')
+//      .Contents(
+//        TContent.Create
+//          .User('Salut')
+//        )
+//      .Tools(
+//        TTools.Create
+//          .AddGoogleSearch(TGoogleSearch.Create)
+//        );
+
+//  var Y :=
+//    TChatParams.Create
+//      .GenerationConfig(
+//        TGenerationConfig.Create
+//          .ThinkingConfig(
+//             TThinkingConfig.Create
+//               .IncludeThoughts(True)
+//               .ThinkingBudget(5)
+//               .ThinkingLevel(TThinkingLevelType.HIGH)
+//          )
+//        );
+
+//  var Y :=
+//    TChatParams.Create
+//      .GenerationConfig(
+//        TGenerationConfig.Create
+//          .ImageConfig(
+//            TImageConfig.Create
+//              .AspectRatio('2:3')
+//              .ImageSize('4k')
+//            )
+//        );
+
+//  var Y :=
+//    TChatParams.Create
+//      .GenerationConfig(
+//        TGenerationConfig.Create
+//          .SpeechConfig(
+//            TSpeechConfig.Create
+//              .VoiceConfig(
+//                TVoiceConfig.NewVoiceConfig('the voice')
+//                )
+//              .MultiSpeakerVoiceConfig(
+//                TMultiSpeakerVoiceConfig.Create
+//                  .SpeakerVoiceConfigs(
+//                    TSpeakerVoice.Create
+//                      .AddSpeakerVoiceConfig('speaker-2', 'voice-2')
+//                      .AddSpeakerVoiceConfig('speaker-3', 'voice-3')
+//                    )
+//                )
+//               .LanguageCode('fr-FR')
+//            )
+//          );
+
+//  var Y :=
+//  TChatParams.Create
+//    .Tools(
+//      TTools.Create
+//        .AddFunctionDeclarations(
+//          TFunction.Create
+//            .AddFunction('myName', 'myDescription')
+//            .AddFunction('mysecondfunc', 'Seconde fonction')
+//          )
+//        .AddNewGoogleSearchRetrieval(
+//          TGoogleSearchRetrieval.Create
+//            .DynamicRetrievalConfig(
+//               TDynamicRetrievalConfig.Create
+//                 .Mode(TModeType.MODE_DYNAMIC)
+//              )
+//          )
+//        .AddCodeExecution(TCodeExecution.Create)
+//        .AddGoogleSearch(TGoogleSearch.Create)
+//        .AddComputerUse(TComputerUse.Create.Environment(TEnvironmentType.ENVIRONMENT_BROWSER))
+//        .AddUrlContext(TUrlContext.Create)
+//        .AddFileSearch(TFileSearch.Create.FileSearchStoreNames(['myFiles', 'TodoList']))
+//        .AddGoogleMaps(TGoogleMaps.Create)
+//     );
+  Memo1.Text := Z.Format();  //ToFormat(True);
+  Z.Free;
+end;
+
+procedure TForm1.Button5Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+
+  //Asynchronous promise example
+  var Promise := Client.Models.AsyncAwaitList;
+
+  Promise
+    .&Then<TModels>(
+      function (Value: TModels): TModels
+      begin
+        Display(TutorialHub, Value);
+        Result := Value;
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Models.List;
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button6Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var ModelName := Edit1.Text;
+
+  //Asynchronous promise example
+  var Promise := Client.Models.AsyncAwaitRetrieve(ModelName);
+
+  Promise
+    .&Then<string>(
+      function (Value: TModel): string
+      begin
+        Result := Value.Name;
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Models.Retrieve(ModelName);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Button7Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var ModelName := 'models/text-embedding-004';
+
+  //Asynchronous promise example
+  var Promise := Client.Embeddings.AsyncAwaitCreate(ModelName,
+    procedure (Params: TEmbeddingsParams)
+    begin
+      Params
+        .Content(['Hello', 'how', 'are you?']);
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<TArray<TArray<Double>>>(
+       function (Value: TEmbedding): TArray<TArray<Double>>
+       begin
+         Display(TutorialHub, Value);
+       end)
+    .&Catch(
+       procedure (E: Exception)
+       begin
+         Display(TutorialHub, E.Message);
+       end);
+
+
+  //Synchronous example
+//  var Value := Client.Embeddings.Create(ModelName,
+//    procedure (Params: TEmbeddingsParams)
+//    begin
+//      Params
+//        .Content(['Hello', 'how', 'are you?']);
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+
+end;
+
+procedure TForm1.Button8Click(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+  var ModelName := 'text-embedding-004';  // or 'models/text-embedding-004';
+
+  //Asynchronous promise example
+  var Promise := Client.Embeddings.AsyncAwaitCreateBatch(ModelName,
+    procedure (Params: TEmbeddingBatchParams)
+    begin
+      Params
+        .Requests(
+          TBatchEmbeddings.Create
+            .AddItem(ModelName, ['Hello'])
+            .AddItem(ModelName, ['how', 'are you?'])
+          );
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<TArray<TArray<Double>>>(
+       function (Value: TEmbeddingList): TArray<TArray<Double>>
+       begin
+         Display(TutorialHub, Value);
+       end)
+    .&Catch(
+       procedure (E: Exception)
+       begin
+         Display(TutorialHub, E.Message);
+       end);
+  
+  //Synchronous example
+//  var Value := Client.Embeddings.CreateBatch(ModelName,
+//    procedure (Params: TEmbeddingBatchParams)
+//    begin
+//      Params
+//        .Requests(
+//          TBatchEmbeddings.Create
+//            .AddItem(ModelName, ['Hello'])
+//            .AddItem(ModelName, ['how', 'are you?'])
+//          );
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.Upload(Sender: TObject);
+begin
+  TutorialHub.JSONRequestClear;
+
+  //Asynchronous promise example
+  var Promise := Client.Files.AsyncAwaitList;
+
+  Promise
+    .&Then<string>(
+      function (Value: TFiles): string
+      begin
+        Result := '';
+        Display(TutorialHub, Value);
+      end)
+    .&Catch(
+      procedure (E: Exception)
+      begin
+        Display(TutorialHub, E.Message);
+      end);
+
+  //Synchronous example
+//  var Value := Client.Files.List;
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+end;
+
+procedure TForm1.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  CanClose := not HttpMonitoring.IsBusy;
+  if not CanClose then
+    MessageDLG(
+      'Requests are still in progress. Please wait for them to complete before closing the application."',
+      TMsgDlgType.mtInformation, [TMsgDlgBtn.mbOK], 0);
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  ReportMemoryLeaksOnShutdown := True;
+  Client := TGeminiFactory.CreateInstance('AIzaSyCBLxPCsaKsQYrOElDsQD3npnn-0AtkNas');
+  TApiDeserializer.MetadataAsObject := False;
+  Width := 1600;
+  Height := 900;
+  TutorialHub := TVCLTutorialHub.Create(Client, Memo1, Memo2, Memo3, Memo4, Button1);
+end;
+
+end.

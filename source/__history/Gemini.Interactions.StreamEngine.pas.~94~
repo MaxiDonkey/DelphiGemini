@@ -1,0 +1,287 @@
+unit Gemini.Interactions.StreamEngine;
+
+{-------------------------------------------------------------------------------
+
+      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
+      Visit the Github repository for the documentation and use examples
+
+ ------------------------------------------------------------------------------}
+
+interface
+
+uses
+  System.SysUtils, System.Classes,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API.Params, Gemini.Types, Gemini.Interactions.ResponsesContent,
+  Gemini.Async.Support, Gemini.Async.Promise, Gemini.Interactions.Responses,
+  Gemini.Interactions.Stream, Gemini.Interactions.StreamCallbacks;
+
+type
+  {$REGION 'Interfaces'}
+
+  IStreamEventHandler = interface
+    function CanHandle(EventType: TEventType): Boolean;
+
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  IEventEngineManager = interface
+    ['{5F887D14-1654-40CA-8903-43165CF95AC3}']
+    function AggregateStreamEvents(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  TEventEngineManagerFactory = class
+    class function CreateInstance(const CallBacks: TFunc<TStreamEventCallBack> = nil): IEventEngineManager;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'Execution engine'}
+
+  TEventExecutionEngine = class
+  private
+    FHandlers: TArray<IStreamEventHandler>;
+  public
+    procedure RegisterHandler(AHandler: IStreamEventHandler);
+    function AggregateStreamEvents(const Chunk: TInteractionStream;
+      var Buffer: TEventData): Boolean;
+  end;
+
+  TEventEngineManager = class(TInterfacedObject, IEventEngineManager)
+  private
+    FEngine: TEventExecutionEngine;
+    FDispatcher: IStreamEventDispatcher;
+    procedure EventExecutionEngineInitialize;
+  public
+    constructor Create(const ADispatcher: IStreamEventDispatcher = nil);
+    function AggregateStreamEvents(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'Handlers events'}
+
+  TInteractionStart = class(TInterfacedObject, IStreamEventHandler)
+    function CanHandle(EventType: TEventType): Boolean;
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  TInteractionComplete = class(TInterfacedObject, IStreamEventHandler)
+    function CanHandle(EventType: TEventType): Boolean;
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  TInteractionStatusUpdate = class(TInterfacedObject, IStreamEventHandler)
+    function CanHandle(EventType: TEventType): Boolean;
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  TContentStart = class(TInterfacedObject, IStreamEventHandler)
+    function CanHandle(EventType: TEventType): Boolean;
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  TContentDelta = class(TInterfacedObject, IStreamEventHandler)
+    function CanHandle(EventType: TEventType): Boolean;
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  TContentStop = class(TInterfacedObject, IStreamEventHandler)
+    function CanHandle(EventType: TEventType): Boolean;
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  TErrorEvent = class(TInterfacedObject, IStreamEventHandler)
+    function CanHandle(EventType: TEventType): Boolean;
+    function Handle(const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+  end;
+
+  {$ENDREGION}
+
+implementation
+
+{ TEventExecutionEngine }
+
+function TEventExecutionEngine.AggregateStreamEvents(
+  const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+begin
+  if not Assigned(Chunk) then
+    Exit(True);
+
+  var EventType := Chunk.EventType;
+
+  for var Handler in FHandlers do
+    begin
+      if Handler.CanHandle(EventType) then
+        begin
+          Result := Handler.Handle(Chunk, Buffer);
+          Exit;
+        end;
+    end;
+
+  Result := True;
+end;
+
+procedure TEventExecutionEngine.RegisterHandler(AHandler: IStreamEventHandler);
+begin
+  FHandlers := FHandlers + [AHandler];
+end;
+
+{ TEventEngineManager }
+
+function TEventEngineManager.AggregateStreamEvents(
+  const Chunk: TInteractionStream; var Buffer: TEventData): Boolean;
+begin
+  if not Assigned(Chunk) then
+    Exit(True);
+
+  Result := FEngine.AggregateStreamEvents(Chunk, Buffer);
+
+  if Assigned(FDispatcher) then
+    FDispatcher.DispatchEvent(Chunk.EventType, Buffer);
+end;
+
+constructor TEventEngineManager.Create(const ADispatcher: IStreamEventDispatcher);
+begin
+  inherited Create;
+  FDispatcher := ADispatcher;
+  EventExecutionEngineInitialize;
+end;
+
+destructor TEventEngineManager.Destroy;
+begin
+  FEngine.Free;
+  inherited;
+end;
+
+procedure TEventEngineManager.EventExecutionEngineInitialize;
+begin
+  {--- NOTE: TEventEngineManager is a singleton }
+  FEngine := TEventExecutionEngine.Create;
+  FEngine.RegisterHandler(TInteractionStart.Create);
+  FEngine.RegisterHandler(TInteractionComplete.Create);
+  FEngine.RegisterHandler(TInteractionStatusUpdate.Create);
+  FEngine.RegisterHandler(TContentStart.Create);
+  FEngine.RegisterHandler(TContentDelta.Create);
+  FEngine.RegisterHandler(TContentStop.Create);
+  FEngine.RegisterHandler(TErrorEvent.Create);
+end;
+
+{ TInteractionStart }
+
+function TInteractionStart.CanHandle(EventType: TEventType): Boolean;
+begin
+  Result := EventType = TEventType.interaction_start;
+end;
+
+function TInteractionStart.Handle(const Chunk: TInteractionStream;
+  var Buffer: TEventData): Boolean;
+begin
+  Result := True;
+
+  Buffer := Default(TEventData);
+  if Assigned(Chunk.Interaction) then
+    Buffer.Id := Chunk.Interaction.Id;
+  Buffer.Chunk := Chunk;
+end;
+
+{ TInteractionComplete }
+
+function TInteractionComplete.CanHandle(EventType: TEventType): Boolean;
+begin
+  Result := EventType = TEventType.interaction_complete;
+end;
+
+function TInteractionComplete.Handle(const Chunk: TInteractionStream;
+  var Buffer: TEventData): Boolean;
+begin
+  Result := True;
+  Buffer.Chunk := Chunk;
+end;
+
+{ TInteractionStatusUpdate }
+
+function TInteractionStatusUpdate.CanHandle(EventType: TEventType): Boolean;
+begin
+  Result := EventType = TEventType.interaction_status_update;
+end;
+
+function TInteractionStatusUpdate.Handle(const Chunk: TInteractionStream;
+  var Buffer: TEventData): Boolean;
+begin
+  Result := True;
+  Buffer.Chunk := Chunk;
+end;
+
+{ TContentStart }
+
+function TContentStart.CanHandle(EventType: TEventType): Boolean;
+begin
+  Result := EventType = TEventType.content_start;
+end;
+
+function TContentStart.Handle(const Chunk: TInteractionStream;
+  var Buffer: TEventData): Boolean;
+begin
+  Result := True;
+  Buffer.Chunk := Chunk;
+end;
+
+{ TContentDelta }
+
+function TContentDelta.CanHandle(EventType: TEventType): Boolean;
+begin
+  Result := EventType = TEventType.content_delta;
+end;
+
+function TContentDelta.Handle(const Chunk: TInteractionStream;
+  var Buffer: TEventData): Boolean;
+begin
+  var Error := False;
+
+  Buffer.Aggregate(Chunk, procedure
+    begin
+      Error := True;
+    end);
+
+  Result := not Error;
+end;
+
+{ TContentStop }
+
+function TContentStop.CanHandle(EventType: TEventType): Boolean;
+begin
+  Result := EventType = TEventType.content_stop;
+end;
+
+function TContentStop.Handle(const Chunk: TInteractionStream;
+  var Buffer: TEventData): Boolean;
+begin
+  Result := True;
+  Buffer.Chunk := Chunk;
+end;
+
+{ TErrorEvent }
+
+function TErrorEvent.CanHandle(EventType: TEventType): Boolean;
+begin
+  Result := EventType = TEventType.error;
+end;
+
+function TErrorEvent.Handle(const Chunk: TInteractionStream;
+  var Buffer: TEventData): Boolean;
+begin
+  Result := False;
+  Buffer.Chunk := Chunk;
+end;
+
+{ TEventEngineManagerFactory }
+
+class function TEventEngineManagerFactory.CreateInstance(
+  const CallBacks: TFunc<TStreamEventCallBack>): IEventEngineManager;
+begin
+  Result := TEventEngineManager.Create(TStreamEventDispatcher.Create(CallBacks));
+end;
+
+end.

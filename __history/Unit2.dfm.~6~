@@ -1,0 +1,47 @@
+object Form2: TForm2
+  Left = 0
+  Top = 0
+  Caption = 'Form2'
+  ClientHeight = 441
+  ClientWidth = 1014
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -16
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnCreate = FormCreate
+  DesignSize = (
+    1014
+    441)
+  TextHeight = 21
+  object Memo1: TMemo
+    Left = 8
+    Top = 8
+    Width = 697
+    Height = 425
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    ScrollBars = ssVertical
+    TabOrder = 0
+  end
+  object Button5: TButton
+    Left = 748
+    Top = 48
+    Width = 231
+    Height = 25
+    Anchors = [akTop, akRight]
+    Caption = 'Execute'
+    TabOrder = 1
+    OnClick = Button5Click
+  end
+  object Button1: TButton
+    Left = 748
+    Top = 88
+    Width = 231
+    Height = 25
+    Anchors = [akTop, akRight]
+    Caption = 'Execute asynchronous'
+    TabOrder = 2
+    OnClick = Button1Click
+  end
+end

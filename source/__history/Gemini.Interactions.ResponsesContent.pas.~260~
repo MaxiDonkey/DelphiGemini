@@ -1,0 +1,673 @@
+unit Gemini.Interactions.ResponsesContent;
+
+interface
+
+uses
+  System.SysUtils, System.JSON,
+  REST.Json, REST.JsonReflect, REST.Json.Types,
+  Gemini.API, Gemini.API.Params, Gemini.Types, Gemini.Safety, Gemini.Schema;
+
+type
+  TIxCommonContent = class(TJSONFingerprint)
+  private
+    [JsonReflectAttribute(ctString, rtString, TContentTypeInterceptor)]
+    FType: TContentType;
+  public
+    /// <summary>
+    /// Response type
+    /// </summary>
+    property &Type: TContentType read FType write FType;
+  end;
+
+  {$REGION 'TextContent'}
+
+  TIxAnnotations = class
+  private
+    [JsonNameAttribute('start_index')]
+    FStartIndex: Int64;
+    [JsonNameAttribute('end_index')]
+    FEndIndex: Int64;
+    FSource: string;
+  public
+    /// <summary>
+    /// Start of segment of the response that is attributed to this source. Index indicates the start of
+    /// the segment, measured in bytes.
+    /// </summary>
+    property StartIndex: Int64 read FStartIndex write FStartIndex;
+
+    /// <summary>
+    /// End of the attributed segment, exclusive.
+    /// </summary>
+    property EndIndex: Int64 read FEndIndex write FEndIndex;
+
+    /// <summary>
+    /// Source attributed for a portion of the text. Could be a URL, title, or other identifier.
+    /// </summary>
+    property Source: string read FSource write FSource;
+  end;
+
+  TIxTextContent = class(TIxCommonContent)
+  private
+    FText: string;
+    FAnnotations: TArray<TIxAnnotations>;
+  public
+    /// <summary>
+    /// The text content.
+    /// </summary>
+    property Text: string read FText write FText;
+
+    /// <summary>
+    /// Citation information for model-generated content.
+    /// </summary>
+    property Annotations: TArray<TIxAnnotations> read FAnnotations write FAnnotations;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'Media'}
+
+  TIxImageContent = class(TIxTextContent)
+  private
+    FData: string;
+    FUri: string;
+    [JsonNameAttribute('mime_type')]
+    FMimeType: string;
+    FResolution: string;
+  public
+    /// <summary>
+    /// Base64-Encoded of the media
+    /// </summary>
+    property Data: string read FData write FData;
+
+    /// <summary>
+    /// Uri of the media
+    /// </summary>
+    property Uri: string read FUri write FUri;
+
+    /// <summary>
+    /// The mime type of the media
+    /// </summary>
+    property MimeType: string read FMimeType write FMimeType;
+
+    /// <summary>
+    /// The resolution of the media.
+    /// </summary>
+    property Resolution: string read FResolution write FResolution;
+  end;
+
+  TIxAudioContent = class(TIxImageContent) end;
+
+  TIxDocumentContent = class(TIxAudioContent) end;
+
+  TIxVideoContent = class(TIxDocumentContent) end;
+
+  {$ENDREGION}
+
+  {$REGION 'ThoughtContent'}
+
+  TIxThoughtSummary = class
+  private
+    FType: string;
+    FText: string;
+  public
+    property &Type: string read FType write FType;
+    property Text: string read FText write FText;
+  end;
+
+  TIxThoughtContent = class(TIxVideoContent)
+  private
+    FSignature: string;
+    FSummary: TArray<TIxThoughtSummary>;
+  public
+    /// <summary>
+    /// Signature to match the backend source to be part of the generation
+    /// </summary>
+    property Signature: string read FSignature write FSignature;
+
+    /// <summary>
+    /// A summary of the thought.
+    /// </summary>
+    property Summary: TArray<TIxThoughtSummary> read FSummary write FSummary;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'FunctionCallContent'}
+
+  TIxFunctionCallContent = class(TIxThoughtContent)
+  private
+    FName: string;
+    [JsonReflectAttribute(ctString, rtString, TArgsFixInterceptor)]
+    FArguments: string;
+    FId: string;
+  public
+    /// <summary>
+    /// The name of the item to call or called.
+    /// </summary>
+    property Name: string read FName write FName;
+
+    /// <summary>
+    /// The arguments to pass to the tool.
+    /// </summary>
+    property Arguments: string  read FArguments write FArguments;
+
+    /// <summary>
+    /// A unique ID for this specific tool call.
+    /// </summary>
+    property Id: string read FId write FId;
+
+    function ArgumentsIsJSONObject: Boolean;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'FunctionResultContent'}
+
+  TIxFunctionResultContent = class(TIxFunctionCallContent)
+  private
+    [JsonNameAttribute('is_error')]
+    FIsError: Boolean;
+    [JsonReflectAttribute(ctString, rtString, TArgsFixInterceptor)]
+    FResult: string;
+    [JsonNameAttribute('call_id')]
+    FCallId: string;
+  public
+    /// <summary>
+    /// Whether the call resulted in an error.
+    /// </summary>
+    property IsError: Boolean read FIsError write FIsError;
+
+    /// <summary>
+    /// The result of the call.
+    /// </summary>
+    property Result: string read FResult write FResult;
+
+    /// <summary>
+    /// ID to match the ID from the call block.
+    /// </summary>
+    property CallId: string read FCallId write FCallId;
+
+    function ResultIsJSONObject: Boolean;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'CodeExecutionCallContent'}
+
+  TIxCodeExecuteArguments = class
+  private
+    FLanguage: string;
+    FCode: string;
+  public
+    /// <summary>
+    /// Programming language of the `code`.
+    /// </summary>
+    property Language: string read FLanguage write FLanguage;
+
+    /// <summary>
+    /// The code to be executed.
+    /// </summary>
+    property Code: string read FCode write FCode;
+  end;
+
+  TIxCodeExecutionCallContent = class(TIxFunctionResultContent)
+  private
+    [JSONMarshalled(False)]
+    FCodeExecuteArguments: TIxCodeExecuteArguments;
+    function GetCodeExecuteArguments: TIxCodeExecuteArguments;
+  public
+    /// <summary>
+    /// The arguments to pass to the code execution.
+    /// </summary>
+    property CodeExecuteArguments: TIxCodeExecuteArguments read GetCodeExecuteArguments;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'CodeExecutionResultContent'}
+
+  TIxCodeExecutionResultContent = class(TIxCodeExecutionCallContent)
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'UrlContextCallContent'}
+
+  TIxUrlContextArguments = class
+  private
+    FUrls: TArray<string>;
+  public
+    /// <summary>
+    /// The URLs to fetch.
+    /// </summary>
+    property Urls: TArray<string> read FUrls write FUrls;
+  end;
+
+  TIxUrlContextCallContent = class(TIxCodeExecutionResultContent)
+  private
+    [JSONMarshalled(False)]
+    FUrlContextArguments: TIxUrlContextArguments;
+    function GetUrlContextArguments: TIxUrlContextArguments;
+  public
+    /// <summary>
+    /// The arguments to pass to the URL context.
+    /// </summary>
+    property UrlContextArguments: TIxUrlContextArguments read GetUrlContextArguments;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'UrlContextResultContent'}
+
+  TIxUrlContextResult = class
+  private
+    FUrl: string;
+    FStatus: string;
+  public
+    /// <summary>
+    /// The URL that was fetched.
+    /// </summary>
+    property Url: string read FUrl write FUrl;
+
+    /// <summary>
+    /// The status of the URL retrieval.
+    /// </summary>
+    property Status: string read FStatus write FStatus;
+  end;
+
+  TIxUrlContextResultList = class
+  private
+    FData: TArray<TIxUrlContextResult>;
+  public
+    /// <summary>
+    /// The results of the URL context.
+    /// </summary>
+    property Data: TArray<TIxUrlContextResult> read FData write FData;
+
+    destructor Destroy; override;
+  end;
+
+  TIxUrlContextResultContent = class(TIxUrlContextCallContent)
+  private
+    [JSONMarshalled(False)]
+    FUrlContextResultList: TIxUrlContextResultList;
+    function GetUrlContextResult: TIxUrlContextResultList;
+  public
+    /// <summary>
+    /// The results of the URL context.
+    /// </summary>
+    property UrlContextResult: TIxUrlContextResultList read GetUrlContextResult;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'GoogleSearchCallContent'}
+
+  TIxGoogleSearchCallArguments = class
+  private
+    FQueries: TArray<string>;
+  public
+    /// <summary>
+    /// Web search queries for the following-up web search.
+    /// </summary>
+    property Queries: TArray<string> read FQueries write FQueries;
+  end;
+
+  TIxGoogleSearchCallContent = class(TIxUrlContextResultContent)
+  private
+    [JSONMarshalled(False)]
+    FGoogleSearchCallArguments: TIxGoogleSearchCallArguments;
+    function GetGoogleSearchCallArguments: TIxGoogleSearchCallArguments;
+  public
+    /// <summary>
+    /// The arguments to pass to Google Search.
+    /// </summary>
+    property GoogleSearchCallArguments: TIxGoogleSearchCallArguments read GetGoogleSearchCallArguments;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'GoogleSearchResultContent'}
+
+  TIxGoogleSearchResult = class
+  private
+    FUrl: string;
+    FTitle: string;
+    [JsonNameAttribute('rendered_content')]
+    FRenderedContent: string;
+  public
+    /// <summary>
+    /// URI reference of the search result.
+    /// </summary>
+    property Url: string read FUrl write FUrl;
+
+    /// <summary>
+    /// Title of the search result.
+    /// </summary>
+    property Title: string read FTitle write FTitle;
+
+    /// <summary>
+    /// Web content snippet that can be embedded in a web page or an app webview.
+    /// </summary>
+    property RenderedContent: string read FRenderedContent write FRenderedContent;
+  end;
+
+  TIxGoogleSearchResultList = class
+  private
+    FData: TArray<TIxGoogleSearchResult>;
+  public
+    /// <summary>
+    /// The results of the Google Search.
+    /// </summary>
+    property Data: TArray<TIxGoogleSearchResult> read FData write FData;
+
+    destructor Destroy; override;
+  end;
+
+  TIxGoogleSearchResultContent = class(TIxGoogleSearchCallContent)
+  private
+    [JSONMarshalled(False)]
+    FGoogleSearchResultList: TIxGoogleSearchResultList;
+    function GetGoogleSearchResult: TIxGoogleSearchResultList;
+  public
+    /// <summary>
+    /// The results of the Google Search.
+    /// </summary>
+    property GoogleSearchResult: TIxGoogleSearchResultList read GetGoogleSearchResult;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'McpServerToolCallContent'}
+
+  TIxMcpServerToolCallContent = class(TIxGoogleSearchResultContent)
+  private
+    [JsonNameAttribute('server_name')]
+    FServerName: string;
+  public
+    /// <summary>
+    /// The name of the used MCP server.
+    /// </summary>
+    property ServerName: string read FServerName write FServerName;
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'McpServerToolResultContent'}
+
+  TIxMcpServerToolResultContent = class(TIxMcpServerToolCallContent)
+  end;
+
+  {$ENDREGION}
+
+  {$REGION 'FileSearchResultContent'}
+
+  TIxFileSearchResult = class
+  private
+    FTitle: string;
+    FText: string;
+    [JsonNameAttribute('file_search_store')]
+    FFileSearchStore: string;
+  public
+    /// <summary>
+    /// The title of the search result.
+    /// </summary>
+    property Title: string read FTitle write FTitle;
+
+    /// <summary>
+    /// The text of the search result.
+    /// </summary>
+    property Text: string read FText write FText;
+
+    /// <summary>
+    /// The name of the file search store.
+    /// </summary>
+    property FileSearchStore: string read FFileSearchStore write FFileSearchStore;
+  end;
+
+  TIxFileSearchResultList = class
+  private
+    FData: TArray<TIxFileSearchResult>;
+  public
+    /// <summary>
+    /// The results of the File Search.
+    /// </summary>
+    property Data: TArray<TIxFileSearchResult> read FData write FData;
+
+    destructor Destroy; override;
+  end;
+
+  TIxFileSearchResultContent = class(TIxMcpServerToolResultContent)
+  private
+    [JSONMarshalled(False)]
+    FFileSearchResultList: TIxFileSearchResultList;
+    function GetFileSearchResult: TIxFileSearchResultList;
+  public
+    /// <summary>
+    /// The results of the File Search.
+    /// </summary>
+    property FileSearchResult: TIxFileSearchResultList read GetFileSearchResult;
+
+    destructor Destroy; override;
+  end;
+
+  {$ENDREGION}
+
+  TResponseContent = class(TIxFileSearchResultContent);
+
+implementation
+
+{ TIxTextContent }
+
+destructor TIxTextContent.Destroy;
+begin
+  for var Item in FAnnotations do
+    Item.Free;
+  inherited;
+end;
+
+function TIxFunctionCallContent.ArgumentsIsJSONObject: Boolean;
+var
+  JSONValue: TJSONValue;
+begin
+  JSONValue := nil;
+  try
+    JSONValue := TJSONObject.ParseJSONValue(FArguments, False, True);
+    Result := JSONValue <> nil;
+  except
+    Result := False;
+  end;
+  JSONValue.Free;
+end;
+
+{ TIxFunctionResultContent }
+
+function TIxFunctionResultContent.ResultIsJSONObject: Boolean;
+var
+  JSONValue: TJSONValue;
+begin
+  JSONValue := nil;
+  try
+    JSONValue := TJSONObject.ParseJSONValue(FResult, False, True);
+    Result := JSONValue <> nil;
+  except
+    Result := False;
+  end;
+  JSONValue.Free;
+end;
+
+{ TIxCodeExecutionCallContent }
+
+destructor TIxCodeExecutionCallContent.Destroy;
+begin
+  if Assigned(FCodeExecuteArguments) then
+    FCodeExecuteArguments.Free;
+  inherited;
+end;
+
+function TIxCodeExecutionCallContent.GetCodeExecuteArguments: TIxCodeExecuteArguments;
+begin
+  if Assigned(FCodeExecuteArguments) then
+    Exit(FCodeExecuteArguments);
+
+  try
+    FCodeExecuteArguments := TApiDeserializer.Parse<TIxCodeExecuteArguments>(Arguments);
+    Result := FCodeExecuteArguments;
+  except
+    Result := TIxCodeExecuteArguments.Create;
+  end;
+end;
+
+{ TIxUrlContextCallContent }
+
+destructor TIxUrlContextCallContent.Destroy;
+begin
+  if Assigned(FUrlContextArguments) then
+    FUrlContextArguments.Free;
+  inherited;
+end;
+
+function TIxUrlContextCallContent.GetUrlContextArguments: TIxUrlContextArguments;
+begin
+  if Assigned(FUrlContextArguments) then
+    Exit(FUrlContextArguments);
+
+  try
+    FUrlContextArguments := TApiDeserializer.Parse<TIxUrlContextArguments>(Arguments);
+    Result := FUrlContextArguments;
+  except
+    Result := TIxUrlContextArguments.Create;
+  end;
+end;
+
+{ TIxUrlContextResultList }
+
+destructor TIxUrlContextResultList.Destroy;
+begin
+  for var Item in FData do
+    Item.Free;
+  inherited;
+end;
+
+{ TIxUrlContextResultContent }
+
+destructor TIxUrlContextResultContent.Destroy;
+begin
+  if Assigned(FUrlContextResultList) then
+    FUrlContextResultList.Free;
+  inherited;
+end;
+
+function TIxUrlContextResultContent.GetUrlContextResult: TIxUrlContextResultList;
+begin
+  if Assigned(FUrlContextResultList) then
+    Exit(FUrlContextResultList);
+
+  try
+    var Formatted := Format('{"data": %s}', [Self.Result]);
+    FUrlContextResultList := TApiDeserializer.Parse<TIxUrlContextResultList>(Formatted);
+    Result := FUrlContextResultList;
+  except
+    Result := TIxUrlContextResultList.Create;
+  end;
+end;
+
+{ TIxGoogleSearchCallContent }
+
+destructor TIxGoogleSearchCallContent.Destroy;
+begin
+  if Assigned(FGoogleSearchCallArguments) then
+    FGoogleSearchCallArguments.Free;
+  inherited;
+end;
+
+function TIxGoogleSearchCallContent.GetGoogleSearchCallArguments: TIxGoogleSearchCallArguments;
+begin
+  if Assigned(FGoogleSearchCallArguments) then
+    Exit(FGoogleSearchCallArguments);
+
+  try
+    FGoogleSearchCallArguments := TApiDeserializer.Parse<TIxGoogleSearchCallArguments>(Arguments);
+    Result := FGoogleSearchCallArguments;
+  except
+    Result := TIxGoogleSearchCallArguments.Create;
+  end;
+end;
+
+{ TIxGoogleSearchResultContent }
+
+destructor TIxGoogleSearchResultContent.Destroy;
+begin
+  if Assigned(FGoogleSearchResultList) then
+    FGoogleSearchResultList.Free;
+  inherited;
+end;
+
+function TIxGoogleSearchResultContent.GetGoogleSearchResult: TIxGoogleSearchResultList;
+begin
+  if Assigned(FGoogleSearchResultList) then
+    Exit(FGoogleSearchResultList);
+
+  try
+    var Formatted := Format('{"data": %s}', [Self.Result]);
+    FGoogleSearchResultList := TApiDeserializer.Parse<TIxGoogleSearchResultList>(Formatted);
+    Result := FGoogleSearchResultList;
+  except
+    Result := TIxGoogleSearchResultList.Create;
+  end;
+end;
+
+{ TIxGoogleSearchResultList }
+
+destructor TIxGoogleSearchResultList.Destroy;
+begin
+  for var Item in FData do
+    Item.Free;
+  inherited;
+end;
+
+{ TIxFileSearchResultList }
+
+destructor TIxFileSearchResultList.Destroy;
+begin
+  for var Item in FData do
+    Item.Free;
+  inherited;
+end;
+
+{ TIxFileSearchResultContent }
+
+destructor TIxFileSearchResultContent.Destroy;
+begin
+  if Assigned(FFileSearchResultList) then
+    FFileSearchResultList.Free;
+  inherited;
+end;
+
+function TIxFileSearchResultContent.GetFileSearchResult: TIxFileSearchResultList;
+begin
+  if Assigned(FFileSearchResultList) then
+    Exit(FFileSearchResultList);
+
+  try
+    var Formatted := Format('{"data": %s}', [Self.Result]);
+    FFileSearchResultList := TApiDeserializer.Parse<TIxFileSearchResultList>(Formatted);
+    Result := FFileSearchResultList;
+  except
+    Result := TIxFileSearchResultList.Create;
+  end;
+end;
+
+end.
