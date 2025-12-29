@@ -494,3 +494,43 @@ or
 >- Remote MCP is supported only with **Streamable HTTP servers; SSE servers are not supported.**
 >- Remote MCP is not currently compatible with Gemini 3 models (support is planned for a future release).
 >- MCP server names must not include the `-` character; use snake_case naming instead. 
+
+<br>
+
+JSON Result
+
+```json
+{
+    "created": "2025-12-29T13:28:20Z",
+    "id": "v1_Chc4NEZTYVlxbkJiR2xuc0VQbzQ3OG1BM......GU2FZcW5CYkdsbnNFUG80NzhtQTA",
+    "model": "gemini-3-flash-preview",
+    "object": "interaction",
+    "outputs": [
+        {
+            "signature": "EtsBCtgBAXLI2nwZazGf6dJvRknyAigQmPfh\/VlATZ5Zp8ovL6R33HkeyS",
+            "type": "thought"
+        },
+        {
+            "text": "As of today, Monday, December 29, 2025, the weather in New York City is **cold and mostly cloudy with a chance of light snow showers.**\n\nHere are the specific details:\n*   **Temperature:** High of **38°F (3°C)** and a low of **30°F (-1°C)**.\n*   **Conditions:** Overcast skies throughout the day. There is a 30% chance of brief snow flurries, particularly in the morning hours, though no significant accumulation is expected.\n*   **Wind:** Northwesterly at 10 to 15 mph, which makes it feel a few degrees colder (Wind chill around **28°F**).\n*   **Humidity:** 65%.\n\nIf you are heading out, it is a good day for a heavy coat, scarf, and gloves!",
+            "type": "text"
+        }
+    ],
+    "role": "model",
+    "status": "completed",
+    "updated": "2025-12-29T13:28:20Z",
+    "usage": {
+        "input_tokens_by_modality": [
+            {
+                "modality": "text",
+                "tokens": 81
+            }
+        ],
+        "total_cached_tokens": 0,
+        "total_input_tokens": 81,
+        "total_output_tokens": 188,
+        "total_thought_tokens": 43,
+        "total_tokens": 312,
+        "total_tool_use_tokens": 0
+    }
+}
+```
