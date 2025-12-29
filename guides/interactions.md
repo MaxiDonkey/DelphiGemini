@@ -9,6 +9,9 @@
 - [Multimodal capabilities](#multimodal-capabilities)
 - [Agentic capabilities](#agentic-capabilities)
 - [Structured output (JSON schema)](#structured-output-json-schema))
+- [Configuration](#configuration)
+- [Supported models & agents](#supported-models--agents)
+- [Key Takeaways](#key-takeaways)
 
 ___
 
@@ -176,3 +179,59 @@ The Interactions API is designed to support the construction and execution of ag
 A specific JSON output structure can be enforced by providing a JSON schema via the `response_format` parameter, which is suitable for moderation, classification, and data extraction workflows.
 
 - [Structured output](interaction.json-format.md#structured-output-json-schema)
+
+<br>
+
+## Configuration
+Customize the model's behavior with `generation_config`.
+
+- [Generation config](interactions-generation-config.md#generation-config)
+
+<br>
+
+## Supported models & agents
+
+| Model name | Type | Model ID |
+| :---: | :---: | :---: |
+| Gemini 2.5 Pro | Model | gemini-2.5-pro |
+| Gemini 2.5 Flash | Model | gemini-2.5-flash |
+| Gemini 2.5 Flash-lite | Model | gemini-2.5-flash-lite |
+| Gemini 3 Pro Preview | Model | gemini-3-pro-preview |
+| Gemini 3 Flash Preview | Model | gemini-3-flash-preview |
+| Deep Research Preview | Agent | deep-research-pro-preview-12-2025 |
+
+<br>
+
+## Key Takeaways
+
+### Interaction Resource Overview
+The Interactions API is centered around a core resource called an Interaction. An Interaction represents a single turn in a conversation or task execution. It serves as a session record that captures the full interaction context, including user inputs, model reasoning steps, tool invocations, tool results, and final model outputs.
+
+Calling `interactions.create` creates a new Interaction resource.
+
+To continue an existing conversation, you may optionally supply the identifier of a previous Interaction using the `previous_interaction_id` parameter. The server uses this identifier to restore the full interaction context, eliminating the need to resend the entire conversation history. This server-side state management is optional; the API also supports stateless operation by providing the complete conversation context with each request.
+
+<br>
+
+### Data Storage and Retention
+
+By default, Interaction objects are stored (`store=true`) to enable server-side state management (`previous_interaction_id`), background execution (`background=true`), and observability features.
+
+Retention policies vary by tier:
+- Paid tier: Interactions are retained for 55 days
+- Free tier: Interactions are retained for 1 day
+
+To disable storage, set `store=false` in the request. This option is independent of state management but comes with the following constraints:
+- `store=false` is incompatible with `background=true`
+- Stored state cannot be reused via `previous_interaction_id` in subsequent requests
+
+Stored interactions can be deleted at any time using the delete method described in the API Reference, provided the interaction ID is known. After the applicable retention period, stored data is automatically deleted.
+
+All Interaction objects are processed in accordance with the applicable terms.
+
+<br>
+
+### Best Practices
+- **Cache efficiency:** Continuing conversations using `previous_interaction_id` improves cache utilization, which can reduce latency and overall cost.
+
+- **Interaction composition:** Agent-based and model-based interactions can be combined within the same conversation flow. For example, a specialized agent (such as a Deep Research agent) may be used for initial data gathering, followed by a standard Gemini model for downstream tasks like summarization or reformatting, with continuity maintained via `previous_interaction_id`.
