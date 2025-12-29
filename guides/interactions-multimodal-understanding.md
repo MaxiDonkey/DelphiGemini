@@ -20,7 +20,8 @@ The wrapper provides full support for handling base64-encoded content as well as
 
 ```pascal
   var ImageLocation := 'Z:\Images\Invoice.png';
-
+  var Base64 := TMediaCodec.EncodeBase64(ImageLocation);
+  var MimeType := TMediaCodec.GetMimeType(ImageLocation);
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
@@ -30,7 +31,7 @@ The wrapper provides full support for handling base64-encoded content as well as
             .Input(
               TInput.Create()
                 .AddText('Describe the image.')
-                .AddImage(TMediaCodec.EncodeBase64(ImageLocation), TMediaCodec.GetMimeType(ImageLocation))
+                .AddImage(Base64, MimeType)
              );
         end;
 ```
@@ -86,6 +87,7 @@ The wrapper provides full support for handling base64-encoded content as well as
 
 ```pascal
   var AudioLocation := 'Z:\Audio\VoiceRecorded.wav';
+  var Base64 := TMediaCodec.EncodeBase64(AudioLocation);
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
@@ -95,7 +97,7 @@ The wrapper provides full support for handling base64-encoded content as well as
             .Input(
               TInput.Create()
                 .AddText('What does this audio say?')
-                .AddAudio(TMediaCodec.EncodeBase64(AudioLocation), 'audio/wav')
+                .AddAudio(Base64, 'audio/wav')
              );
         end;
 ```
@@ -163,7 +165,7 @@ Limitations
 
 <br>
 
-### Delphi `version 12 or later`
+### Delphi `version 12 or later` by "inline_data" encoding
  
 ```pascal
   var VideoUri := 'Z:\Audio\Video.mp4';
