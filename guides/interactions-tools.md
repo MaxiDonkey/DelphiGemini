@@ -1,7 +1,11 @@
 # Interactions Tools
 
 - [Function Calling](#function-calling)
-
+- [Built-in tools](#built-in-tools)
+  - [Grounding with Google search](#grounding-with-google-search)
+  - [Code execution](#code-execution)
+  - [URL context](#url-context)
+- [Remote Model context protocol (MCP)](#remote-model-context-protocol-mcp)
 ___
 
 >[!NOTE]
@@ -292,3 +296,201 @@ The JSON result.
 - Return the result using `AddFunctionResult(...)`.
 - Start a new interaction with `PreviousInteractionId`.
 - Handle errors via `Catch`.
+
+___
+
+<br>
+
+## Built-in tools
+Gemini includes built-in tools for grounding responses with Google Search, executing code, and incorporating external URL context.
+
+### Grounding with Google search
+
+Grounding with Google Search connects Gemini models to real-time web content and is supported across all available languages. This capability enables models to generate responses that go beyond their static knowledge cutoff by incorporating up-to-date, verifiable information.
+
+Grounding enables applications to:
+- Improve factual accuracy: Reduce hallucinations by anchoring responses in real-world data.
+- Access real-time information: Answer questions related to recent events or evolving topics.
+
+<br>
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('Who won the last Super Bowl?')
+            .Tools(
+              TToolIx.Create()
+                .AddGoogleSearch()
+            );
+        end;
+```
+
+or
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('Who won the last Super Bowl?')
+            .Tools(
+              '''
+              [{"type": "google_search"}]
+              '''
+            );
+        end;  
+```
+
+<br>
+
+### Code execution
+
+The Gemini API provides a code execution tool that allows the model to generate and run Python code. The model can iteratively leverage execution results to refine its reasoning and produce a final outcome.
+
+Code execution enables the development of applications based on computational reasoning, such as solving equations, performing calculations, or processing and transforming text. The execution environment also includes a set of libraries that support more specialized tasks.
+
+Gemini can only execute Python code. While the model can generate code in other programming languages, such code cannot be executed using the built-in code execution tool.
+
+<br>
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('Calculate the 50th Fibonacci number.')
+            .Tools(
+              TToolIx.Create()
+                .AddCodeExecution()
+            );
+        end;
+```
+
+or
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('Calculate the 50th Fibonacci number.')
+            .Tools(
+              '''
+              [{"type": "code_execution"}]
+              '''
+            );
+        end;
+```
+
+<br>
+
+### URL context
+The URL context tool allows you to provide additional context to models in the form of URLs. When URLs are included in a request, the model can access the corresponding content (provided the URLs are not of a type listed in the [Limitations section](https://ai.google.dev/gemini-api/docs/url-context#limitations)) to enrich and ground its response.
+
+This tool is useful for tasks such as:
+- **Data extraction:** retrieving specific information such as prices, names, or key results from multiple URLs.
+- **Document comparison:** analyzing multiple reports, articles, or PDF files to identify differences or track trends.
+- **Content synthesis and generation:** combining information from several source URLs to produce summaries, blog posts, or structured reports.
+- **Code and documentation analysis:** pointing to a GitHub repository or technical documentation to explain code, generate installation instructions, or answer targeted questions.
+
+<br>
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('Summarize the content of https://www.wikipedia.org/')
+            .Tools(
+              TToolIx.Create()
+                .AddUrlContext()
+            );
+        end;
+```
+
+or
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('Summarize the content of https://www.wikipedia.org/')
+            .Tools(
+              '''
+              [{"type": "url_context"}]
+              '''
+            );
+        end;
+```
+
+<br>
+
+## Remote Model context protocol (MCP)
+The **Model Context Protocol (MCP)** is an open-source standard designed to connect AI applications to external systems.
+
+With MCP, AI applications such as Claude, ChatGPT or Gemini can interact with data sources (local files, databases, etc.), tools (search engines, calculators, and similar services), and workflows (custom prompts, automations, and more). This enables them to access relevant contextual information and perform tasks in a structured and extensible manner.
+
+MCP can be compared to a **USB-C** port for AI applications. Just as USB-C provides a standardized interface for connecting electronic devices, MCP defines a standardized protocol for connecting AI applications to external systems and services.
+
+Refer to the [document](https://modelcontextprotocol.io/docs/getting-started/intro).
+
+<br>
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('What is the weather like in New York today?')
+            .Tools(
+              TToolIx.Create()
+                .AddMcpServer(
+                  TMcpServerIxParams.New
+                    .Name('weather_service')
+                    .Url('https://gemini-api-demos.uc.r.appspot.com/mcp')
+                 )
+             )
+            .SystemInstruction('Today is ''' + FormatDateTime('dd"u"mmmm"t"yyyy', Date) +
+                               ''' (' + FormatDateTime('yyyy-mm-dd', Date) + ').') ;
+        end;
+```
+
+or
+
+```pascal
+  var Params: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model('gemini-3-flash-preview')
+            .Input('What is the weather like in New York today?')
+            .Tools(
+              '''
+              [{
+                  "type": "mcp_server",
+                  "name": "weather_service",
+                  "url": "https://gemini-api-demos.uc.r.appspot.com/mcp"
+              }]
+              '''
+             )
+            .SystemInstruction('Today is ''' + FormatDateTime('dd"u"mmmm"t"yyyy', Date) +
+                               ''' (' + FormatDateTime('yyyy-mm-dd', Date) + ').') ;
+        end;
+```
+
+<br>
+
+>[!IMPORTANT]
+>- Remote MCP is supported only with **Streamable HTTP servers; SSE servers are not supported.**
+>- Remote MCP is not currently compatible with Gemini 3 models (support is planned for a future release).
+>- MCP server names must not include the `-` character; use snake_case naming instead. 
