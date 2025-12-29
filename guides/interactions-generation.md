@@ -137,6 +137,60 @@ The asynchronous API:
 
 <br>
 
+### Asynchronous text generation with session callbacks
+If you need lifecycle hooks (start / success / error) in addition to promise composition, you can provide a callback context to `AsyncAwaitCreate`.
+
+This is useful when you want:
+- UI tracing (start/end),
+- centralized logging,
+- side-effects that should occur regardless of the `&Then` chain logic.
+
+<br>
+
+  ```pascal
+    // uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+
+    var Params: TProc<TInteractionParams> :=
+          procedure (Params: TInteractionParams)
+          begin
+            Params
+              .Model('gemini-3-flash-preview')
+              .Input('From which version of Delphi were multi-line strings introduced?' );
+            TutorialHub.JSONRequest := Params.ToFormat();
+          end;
+
+    var Callbacks: TFunc<TPromiseInteraction> :=
+      function : TPromiseInteraction
+      begin
+        Result.Sender := TutorialHub;
+        Result.OnStart := Start;
+        Result.OnSuccess := DisplayIx;
+        Result.OnError := DisplayIx;
+      end;
+
+    // Asynchronous promise example (with session callbacks)
+    var Promise := Client.Interactions.AsyncAwaitCreate(Params, Callbacks);
+
+    Promise
+      .&Then<string>(
+        function (Value: TInteraction): string
+        begin
+          Result := Value.Id;
+          // Build a chain here with another promise if necessary 
+        end)
+      .&Catch(
+        procedure (E: Exception)
+        begin
+          Display(TutorialHub, E.Message);
+        end);
+  ```
+### Key points (callbacks variant)
+- The callback context (`TPromiseInteraction`) is optional: use it when you need start/success/error hooks.
+- `Sender` follows the same idea as in the tutorial streaming examples: it is a contextual object for UI/log helpers.
+- The promise chain remains the primary composition mechanism (`&Then` / `&Catch`).
+
+<br>
+
 ## 3) Promises and orchestration
 Because `AsyncAwaitCreate` returns a `TPromise<TInteraction>`, it can be used as a building block for **asynchronous orchestration**.
 
@@ -150,32 +204,58 @@ Because `AsyncAwaitCreate` returns a `TPromise<TInteraction>`, it can be used as
 
 - Example: chaining two non-streamed requests
 
-  ```pascal
-  Client.Interactions.AsyncAwaitCreate(Params1)
-    .&Then<TPromise<TInteraction>>(
-      function (First: TInteraction): TPromise<TInteraction>
-      begin
-        var Params2: TProc<TInteractionParams> :=
+  - First promise parameters
+
+    ```pascal
+    var Params: TProc<TInteractionParams> :=
           procedure (Params: TInteractionParams)
           begin
             Params
-             .Model('gemini-3-flash-preview')
-             .Input('Summarize the following answer: ' + First.Outputs[0].Content[0].Text);
+              .Model('gemini-3-flash-preview')
+              .Input('From which version of Delphi were multi-line strings introduced?' );
+            TutorialHub.JSONRequest := Params.ToFormat();
           end;
-        
-        Result := Client.Interactions.AsyncAwaitCreate(Params2);
-      end)
-    .&Then(
-      procedure (Second: TInteraction)
+
+    var Callbacks: TFunc<TPromiseInteraction> :=
+      function : TPromiseInteraction
       begin
-        Display(TutorialHub, Second);
-      end)
-    .&Catch(
-      procedure (E: Exception)
-      begin
-        Display(TutorialHub, E.Message);
-      end); 
-  ``` 
+        Result.Sender := TutorialHub;
+        Result.OnStart := Start;
+        Result.OnSuccess := DisplayIx;
+        Result.OnError := DisplayIx;
+      end;
+    ```
+
+  - Linking two promises
+
+    ```pascal
+    var Promise := Client.Interactions.AsyncAwaitCreate(Params, Callbacks);
+
+    Promise
+      .&Then(
+        function (First: TInteraction): TPromise<TInteraction>
+        begin
+          // Second promise
+          Result := Client.Interactions.AsyncAwaitCreate(
+            procedure (Params: TInteractionParams)
+            begin
+              Params
+               .Model('gemini-3-flash-preview')
+               .Input('Summarize the following answer: ' + First.Outputs[1].Text);
+            end);
+        end)
+      .&Then(
+        procedure (Second: TInteraction)
+        begin
+          Display(TutorialHub, '----- SUMMARY');
+          Display(TutorialHub, Second);
+        end)
+      .&Catch(
+        procedure (E: Exception)
+        begin
+          Display(TutorialHub, E.Message);
+        end);
+    ``` 
 This approach avoids nested callbacks and produces a linear, readable control flow.
 
 <br>

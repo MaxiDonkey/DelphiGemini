@@ -167,7 +167,7 @@ To continue a conversation, provide the identifier from the previous interaction
     begin
       Params
         .Model('gemini-3-flash-preview')
-        .Input('' )
+        .Input('new message in the conversation')
         .PreviousInteractionId('INTERACTION_ID'); //INTERACTION_ID was obtained from a previous interaction turn. 
     end;
 
@@ -218,7 +218,7 @@ To continue a conversation, provide the identifier from the previous interaction
 The Interactions API supports multimodal use cases, including image understanding and video generation.
 
 - [Multimodal understanding](#multimodal-understanding)
-- [Multimodal generation](#Multimodal generation)
+- [Multimodal generation](#multimodal-generation)
 
 ___
 
@@ -554,6 +554,7 @@ The Interactions API supports the generation of multimodal outputs across suppor
 The Interactions API is designed to support the construction and execution of agent-based workflows. It provides capabilities such as function calling, access to built-in tools, structured output generation, and integration with the Model Context Protocol (MCP).
 
 - [Agents](#agents)
+- [Tools and function calling](#tools-and-function-calling)
 
 ___
 
@@ -632,3 +633,12 @@ Result : status completed
 
 >[!NOTE]
 >It is currently not possible to monitor the progress of the research in real time.
+
+___
+
+<br>
+
+### Tools and function calling
+
+This section describes how to define custom tools using function calling and how to leverage Google’s built-in tools within the Interactions API.
+
