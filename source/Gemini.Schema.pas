@@ -57,7 +57,9 @@ type
     /// The <c>type</c> keyword is required in the Schema Object to define the data type.
     /// Valid types include <c>string</c>, <c>number</c>, <c>integer</c>, <c>boolean</c>, <c>array</c>, and <c>object</c>.
     /// </remarks>
-    function &Type(const Value: TSchemaType): TSchemaParams;
+    function &Type(const Value: TSchemaType): TSchemaParams; overload;
+
+    function &Type(const Value: string): TSchemaParams; overload;
 
     /// <summary>
     /// Specifies the format of the data type.
@@ -158,6 +160,8 @@ type
     /// This overload allows adding multiple properties at once to the object schema.
     /// </remarks>
     function Properties(const Value: TArray<TJSONPair>): TSchemaParams; overload;
+
+    function Properties(const Value: TSchemaParams): TSchemaParams; overload;
 
     /// <summary>
     /// Specifies which properties are required in an object schema.
@@ -307,6 +311,12 @@ begin
   Result := TSchemaParams(Add(Key, Value.Detach));
 end;
 
+function TSchemaParams.Properties(const Value: TSchemaParams): TSchemaParams;
+begin
+  Result := TSchemaParams(Add('properties', Value.Detach));
+end;
+
+
 function TSchemaParams.Required(const Value: TArray<string>): TSchemaParams;
 begin
   Result := TSchemaParams(Add('required', Value));
@@ -315,6 +325,11 @@ end;
 function TSchemaParams.&Type(const Value: TSchemaType): TSchemaParams;
 begin
   Result := TSchemaParams(Add('type', Value.ToString));
+end;
+
+function TSchemaParams.&Type(const Value: string): TSchemaParams;
+begin
+  Result := &Type(TSchemaType.Parse(Value));
 end;
 
 { TPropertyItem }

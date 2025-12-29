@@ -99,6 +99,8 @@ type
   procedure Display(Sender: TObject; Value: TIxContent); overload;    //New
   procedure Display(Sender: TObject; Value: TInteraction); overload;  //New
   procedure Display(Sender: TObject; Value: TCRUDDeleted); overload;  //New
+  function DisplayIx(Sender: TObject; Value: TInteraction): string; overload; //New
+  function DisplayIx(Sender: TObject; Value: string): string; overload; //New
 
   procedure DisplayStream(Sender: TObject; Value: string); overload;
   procedure DisplayStream(Sender: TObject; Value: TChat); overload;
@@ -532,6 +534,14 @@ begin
       begin
         Display(Sender, 'Image generated successfully');
       end;
+
+    TContentType.function_call:
+      begin
+        Display(Sender, F('call_id', Value.CallId));
+        Display(Sender, F('Name', Value.Name));
+        Display(Sender, F('call_id', Value.Id));
+        Display(Sender, F('arguments', Value.Arguments));
+      end;
   end;
 end;
 
@@ -541,6 +551,16 @@ begin
   for var Item in Value.Outputs do
     Display(Sender, Item);
   Display(Sender);
+end;
+
+function DisplayIx(Sender: TObject; Value: TInteraction): string;
+begin
+  Display(Sender, Value);
+end;
+
+function DisplayIx(Sender: TObject; Value: string): string;
+begin
+  Display(Sender, Value);
 end;
 
 procedure Display(Sender: TObject; Value: TCRUDDeleted);

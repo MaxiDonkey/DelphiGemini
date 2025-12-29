@@ -378,8 +378,8 @@ type
     function CallId(const Value: string): TFunctionResultContentIxParams;
 
     class function New: TFunctionResultContentIxParams; overload;
-    class function New(const AResult: string; const CallId: string): TFunctionResultContentIxParams; overload;
-    class function New(const AResult: TJSONObject; const CallId: string): TFunctionResultContentIxParams; overload;
+    class function New(const AResult: string; const Name, CallId: string): TFunctionResultContentIxParams; overload;
+    class function New(const AResult: TJSONObject; const Name, CallId: string): TFunctionResultContentIxParams; overload;
   end;
 
   {$ENDREGION}
@@ -780,8 +780,8 @@ type
     class function AddFunctionCall(const Name, Id: string; const Arguments: TJSONObject): TInputParams; overload;
     class function AddFunctionCall(const Name, Id: string; const Arguments: string): TInputParams; overload;
 
-    class function AddFunctionResult(const AResult: string; const CallId: string): TInputParams; overload;
-    class function AddFunctionResult(const AResult: TJSONObject; const CallId: string): TInputParams; overload;
+    class function AddFunctionResult(const AResult: string; const Name, CallId: string): TInputParams; overload;
+    class function AddFunctionResult(const AResult: TJSONObject; const Name, CallId: string): TInputParams; overload;
 
     class function AddFileSearchResult(const Value: TFileSearchResultContentIxParams): TInputParams; overload;
     class function AddFileSearchResult(const AResult: TArray<TFileSearchResultIxParams>): TInputParams; overload;
@@ -1229,15 +1229,15 @@ begin
 end;
 
 class function TFunctionResultContentIxParams.New(const AResult: TJSONObject;
-  const CallId: string): TFunctionResultContentIxParams;
+  const Name, CallId: string): TFunctionResultContentIxParams;
 begin
-  Result := New.Result(AResult).CallId(CallId);
+  Result := New.Result(AResult).CallId(CallId).Name(Name);
 end;
 
 class function TFunctionResultContentIxParams.New(const AResult,
-  CallId: string): TFunctionResultContentIxParams;
+  name, CallId: string): TFunctionResultContentIxParams;
 begin
-  Result := New.Result(AResult).CallId(CallId);
+  Result := New.Result(AResult).CallId(CallId).Name(Name);
 end;
 
 class function TFunctionResultContentIxParams.New: TFunctionResultContentIxParams;
@@ -1872,18 +1872,18 @@ begin
 end;
 
 class function TInputParams.AddFunctionResult(const AResult: TJSONObject;
-  const CallId: string): TInputParams;
+  const Name, CallId: string): TInputParams;
 begin
   Result := TInputParams(
-    TFunctionResultContentIxParams.New(AResult, CallId)
+    TFunctionResultContentIxParams.New(AResult, Name, CallId)
   );
 end;
 
 class function TInputParams.AddFunctionResult(const AResult,
-  CallId: string): TInputParams;
+  Name, CallId: string): TInputParams;
 begin
   Result := TInputParams(
-    TFunctionResultContentIxParams.New(AResult, CallId)
+    TFunctionResultContentIxParams.New(AResult, Name, CallId)
   );
 end;
 

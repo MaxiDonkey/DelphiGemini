@@ -400,7 +400,7 @@ begin
   raise EGeminiException.Create('Invalid JSON Array');
 end;
 
-function TInteractionParams.Tools(const Value:  TArray<TToolIxParams>): TInteractionParams;
+function TInteractionParams.Tools(const Value: TArray<TToolIxParams>): TInteractionParams;
 begin
   Result := TInteractionParams(Add('tools',
     TJSONHelper.ToJsonArray<TToolIxParams>(Value)));

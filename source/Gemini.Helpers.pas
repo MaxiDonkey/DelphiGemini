@@ -200,10 +200,8 @@ type
     function AddFunctionCall(const Name, Id: string; const Arguments: TJSONObject): TInput; overload;
     function AddFunctionCall(const Name, Id: string; const Arguments: string): TInput; overload;
 
-    function AddFunctionResult(const AResult: string; const CallId: string): TInput; overload;
-    function AddFunctionResult(const AResult: TJSONObject; const CallId: string): TInput; overload;
-
-
+    function AddFunctionResult(const AResult: string; const Name, CallId: string): TInput; overload;
+    function AddFunctionResult(const AResult: TJSONObject; const Name, CallId: string): TInput; overload;
 
     function AddRaw(const Value: TContentIxParams): TInput;
   end;
@@ -587,14 +585,14 @@ begin
 end;
 
 function TInputHelper.AddFunctionResult(const AResult: TJSONObject;
-  const CallId: string): TInput;
+  const Name, CallId: string): TInput;
 begin
-  Result := Self.Add(TInputParams.AddFunctionResult(AResult, CallId));
+  Result := Self.Add(TInputParams.AddFunctionResult(AResult, Name, CallId));
 end;
 
-function TInputHelper.AddFunctionResult(const AResult, CallId: string): TInput;
+function TInputHelper.AddFunctionResult(const AResult, Name, CallId: string): TInput;
 begin
-  Result := Self.Add(TInputParams.AddFunctionResult(AResult, CallId));
+  Result := Self.Add(TInputParams.AddFunctionResult(AResult, Name, CallId));
 end;
 
 function TInputHelper.AddImage(const Uri: string): TInput;
