@@ -258,6 +258,9 @@ Because `AsyncAwaitCreate` returns a `TPromise<TInteraction>`, it can be used as
     ``` 
 This approach avoids nested callbacks and produces a linear, readable control flow.
 
+>[!NOTE]
+> Using `TPromise<TInteraction>` requires adding the `Gemini.Async.Promise` unit to the `uses` clause.
+
 <br>
 
 ## Quick selection guide

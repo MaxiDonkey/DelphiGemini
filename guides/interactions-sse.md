@@ -290,6 +290,10 @@ The `AsyncAwait`... variants return a `TPromise<TEventData>`. Beyond streaming, 
       end);  
   ``` 
 
+>[!NOTE]
+> Using `TPromise<TEventData>` requires adding the `Gemini.Async.Promise` unit to the `uses` clause.
+
+
 <br>
 
 ## Quick selection guide

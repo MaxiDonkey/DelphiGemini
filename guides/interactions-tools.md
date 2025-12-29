@@ -189,6 +189,9 @@ end;
 
 Now define the method that orchestrates the two promises required to retrieve the weather for Paris.
 
+>[!NOTE]
+> Using `TPromise<TInteraction>` requires adding the `Gemini.Async.Promise` unit to the `uses` clause.
+
 ```pascal
   // First pass. 
   var Promise := Client.Interactions.AsyncAwaitCreate(Params);
