@@ -12,6 +12,7 @@
                  .Temperature(0.7)
                  .MaxOutputTokens(500)
                  .ThinkingLevel('low')
+                 .ThinkingSummaries('auto') //Include "thougth"
              );
         end;
 ```
