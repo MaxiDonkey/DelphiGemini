@@ -199,9 +199,9 @@ type
 
   TToolIxParams = class(TJSONParam)
     class function AddFunction(const Value: TFunctionIxParams): TToolIxParams;
-    class function AddGoogleSearch(const Value: TGoogleSearchIxParams): TToolIxParams;
-    class function AddCodeExecution(const Value: TCodeExecutionIxParams): TToolIxParams;
-    class function AddUrlContext(const Value: TUrlContextIxParams): TToolIxParams;
+    class function AddGoogleSearch(const Value: TGoogleSearchIxParams = nil): TToolIxParams;
+    class function AddCodeExecution(const Value: TCodeExecutionIxParams = nil): TToolIxParams;
+    class function AddUrlContext(const Value: TUrlContextIxParams = nil): TToolIxParams;
     class function AddComputerUse(const Value: TComputerUseIxParams): TToolIxParams;
     class function AddMcpServer(const Value: TMcpServerIxParams): TToolIxParams;
     class function AddFileSearch(const Value: TFileSearchIxParams): TToolIxParams;
@@ -396,7 +396,10 @@ end;
 class function TToolIxParams.AddCodeExecution(
   const Value: TCodeExecutionIxParams): TToolIxParams;
 begin
-  Result := TToolIxParams(Value);
+  if Value = nil then
+    Result := TToolIxParams(TCodeExecutionIxParams.New)
+  else
+    Result := TToolIxParams(Value);
 end;
 
 class function TToolIxParams.AddComputerUse(
@@ -420,7 +423,10 @@ end;
 class function TToolIxParams.AddGoogleSearch(
   const Value: TGoogleSearchIxParams): TToolIxParams;
 begin
-  Result := TToolIxParams(Value);
+  if Value = nil then
+    Result := TToolIxParams(TGoogleSearchIxParams.New)
+  else
+    Result := TToolIxParams(Value);
 end;
 
 class function TToolIxParams.AddMcpServer(
@@ -432,7 +438,10 @@ end;
 class function TToolIxParams.AddUrlContext(
   const Value: TUrlContextIxParams): TToolIxParams;
 begin
-  Result := TToolIxParams(Value);
+  if Value = nil then
+    Result := TToolIxParams(TUrlContextIxParams.New)
+  else
+    Result := TToolIxParams(Value);
 end;
 
 end.

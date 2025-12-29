@@ -93,6 +93,11 @@ type
     function Input(const Value: TArray<TInputParams>): TInteractionParams; overload;
 
     /// <summary>
+    /// System instruction for the interaction.
+    /// </summary>
+    function SystemInstruction(const Value: string): TInteractionParams;
+
+    /// <summary>
     /// A list of tool declarations the model may call during interaction.
     /// </summary>
     function Tools(const Value: TArray<TToolIxParams>): TInteractionParams; overload;
@@ -388,6 +393,12 @@ end;
 function TInteractionParams.Stream(const Value: Boolean): TInteractionParams;
 begin
   Result := TInteractionParams(Add('stream', Value));
+end;
+
+function TInteractionParams.SystemInstruction(
+  const Value: string): TInteractionParams;
+begin
+  Result := TInteractionParams(Add('system_instruction', Value));
 end;
 
 function TInteractionParams.Tools(const Value: string): TInteractionParams;

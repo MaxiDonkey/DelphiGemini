@@ -163,6 +163,8 @@ type
 
     function Properties(const Value: TSchemaParams): TSchemaParams; overload;
 
+    function Properties(const Value: TJSONObject): TSchemaParams; overload;
+
     /// <summary>
     /// Specifies which properties are required in an object schema.
     /// </summary>
@@ -304,6 +306,12 @@ begin
   else
     Result := Self;
 end;
+
+function TSchemaParams.Properties(const Value: TJSONObject): TSchemaParams;
+begin
+  Result := TSchemaParams(Add('properties', Value));
+end;
+
 
 function TSchemaParams.Properties(const Key: string;
   const Value: TSchemaParams): TSchemaParams;

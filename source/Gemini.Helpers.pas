@@ -154,9 +154,9 @@ type
 
   TToolIxHelper = record Helper for TToolIx
     function AddFunction(const Value: TFunctionIxParams): TToolIx;
-    function AddGoogleSearch(const Value: TGoogleSearchIxParams): TToolIx;
-    function AddCodeExecution(const Value: TCodeExecutionIxParams): TToolIx;
-    function AddUrlContext(const Value: TUrlContextIxParams): TToolIx;
+    function AddGoogleSearch(const Value: TGoogleSearchIxParams = nil): TToolIx;
+    function AddCodeExecution(const Value: TCodeExecutionIxParams = nil): TToolIx;
+    function AddUrlContext(const Value: TUrlContextIxParams = nil): TToolIx;
     function AddComputerUse(const Value: TComputerUseIxParams): TToolIx;
     function AddMcpServer(const Value: TMcpServerIxParams): TToolIx;
     function AddFileSearch(const Value: TFileSearchIxParams): TToolIx;
