@@ -8,7 +8,7 @@
 - [Stateful conversation](interactions-conversations.md)
 - [Multimodal capabilities](#multimodal-capabilities)
 - [Agentic capabilities](#agentic-capabilities)
-- [Structured output (JSON schema)](#structured-output-json-schema))
+- [Structured output (JSON schema)](#structured-output-json-schema)
 - [Configuration](#configuration)
 - [Supported models & agents](#supported-models--agents)
 - [Key Takeaways](#key-takeaways)
