@@ -153,10 +153,10 @@ By leveraging promise orchestration, you can significantly reduce boilerplate an
 Start by defining the following two routines to simplify the examples:
 
 ```pascal
-procedure GetFunctionResult(const Value: TInteraction;
+function GetFunctionResult(const Value: TInteraction;
   out Name: string;
   out CallId: string;
-  out Arguments: string);
+  out Arguments: string): Boolean;
 begin
   for var Item in Value.Outputs do
     begin
@@ -166,11 +166,12 @@ begin
             Arguments := Item.Arguments;
             Name := Item.Name;
             CallId := Item.Id;
-            Break;
+            Exit(True);
           end;
       end;
     end;
-end;
+  Result := False;
+end
 
 function GetWeatherFromLocation(const JSONLocation: string): string;
 begin
@@ -195,13 +196,11 @@ Now define the method that orchestrates the two promises required to retrieve th
       begin
         Id := Value.Id;
 
-        // Extract the function arguments returned after the first pass.
-        GetFunctionResult(Value, Name, CallId, Arguments);
+        if not GetFunctionResult(Value, Name, CallId, Arguments) then
+          Exit(TPromise<TInteraction>.Resolved(nil));
 
-        // Perform the weather lookup using an external approach. 
         var Weather := GetWeatherFromLocation(Arguments);
 
-        // Second pass.
         Result := Client.Interactions.AsyncAwaitCreate(
           procedure (Params: TInteractionParams)
              begin
@@ -212,12 +211,15 @@ Now define the method that orchestrates the two promises required to retrieve th
                      .AddFunctionResult(Weather, Name, CallId)
                   )
                  .PreviousInteractionId(Id);
-             end);
+                 end);
       end)
     .&Then(
       procedure (Value: TInteraction)
       begin
-        Display(TutorialHub, Value);
+        if Assigned(Value) then
+          Display(TutorialHub, Value)
+        else
+          Display(TutorialHub, 'no function called');
       end)
     .&Catch(
       procedure (E: Exception)
