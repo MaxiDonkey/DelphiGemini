@@ -19,7 +19,9 @@ uses
   System.Types, System.JSON,
   Gemini, Gemini.Types, Gemini.Chat.Response, Gemini.Models, Gemini.Embeddings,
   Gemini.Files, Gemini.Caching, Gemini.VectorFiles, Gemini.VectorFiles.Documents,
-  Gemini.Operation;
+  Gemini.Operation, Gemini.Batch,
+  Gemini.Interactions.ResponsesContent, Gemini.Interactions.Responses,
+  Gemini.Interactions.Stream;
 
 type
   TToolProc = procedure (const Value: string) of object;
@@ -94,12 +96,34 @@ type
   procedure Display(Sender: TObject; Value: TBatchCancel); overload;
   procedure Display(Sender: TObject; Value: TBatchDelete); overload;
   procedure Display(Sender: TObject; Value: TJsonlDownload); overload;
+  procedure Display(Sender: TObject; Value: TIxContent); overload;
+  procedure Display(Sender: TObject; Value: TInteraction); overload;
+  procedure Display(Sender: TObject; Value: TCRUDDeleted); overload;
+  function DisplayIx(Sender: TObject; Value: TInteraction): string; overload;
+  function DisplayIx(Sender: TObject; Value: string): string; overload;
 
   procedure DisplayStream(Sender: TObject; Value: string); overload;
   procedure DisplayStream(Sender: TObject; Value: TChat); overload;
+  procedure DisplayStream(Sender: TObject; Value: TInteractionStream); overload;
 
   procedure DisplayChunk(Value: string); overload;
   procedure DisplayChunk(Value: TChat); overload;
+  procedure DisplayChunk(Value: TInteractionStream); overload;
+
+  procedure DisplayInteractionStart(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionStart(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayInteractionStatusUpdate(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionStatusUpdate(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayInteractionComplete(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionComplete(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayContentStart(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayContentStart(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayContentDelta(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayContentDelta(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayContentStop(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayContentStop(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayInteractionError(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionError(Sender: TObject; EventData: TEventData); overload;
 
   function F(const Name, Value: string): string; overload;
   function F(const Name: string; const Value: TArray<string>): string; overload;
@@ -429,6 +453,109 @@ begin
   Display(TutorialHub, Format('File %s created', [TutorialHub.FileName]));
 end;
 
+procedure Display(Sender: TObject; Value: TIxContent);
+begin
+  case Value.&Type of
+    TContentType.google_search_Call:
+      begin
+        var SearchCall := Value.GoogleSearchCallArguments;
+        if Assigned(SearchCall) then
+          begin
+            if Length(SearchCall.Queries) > 0 then
+              Display(Sender, '-------------> Google Search Call: '#10);
+
+            for var Item in SearchCall.Queries do
+              begin
+                Display(Sender, Item + #10);
+              end;
+
+            Display(Sender);
+          end;
+      end;
+
+    TContentType.google_search_result:
+      begin
+        var SearchResult := Value.GoogleSearchResult;
+        if Assigned(SearchResult) then
+          begin
+            if Length(SearchResult.Data) > 0 then
+              Display(Sender, '-------------> Google Search Result: '#10);
+
+            for var Item in SearchResult.Data do
+              begin
+                Display(Sender, Item.Title);
+                Display(Sender, Item.Url);
+//                Display(Sender, Item.RenderedContent);
+                Display(Sender);
+              end;
+
+            Display(Sender);
+          end;
+      end;
+
+    TContentType.text:
+      begin
+        if Length(Value.Annotations) > 0 then
+          Display(Sender, '-------------> Annotations: '#10);
+        for var Item in Value.Annotations do
+          begin
+            Display(Sender, Item.Source);
+          end;
+
+        Display(Sender, '-------------> Text: '#10);
+        Display(Sender, Value.Text);
+        Display(Sender);
+      end;
+
+    TContentType.thought:
+      begin
+        if Length(Value.Summary) > 0 then
+          Display(Sender, '-------------> Thought: '#10);
+
+        for var Item in Value.Summary do
+          Display(Sender, Item.Text);
+
+        Display(Sender);
+      end;
+
+    TContentType.image:
+      begin
+        Display(Sender, 'Image generated successfully');
+      end;
+
+    TContentType.function_call:
+      begin
+        Display(Sender, F('call_id', Value.CallId));
+        Display(Sender, F('Name', Value.Name));
+        Display(Sender, F('call_id', Value.Id));
+        Display(Sender, F('arguments', Value.Arguments));
+      end;
+  end;
+end;
+
+procedure Display(Sender: TObject; Value: TInteraction);
+begin
+  TutorialHub.JSONResponse := Value.JSONResponse;
+  for var Item in Value.Outputs do
+    Display(Sender, Item);
+  Display(Sender);
+end;
+
+function DisplayIx(Sender: TObject; Value: TInteraction): string;
+begin
+  Display(Sender, Value);
+end;
+
+function DisplayIx(Sender: TObject; Value: string): string;
+begin
+  Display(Sender, Value);
+end;
+
+procedure Display(Sender: TObject; Value: TCRUDDeleted);
+begin
+  Display(Sender, 'Deleted'#10);
+end;
+
 procedure DisplayStream(Sender: TObject; Value: string);
 var
   M: TMemo;
@@ -466,17 +593,39 @@ end;
 
 procedure DisplayStream(Sender: TObject; Value: TChat);
 begin
-  if Assigned(Value) then
-    begin
+  if not Assigned(Value) then
+    Exit;
+
 //      if (Length(Value.Candidates) > 0) and (Value.Candidates[0].FinishReason <> TFinishReason.SAFETY) then
-//        begin
-          for var Item in Value.Candidates do
-            begin
-              DisplayStream(Sender, Item.Content.Parts[0].Text);
-            end;
-          DisplayChunk(Value);
-//        end;
+
+  for var Item in Value.Candidates do
+    begin
+      DisplayStream(Sender, Item.Content.Parts[0].Text);
     end;
+  DisplayChunk(Value);
+end;
+
+procedure DisplayStream(Sender: TObject; Value: TInteractionStream);
+begin
+  if not Assigned(Value) then
+    Exit;
+
+  case Value.EventType of
+    interaction_start:
+      DisplayInteractionStart(Sender, Value);
+    interaction_complete:
+      DisplayInteractionComplete(Sender, Value);
+    interaction_status_update:
+      DisplayInteractionStatusUpdate(Sender, Value);
+    content_start:
+      DisplayContentStart(Sender, Value);
+    content_delta:
+      DisplayContentDelta(Sender, Value);
+    content_stop:
+      DisplayContentStop(Sender, Value);
+    error:
+      DisplayInteractionError(Sender, Value);
+  end;
 end;
 
 procedure DisplayChunk(Value: string);
@@ -497,6 +646,105 @@ end;
 procedure DisplayChunk(Value: TChat);
 begin
   DisplayChunk(Value.JSONResponse);
+end;
+
+procedure DisplayChunk(Value: TInteractionStream);
+begin
+  DisplayChunk(Value.JSONResponse);
+end;
+
+procedure DisplayInteractionStart(Sender: TObject; Chunk: TInteractionStream);
+begin
+  DisplayChunk(Chunk);
+  Display(Sender, '-------------------------------------------');
+  Display(Sender, Chunk.EventType.ToString);
+  Display(Sender, Chunk.Interaction.Model);
+  Display(Sender, Chunk.Interaction.Status.ToString);
+  Display(Sender, F('ID', Chunk.Interaction.Id));
+  Display(Sender, '-------------------------------------------');
+end;
+
+procedure DisplayInteractionStart(Sender: TObject; EventData: TEventData);
+begin
+  DisplayInteractionStart(Sender, EventData.Chunk);
+end;
+
+procedure DisplayInteractionComplete(Sender: TObject; Chunk: TInteractionStream);
+begin
+  DisplayChunk(Chunk);
+  Display(Sender, Chunk.EventType.ToString);
+  Display(Sender, Chunk.Interaction.Status.ToString);
+  Display(Sender, Chunk.Interaction.Updated);
+  Display(Sender, '-------------------------------------------> END');
+end;
+
+procedure DisplayInteractionComplete(Sender: TObject; EventData: TEventData);
+begin
+  DisplayInteractionComplete(Sender, EventData.Chunk);
+end;
+
+procedure DisplayInteractionStatusUpdate(Sender: TObject; Chunk: TInteractionStream);
+begin
+  DisplayChunk(Chunk);
+end;
+
+procedure DisplayInteractionStatusUpdate(Sender: TObject; EventData: TEventData);
+begin
+  DisplayInteractionStatusUpdate(Sender, EventData.Chunk);
+end;
+
+procedure DisplayContentStart(Sender: TObject; Chunk: TInteractionStream);
+begin
+  DisplayChunk(Chunk);
+end;
+
+procedure DisplayContentStart(Sender: TObject; EventData: TEventData);
+begin
+  DisplayContentStart(Sender, EventData.Chunk);
+end;
+
+procedure DisplayContentDelta(Sender: TObject; Chunk: TInteractionStream);
+begin
+  DisplayChunk(Chunk);
+  var Value := Chunk.Delta;
+
+  case Value.&Type of
+    TContentType.Text:
+      DisplayStream(Sender, Value.Text);
+
+    TContentType.thought_summary:
+      DisplayStream(Sender, Value.Content.Text);
+  end;
+
+end;
+
+procedure DisplayContentDelta(Sender: TObject; EventData: TEventData);
+begin
+  DisplayContentDelta(Sender, EventData.Chunk);
+end;
+
+procedure DisplayContentStop(Sender: TObject; Chunk: TInteractionStream);
+begin
+  DisplayChunk(Chunk);
+  Display(Sender, #10#10'-------------> Content stop'#10#10);
+end;
+
+procedure DisplayContentStop(Sender: TObject; EventData: TEventData);
+begin
+  DisplayContentStop(Sender, EventData.Chunk);
+end;
+
+procedure DisplayInteractionError(Sender: TObject; Chunk: TInteractionStream);
+begin
+  DisplayChunk(Chunk);
+  DisplayStream(Sender, Chunk.Error.Code);
+  DisplayStream(Sender, Chunk.Error.Message);
+  Display(Sender);
+end;
+
+procedure DisplayInteractionError(Sender: TObject; EventData: TEventData);
+begin
+  DisplayInteractionError(Sender, EventData.Chunk);
 end;
 
 function F(const Name, Value: string): string;

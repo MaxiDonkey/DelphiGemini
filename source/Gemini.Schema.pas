@@ -1,4 +1,4 @@
-unit Gemini.Schema;
+﻿unit Gemini.Schema;
 
 {-------------------------------------------------------------------------------
 
@@ -59,6 +59,24 @@ type
     /// </remarks>
     function &Type(const Value: TSchemaType): TSchemaParams; overload;
 
+    /// <summary>
+    /// Sets the schema data type from its string representation.
+    /// </summary>
+    /// <param name="Value">
+    /// The data type name as a string (e.g. <c>string</c>, <c>number</c>, <c>integer</c>,
+    /// <c>boolean</c>, <c>array</c>, <c>object</c>).
+    /// </param>
+    /// <returns>
+    /// The current <c>TSchemaParams</c> instance to allow for method chaining.
+    /// </returns>
+    /// <remarks>
+    /// This overload converts <paramref name="Value" /> to a <c>TSchemaType</c> using
+    /// <c>TSchemaType.Parse</c>, then delegates to <c>Type(const Value: TSchemaType)</c>.
+    /// <para>
+    /// If <paramref name="Value" /> does not match a supported schema type name, the underlying
+    /// <c>TSchemaType.Parse</c> implementation may raise an exception.
+    /// </para>
+    /// </remarks>
     function &Type(const Value: string): TSchemaParams; overload;
 
     /// <summary>
@@ -161,8 +179,45 @@ type
     /// </remarks>
     function Properties(const Value: TArray<TJSONPair>): TSchemaParams; overload;
 
+    /// <summary>
+    /// Assigns a pre-built set of property definitions to an object schema.
+    /// </summary>
+    /// <param name="Value">
+    /// A <c>TSchemaParams</c> instance containing the JSON object that represents the
+    /// schema's <c>properties</c> map (property name → property schema).
+    /// </param>
+    /// <returns>
+    /// The current <c>TSchemaParams</c> instance to allow for method chaining.
+    /// </returns>
+    /// <remarks>
+    /// This overload is useful when you have already composed the full <c>properties</c> object
+    /// (for example via successive calls to the key-based <c>Properties</c> overload) and want
+    /// to attach it to the current schema in one step.
+    /// <para>
+    /// The provided <paramref name="Value" /> is detached and transferred into the resulting JSON,
+    /// meaning ownership of its underlying JSON value is moved to this schema.
+    /// </para>
+    /// </remarks>
     function Properties(const Value: TSchemaParams): TSchemaParams; overload;
 
+    /// <summary>
+    /// Assigns a JSON object containing property definitions to an object schema.
+    /// </summary>
+    /// <param name="Value">
+    /// A <c>TJSONObject</c> representing the schema's <c>properties</c> map
+    /// (property name → property schema JSON).
+    /// </param>
+    /// <returns>
+    /// The current <c>TSchemaParams</c> instance to allow for method chaining.
+    /// </returns>
+    /// <remarks>
+    /// Use this overload when the <c>properties</c> object has already been built as raw JSON
+    /// and you want to attach it directly to the current schema.
+    /// <para>
+    /// The <paramref name="Value" /> instance is used as-is; after this call, it is owned by the
+    /// schema JSON structure and should not be freed or reused by the caller.
+    /// </para>
+    /// </remarks>
     function Properties(const Value: TJSONObject): TSchemaParams; overload;
 
     /// <summary>

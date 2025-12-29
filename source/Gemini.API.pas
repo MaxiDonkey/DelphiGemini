@@ -15,9 +15,7 @@ uses
   REST.Json,
   Gemini.API.Params, Gemini.Exceptions, Gemini.Errors, Gemini.API.SSEDecoder,
   Gemini.HttpClientInterface, Gemini.HttpClientAPI, Gemini.Monitoring,
-  Gemini.API.Utils, Gemini.API.Url,
-
-  VCL.Dialogs, Clipbrd;
+  Gemini.API.Utils, Gemini.API.Url;
 
 type
   /// <summary>

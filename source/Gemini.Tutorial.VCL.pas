@@ -95,37 +95,34 @@ type
   procedure Display(Sender: TObject; Value: TBatchCancel); overload;
   procedure Display(Sender: TObject; Value: TBatchDelete); overload;
   procedure Display(Sender: TObject; Value: TJsonlDownload); overload;
-
-  procedure Display(Sender: TObject; Value: TIxContent); overload;    //New
-  procedure Display(Sender: TObject; Value: TInteraction); overload;  //New
-  procedure Display(Sender: TObject; Value: TCRUDDeleted); overload;  //New
-  function DisplayIx(Sender: TObject; Value: TInteraction): string; overload; //New
-  function DisplayIx(Sender: TObject; Value: string): string; overload; //New
+  procedure Display(Sender: TObject; Value: TIxContent); overload;
+  procedure Display(Sender: TObject; Value: TInteraction); overload;
+  procedure Display(Sender: TObject; Value: TCRUDDeleted); overload;
+  function DisplayIx(Sender: TObject; Value: TInteraction): string; overload;
+  function DisplayIx(Sender: TObject; Value: string): string; overload;
 
   procedure DisplayStream(Sender: TObject; Value: string); overload;
   procedure DisplayStream(Sender: TObject; Value: TChat); overload;
-
-  procedure DisplayStream(Sender: TObject; Value: TInteractionStream); overload; //New
+  procedure DisplayStream(Sender: TObject; Value: TInteractionStream); overload;
 
   procedure DisplayChunk(Value: string); overload;
   procedure DisplayChunk(Value: TChat); overload;
+  procedure DisplayChunk(Value: TInteractionStream); overload;
 
-  procedure DisplayChunk(Value: TInteractionStream); overload; //New
-
-  procedure DisplayInteractionStart(Sender: TObject; Chunk: TInteractionStream); overload;  //New
-  procedure DisplayInteractionStart(Sender: TObject; EventData: TEventData); overload; //New
-  procedure DisplayInteractionStatusUpdate(Sender: TObject; Chunk: TInteractionStream); overload; //New
-  procedure DisplayInteractionStatusUpdate(Sender: TObject; EventData: TEventData); overload; //New
-  procedure DisplayInteractionComplete(Sender: TObject; Chunk: TInteractionStream); overload; //New
-  procedure DisplayInteractionComplete(Sender: TObject; EventData: TEventData); overload; //New
-  procedure DisplayContentStart(Sender: TObject; Chunk: TInteractionStream); overload; //New
-  procedure DisplayContentStart(Sender: TObject; EventData: TEventData); overload; //New
-  procedure DisplayContentDelta(Sender: TObject; Chunk: TInteractionStream); overload; //New
-  procedure DisplayContentDelta(Sender: TObject; EventData: TEventData); overload; //New
-  procedure DisplayContentStop(Sender: TObject; Chunk: TInteractionStream); overload; //New
-  procedure DisplayContentStop(Sender: TObject; EventData: TEventData); overload; //New
-  procedure DisplayInteractionError(Sender: TObject; Chunk: TInteractionStream); overload; //New
-  procedure DisplayInteractionError(Sender: TObject; EventData: TEventData); overload; //New
+  procedure DisplayInteractionStart(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionStart(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayInteractionStatusUpdate(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionStatusUpdate(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayInteractionComplete(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionComplete(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayContentStart(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayContentStart(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayContentDelta(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayContentDelta(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayContentStop(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayContentStop(Sender: TObject; EventData: TEventData); overload;
+  procedure DisplayInteractionError(Sender: TObject; Chunk: TInteractionStream); overload;
+  procedure DisplayInteractionError(Sender: TObject; EventData: TEventData); overload;
 
   function F(const Name, Value: string): string; overload;
   function F(const Name: string; const Value: TArray<string>): string; overload;
