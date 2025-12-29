@@ -41,7 +41,7 @@ The example used throughout this section is: **"What’s the weather in Paris?"*
 
 ### Step1: Construct the JSON payload
 
-#### Approach using the `TSchemeParams` class.
+#### Approach using the `TSchemaParams` class.
 
 ```pascal
   var Params: TProc<TInteractionParams> :=
@@ -149,6 +149,7 @@ This multiline string–based approach is only applicable when using Delphi vers
 ### Step2: Fetch weather information
 
 By leveraging promise orchestration, you can significantly reduce boilerplate and keep the entire flow within a single instruction chain.
+Each Then corresponds to one phase: extraction → execution → final rendering.
 
 Start by defining the following two routines to simplify the examples:
 
@@ -190,6 +191,7 @@ Now define the method that orchestrates the two promises required to retrieve th
 
   Promise
     .&Then(
+      // Extract function call + execute business logic
       function (Value: TInteraction): TPromise<TInteraction>
       var
         Id, Name, callId, Arguments: string;
@@ -214,6 +216,7 @@ Now define the method that orchestrates the two promises required to retrieve th
               end);
       end)
     .&Then(
+      // Display final model response
       procedure (Value: TInteraction)
       begin
         if Assigned(Value) then
@@ -222,6 +225,7 @@ Now define the method that orchestrates the two promises required to retrieve th
           Display(TutorialHub, 'no function called');
       end)
     .&Catch(
+      // Error handling
       procedure (E: Exception)
       begin
         Display(TutorialHub, E.Message);
@@ -287,4 +291,4 @@ The JSON result.
 - Execute the corresponding business logic.
 - Return the result using `AddFunctionResult(...)`.
 - Start a new interaction with `PreviousInteractionId`.
-- Handle errors via Catch.
+- Handle errors via `Catch`.
