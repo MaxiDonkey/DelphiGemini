@@ -1,127 +1,353 @@
 unit Gemini.Types.EnumWire;
 
-{-------------------------------------------------------------------------------
-
-      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
-      Visit the Github repository for the documentation and use examples
-
- ------------------------------------------------------------------------------}
-
 interface
 
 uses
-  System.SysUtils, System.TypInfo, System.Rtti;
+  System.SysUtils, System.TypInfo, System.Rtti, System.Generics.Collections;
 
 type
+  WireString = UTF8String;
+
   EEnumWireError = class(Exception);
 
-  TEnumWire = record
-  private
-    class function TypeName<T>: string; static;
-    class procedure ValidateEnumMap<T>(const Map: array of string); static;
-    class function EnumMin<T>: Integer; static;
-    class function EnumMax<T>: Integer; static;
-    class function EnumOrdinal<T>(const V: T): Integer; static;
+  EnumWireMapAttribute = class(TCustomAttribute)
   public
-    class function TryParse<T>(const S: string; const Map: array of string; out V: T): Boolean; static;
-    class function Parse<T>(const S: string; const Map: array of string): T; static;
-    class function ToWire<T>(const V: T; const Map: array of string): string; static;
+    Values: string;
+    Separator: Char;
+    constructor Create(const AValues: string); overload;
+    constructor Create(const AValues: string; const ASeparator: Char); overload;
   end;
+
+  TEnumWire = record
+  private type
+    TMap = class
+    public
+      MinOrd: Integer;
+      MaxOrd: Integer;
+      WireByOrd: TArray<WireString>;
+      WireToOrd: TDictionary<string, Integer>;
+      procedure Add(Ordinal: Integer; const Wire: WireString; const TypeLabel: string);
+      destructor Destroy; override;
+    end;
+  private
+    class var Cache: TObjectDictionary<PTypeInfo, TMap>;
+    class constructor Create;
+    class destructor Destroy;
+
+    class function AsciiLower(const Value: string): string; inline; static;
+
+    class function TypeName(const Info: PTypeInfo): string; static;
+    class procedure EnsureEnum(const Info: PTypeInfo); static;
+
+    class function StripEscapePrefix(const Value: string): string; inline; static;
+    class function KeyOf(const Value: string): string; static; inline;
+    class function CanonicalEnumName(const Name: string): string; inline; static;
+
+    class function TryGetEnumWireMap(const Info: PTypeInfo; out Values: string; out Separator: Char): Boolean; static;
+    class function BuildMap(const Info: PTypeInfo): TMap; static;
+    class function GetMap(const Info: PTypeInfo): TMap; static;
+  public
+    class function TryParse<T>(const Wire: string; out TypeValue: T): Boolean; overload; static;
+    class function TryParse<T>(const Wire: string; const WireMap: array of string; out TypeValue: T): Boolean; overload; static;
+    class function Parse<T>(const Wire: string): T; overload; static;
+    class function Parse<T>(const Wire: string; const WireMap: array of string): T; overload; static;
+    class function ToString<T>(const Value: T): string; static;
+  end;
+
+  TWire = record
+  public
+    class function FromUnicode(const S: string): WireString; inline; static;
+    class function ToUnicode(const W: WireString): string; inline; static;
+  end;
+
 
 implementation
 
+{ EnumWireMapAttribute }
+
+constructor EnumWireMapAttribute.Create(const AValues: string);
+begin
+  inherited Create;
+  Values := AValues;
+  Separator := '|';
+end;
+
+constructor EnumWireMapAttribute.Create(const AValues: string; const ASeparator: Char);
+begin
+  inherited Create;
+  Values := AValues;
+  Separator := ASeparator;
+end;
+
+{ TEnumWire.TMap }
+
+procedure TEnumWire.TMap.Add(Ordinal: Integer; const Wire: WireString; const TypeLabel: string);
+begin
+  var Index := Ordinal - MinOrd;
+  WireByOrd[Index] := Wire;
+
+  var Uc := TWire.ToUnicode(Wire);
+  var Key := TEnumWire.KeyOf(Uc);
+  if WireToOrd.ContainsKey(Key) then
+    raise EEnumWireError.CreateFmt('Duplicate wire value "%s" in %s', [TWire.ToUnicode(Wire), TypeLabel]);
+
+  WireToOrd.Add(Key, Ordinal);
+end;
+
+destructor TEnumWire.TMap.Destroy;
+begin
+  WireToOrd.Free;
+  inherited;
+end;
+
 { TEnumWire }
 
-class function TEnumWire.TypeName<T>: string;
-var
-  ti: PTypeInfo;
+class constructor TEnumWire.Create;
 begin
-  ti := PTypeInfo(System.TypeInfo(T));
-  if ti = nil then
+  Cache := TObjectDictionary<PTypeInfo, TMap>.Create([doOwnsValues]);
+end;
+
+class destructor TEnumWire.Destroy;
+begin
+  Cache.Free;
+end;
+
+class function TEnumWire.TypeName(const Info: PTypeInfo): string;
+begin
+  if Info = nil then
     Exit('<nil>');
-  Result := System.TypInfo.GetTypeName(ti);
+  Result := string(Info^.Name);
 end;
 
-class function TEnumWire.EnumMin<T>: Integer;
-var
-  td: PTypeData;
+class procedure TEnumWire.EnsureEnum(const Info: PTypeInfo);
 begin
-  td := GetTypeData(PTypeInfo(System.TypeInfo(T)));
-  Result := td^.MinValue;
+  if (Info = nil) or (Info^.Kind <> tkEnumeration) then
+    raise EEnumWireError.CreateFmt('Type %s is not an enumeration', [TypeName(Info)]);
 end;
 
-class function TEnumWire.EnumMax<T>: Integer;
-var
-  td: PTypeData;
+class function TEnumWire.KeyOf(const Value: string): string;
 begin
-  td := GetTypeData(PTypeInfo(System.TypeInfo(T)));
-  Result := td^.MaxValue;
+  if Value.IsEmpty then
+    Exit(EmptyStr);
+
+  Result := AsciiLower(StripEscapePrefix(Value.Trim));
 end;
 
-class function TEnumWire.EnumOrdinal<T>(const V: T): Integer;
+class function TEnumWire.Parse<T>(const Wire: string;
+  const WireMap: array of string): T;
 begin
-  Result := TValue.From<T>(V).AsOrdinal;
-end;
-
-class procedure TEnumWire.ValidateEnumMap<T>(const Map: array of string);
-var
-  ti: PTypeInfo;
-  minV, maxV, expected: Integer;
-begin
-  ti := PTypeInfo(System.TypeInfo(T));
-  if (ti = nil) or (ti^.Kind <> tkEnumeration) then
-    raise EEnumWireError.CreateFmt('TEnumWire: type "%s" is not an enumeration', [TypeName<T>]);
-
-  minV := EnumMin<T>;
-  maxV := EnumMax<T>;
-  expected := (maxV - minV) + 1;
-
-  if Length(Map) <> expected then
+  if not TryParse<T>(Wire, WireMap, Result) then
     raise EEnumWireError.CreateFmt(
-      'TEnumWire: map length mismatch for %s (got %d, expected %d)',
-      [TypeName<T>, Length(Map), expected]
-    );
+      'Unknown enum wire value "%s" for %s',
+      [Wire, TypeName(System.TypeInfo(T))]);
 end;
 
-class function TEnumWire.TryParse<T>(const S: string; const Map: array of string; out V: T): Boolean;
-var
-  i: Integer;
-  ordVal: Integer;
-  td: PTypeData;
-  ti: PTypeInfo;
+class function TEnumWire.CanonicalEnumName(const Name: string): string;
 begin
-  ValidateEnumMap<T>(Map);
+  Result := StripEscapePrefix(Name);
+end;
 
-  Result := False;
-  ti := PTypeInfo(System.TypeInfo(T));
-  td := GetTypeData(ti);
+class function TEnumWire.TryGetEnumWireMap(const Info: PTypeInfo;
+  out Values: string;
+  out Separator: Char): Boolean;
+var
+  RttiContext: TRttiContext;
+begin
+  Values := EmptyStr;
+  Separator := '|';
 
-  for i := 0 to High(Map) do
-    if SameText(S, Map[i]) then
+  var RttiType := RttiContext.GetType(Info);
+  if RttiType = nil then
+    Exit(False);
+
+  for var Attribute in RttiType.GetAttributes do
+    if Attribute is EnumWireMapAttribute then
       begin
-        ordVal := td^.MinValue + i;
-        V := TValue.FromOrdinal(ti, ordVal).AsType<T>;
+        Values := EnumWireMapAttribute(Attribute).Values;
+        Separator := EnumWireMapAttribute(Attribute).Separator;
         Exit(True);
       end;
+
+  Result := False;
 end;
 
-class function TEnumWire.Parse<T>(const S: string; const Map: array of string): T;
-begin
-  if not TryParse<T>(S, Map, Result) then
-    raise EEnumWireError.CreateFmt('Unknown enum wire value "%s" for %s', [S, TypeName<T>]);
-end;
-
-class function TEnumWire.ToWire<T>(const V: T; const Map: array of string): string;
+class function TEnumWire.TryParse<T>(const Wire: string;
+  const WireMap: array of string; out TypeValue: T): Boolean;
 var
-  idx: Integer;
+  OrdVal: Integer;
 begin
-  ValidateEnumMap<T>(Map);
+  if Wire.IsEmpty then
+    Exit(False);
 
-  idx := EnumOrdinal<T>(V) - EnumMin<T>;
-  if (idx < 0) or (idx > High(Map)) then
-    raise EEnumWireError.CreateFmt('Enum value out of range for %s', [TypeName<T>]);
+  var Info := System.TypeInfo(T);
+  EnsureEnum(Info);
 
-  Result := Map[idx];
+  var Data := GetTypeData(Info);
+  var MinOrd := Data^.MinValue;
+  var MaxOrd := Data^.MaxValue;
+
+  var TypeLabel := TypeName(Info);
+
+  if Length(WireMap) <> (MaxOrd - MinOrd + 1) then
+    raise EEnumWireError.CreateFmt(
+      'Enum wire map count mismatch for %s (expected %d, got %d)',
+      [TypeLabel, (MaxOrd - MinOrd + 1), Length(WireMap)]
+    );
+
+  var Dict := TDictionary<string, Integer>.Create;
+  try
+    for OrdVal := MinOrd to MaxOrd do
+      begin
+        var W := WireMap[OrdVal - MinOrd].Trim;
+        var Key := KeyOf(W);
+
+        if Dict.ContainsKey(Key) then
+          raise EEnumWireError.CreateFmt('Duplicate wire value "%s" in %s', [W, TypeLabel]);
+
+        Dict.Add(Key, OrdVal);
+      end;
+
+    Result := Dict.TryGetValue(KeyOf(Wire), OrdVal);
+    if Result then
+      TypeValue := TValue.FromOrdinal(Info, OrdVal).AsType<T>;
+  finally
+    Dict.Free;
+  end;
+end;
+
+class function TEnumWire.AsciiLower(const Value: string): string;
+var
+  C: Char;
+begin
+  Result := Value;
+  for var i := 1 to Length(Result) do
+    begin
+      C := Result[i];
+      if (C >= 'A') and (C <= 'Z') then
+        Result[i] := Char(Ord(C) + 32);
+    end;
+end;
+
+class function TEnumWire.BuildMap(const Info: PTypeInfo): TMap;
+var
+  Raw: string;
+  Sep: Char;
+begin
+  EnsureEnum(Info);
+  var Data := GetTypeData(Info);
+
+  Result := TMap.Create;
+  Result.MinOrd := Data^.MinValue;
+  Result.MaxOrd := Data^.MaxValue;
+
+  SetLength(Result.WireByOrd, Result.MaxOrd - Result.MinOrd + 1);
+  Result.WireToOrd := TDictionary<string, Integer>.Create;
+
+  var TypeLabel := TypeName(Info);
+
+  if TryGetEnumWireMap(Info, Raw, Sep) then
+    begin
+      var Parts := Raw.Split([Sep]);
+
+      if Length(Parts) <> Length(Result.WireByOrd) then
+        raise EEnumWireError.CreateFmt(
+          'Enum wire map count mismatch for %s (expected %d, got %d)',
+          [TypeLabel, Length(Result.WireByOrd), Length(Parts)]);
+
+      for var OrdVal := Result.MinOrd to Result.MaxOrd do
+        begin
+          var Index := OrdVal - Result.MinOrd;
+          var Wire := TWire.FromUnicode(Parts[Index].Trim);
+          Result.Add(OrdVal, Wire, TypeLabel);
+        end;
+
+      Exit;
+    end;
+
+  for var OrdVal := Result.MinOrd to Result.MaxOrd do
+    begin
+      var Wire := TWire.FromUnicode(CanonicalEnumName(GetEnumName(Info, OrdVal)));
+      Result.Add(OrdVal, Wire, TypeLabel);
+    end;
+end;
+
+class function TEnumWire.GetMap(const Info: PTypeInfo): TMap;
+begin
+  EnsureEnum(Info);
+
+  TMonitor.Enter(Cache);
+  try
+    if not Cache.TryGetValue(Info, Result) then
+      begin
+        Result := BuildMap(Info);
+        Cache.Add(Info, Result);
+      end;
+  finally
+    TMonitor.Exit(Cache);
+  end;
+end;
+
+class function TEnumWire.ToString<T>(const Value: T): string;
+var
+  Info: PTypeInfo;
+begin
+  Info := System.TypeInfo(T);
+  EnsureEnum(Info);
+
+  var OrdVal := TValue.From<T>(Value).AsOrdinal;
+
+  var Map := GetMap(Info);
+  if (OrdVal < Map.MinOrd) or (OrdVal > Map.MaxOrd) then
+    raise EEnumWireError.CreateFmt('Enum ordinal out of range for %s', [TypeName(Info)]);
+
+  Result := TWire.ToUnicode(Map.WireByOrd[OrdVal - Map.MinOrd]);
+end;
+
+class function TEnumWire.TryParse<T>(const Wire: string; out TypeValue: T): Boolean;
+var
+  Info: PTypeInfo;
+  OrdVal: Integer;
+begin
+  if Wire.IsEmpty then
+    Exit(False);
+
+  Info := System.TypeInfo(T);
+  EnsureEnum(Info);
+
+  var Map := GetMap(Info);
+
+  Result := Map.WireToOrd.TryGetValue(KeyOf(Wire), OrdVal);
+  if Result then
+    TypeValue := TValue.FromOrdinal(Info, OrdVal).AsType<T>;
+end;
+
+class function TEnumWire.Parse<T>(const Wire: string): T;
+begin
+  if not TryParse<T>(Wire, Result) then
+    raise EEnumWireError.CreateFmt(
+      'Unknown enum wire value "%s" for %s',
+      [Wire, TypeName(System.TypeInfo(T))]);
+end;
+
+class function TEnumWire.StripEscapePrefix(const Value: string): string;
+begin
+  if Value.StartsWith('&') then
+    Result := Value.Substring(1)
+  else
+    Result := Value;
+end;
+
+{ TWire }
+
+class function TWire.FromUnicode(const S: string): WireString;
+begin
+  Result := WireString(S);
+end;
+
+class function TWire.ToUnicode(const W: WireString): string;
+begin
+  Result := string(W);
 end;
 
 end.
+

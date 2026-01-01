@@ -8,7 +8,7 @@ uses
   Gemini.Chat.Request, Gemini.Chat.Request.Content,
   Gemini.Chat.Request.GenerationConfig, Gemini.Chat.Request.Tools,
   Gemini.Embeddings, Gemini.Batch, Gemini.Interactions, Gemini.Interactions.Content,
-  Gemini.Interactions.Tools;
+  Gemini.Interactions.Tools, Gemini.Video, Gemini.ImageGen;
 
 type
 
@@ -18,25 +18,11 @@ type
 
   TPartsHelper = record Helper for TParts
     function AddText(const Text: string; Thought: Boolean = False): TParts;
-
-    function AddInlineData(const PathOrUrl: string): TParts; overload;
-
-    function AddInlineData(const MimeType: string; const Base64: string): TParts; overload;
-
-    function AddInlineData(const MimeType: string; const Stream: TStream): TParts; overload;
-
-    function AddInlineData(const MimeType: string; const ABytes: TBytes): TParts; overload;
-
-    function AddFileData(const PathOrUrl: string): TParts;
-
+    function AddInlineData(const Base64: string; const MimeType: string): TParts; overload;
+    function AddFileData(const Uri: string; const MimeType: string): TParts;
     function AddFunctionCall(const Name: string): TParts;
-
-    function AddFunctionResponse(const Name: string;
-      const Response: TJSONObject): TParts;
-
-    function AddExecutableCode(const Language: TLanguageType;
-      const Code: string): TParts;
-
+    function AddFunctionResponse(const Name: string; const Response: TJSONObject): TParts;
+    function AddExecutableCode(const Language: TLanguageType; const Code: string): TParts;
     function AddCodeExecutionResult(const Outcome: TOutcomeType): TParts;
   end;
 
@@ -86,10 +72,10 @@ type
   TToolsHelper = record Helper for TTools
     function AddFunctionDeclarations(const Value: TArray<TFunctionDeclarations>): TTools;
     function AddGoogleSearchRetrieval(const Value: TGoogleSearchRetrieval): TTools;
-    function AddCodeExecution(const Value: TCodeExecution): TTools;
-    function AddGoogleSearch(const Value: TGoogleSearch): TTools;
+    function AddCodeExecution(const Value: TCodeExecution = nil): TTools;
+    function AddGoogleSearch(const Value: TGoogleSearch = nil): TTools;
+    function AddUrlContext(const Value: TUrlContext = nil): TTools;
     function AddComputerUse(const Value: TComputerUse): TTools;
-    function AddUrlContext(const Value: TUrlContext): TTools;
     function AddFileSearch(const Value: TFileSearch): TTools;
     function AddGoogleMaps(const Value: TGoogleMaps): TTools;
   end;
@@ -208,6 +194,47 @@ type
 
 {$ENDREGION}
 
+{$REGION 'Gemini.Video'}
+
+  TVideoInstance = TArrayBuilder<TVideoInstanceParams>;
+
+  TInstanceHelper = record Helper for TVideoInstance
+    function AddItem(const Value: TVideoInstanceParams): TVideoInstance;
+  end;
+
+  TReference = TArrayBuilder<TReferenceImages>;
+
+  TReferenceHelper = record Helper for TReference
+    function AddItem(const Image: TImageInstanceParams; ReferenceType: string = ''): TReference;
+  end;
+
+  TVideoMedia = record
+    class function InstanceList: TVideoInstance; static;
+    class function AddInstance: TVideoInstanceParams; static;
+    class function ReferenceList: TReference; static;
+    class function Base64(const Value64: string; const MimeType: string): TImageInstanceParams; static;
+    class function Uri(const Uri: string; const MimeType: string): TImageInstanceParams; static;
+    class function MaskBase64(const Value64: string; const MimeType: string; const MaskMode: string): TImageInstanceParams; static;
+    class function MaskUri(const Uri: string; const MimeType: string; const MaskMode: string): TImageInstanceParams; static;
+  end;
+
+{$ENDREGION}
+
+{$REGION 'Gemini.ImageGen'}
+
+  TImageGenInstance = TArrayBuilder<TImageGenInstanceParams>;
+
+  TImageGenInstanceHelper = record Helper for TImageGenInstance
+    function AddItem(const Value: TImageGenInstanceParams): TImageGenInstance;
+  end;
+
+  TImageGenMedia = record
+    class function InstanceList: TImageGenInstance; static;
+    class function Prompt(const Value: string): TImageGenInstanceParams; static;
+  end;
+
+{$ENDREGION}
+
 implementation
 
 {$REGION 'dev note'}
@@ -271,26 +298,9 @@ end;
 
 { TPartsHelper }
 
-function TPartsHelper.AddInlineData(const PathOrUrl: string): TParts;
-begin
-  Result := Self.Add(TPartParams.NewInlineData(PathOrUrl));
-end;
-
-function TPartsHelper.AddInlineData(const MimeType, Base64: string): TParts;
+function TPartsHelper.AddInlineData(const Base64, MimeType: string): TParts;
 begin
   Result := Self.Add(TPartParams.NewInlineData(MimeType, Base64));
-end;
-
-function TPartsHelper.AddInlineData(const MimeType: string;
-  const Stream: TStream): TParts;
-begin
-  Result := Self.Add(TPartParams.NewInlineData(MimeType, Stream));
-end;
-
-function TPartsHelper.AddInlineData(const MimeType: string;
-  const ABytes: TBytes): TParts;
-begin
-  Result := Self.Add(TPartParams.NewInlineData(MimeType, ABytes));
 end;
 
 function TPartsHelper.AddCodeExecutionResult(
@@ -305,9 +315,9 @@ begin
   Result := Self.Add(TPartParams.NewExecutableCode(Language, Code));
 end;
 
-function TPartsHelper.AddFileData(const PathOrUrl: string): TParts;
+function TPartsHelper.AddFileData(const Uri: string; const MimeType: string): TParts;
 begin
-  Result := Self.Add(TPartParams.NewFileData(PathOrUrl));
+  Result := Self.Add(TPartParams.NewFileData(Uri, MimeTYpe));
 end;
 
 function TPartsHelper.AddFunctionCall(const Name: string): TParts;
@@ -633,6 +643,99 @@ end;
 function TInputHelper.AddVideo(const Value: TVideoContentIxParams): TInput;
 begin
   Result := Self.Add(TInputParams.AddVideo(Value));
+end;
+
+{ TInstanceHelper }
+
+function TInstanceHelper.AddItem(const Value: TVideoInstanceParams): TVideoInstance;
+begin
+  Result := Self.Add(TVideoInstanceParams.New(Value));
+end;
+
+{ TReferenceHelper }
+
+function TReferenceHelper.AddItem(const Image: TImageInstanceParams;
+  ReferenceType: string): TReference;
+begin
+  Result := Self.Add(TReferenceImages.NewReference(Image, ReferenceType));
+end;
+
+{ TVideoMedia }
+
+class function TVideoMedia.InstanceList: TVideoInstance;
+begin
+  Result := TVideoInstance.Create();
+end;
+
+class function TVideoMedia.AddInstance: TVideoInstanceParams;
+begin
+  Result := TVideoInstanceParams.Create;
+end;
+
+class function TVideoMedia.ReferenceList: TReference;
+begin
+  Result := TReference.Create();
+end;
+
+class function TVideoMedia.Base64(const Value64,
+  MimeType: string): TImageInstanceParams;
+begin
+  Result := TImageInstanceParams.Create
+    .BytesBase64Encoded(Value64)
+    .MimeType(MimeType)
+end;
+
+class function TVideoMedia.Uri(const Uri,
+  MimeType: string): TImageInstanceParams;
+begin
+  Result := TImageInstanceParams.Create
+    .GcsUri(Uri)
+    .MimeType(MimeType)
+end;
+
+class function TVideoMedia.MaskBase64(const Value64,
+  MimeType: string;
+  const MaskMode: string): TImageInstanceParams;
+begin
+  Result := TImageInstanceParams.Create
+     .BytesBase64Encoded(Value64)
+     .MimeType(MimeType);
+
+  if not MaskMode.IsEmpty then
+    Result.MaskMode(MaskMode);
+end;
+
+class function TVideoMedia.MaskUri(const Uri, MimeType,
+  MaskMode: string): TImageInstanceParams;
+begin
+  Result := TImageInstanceParams.Create
+     .BytesBase64Encoded(Uri)
+     .MimeType(MimeType);
+
+  if not MaskMode.IsEmpty then
+    Result.MaskMode(MaskMode);
+end;
+
+{ TImageGenInstanceHelper }
+
+function TImageGenInstanceHelper.AddItem(
+  const Value: TImageGenInstanceParams): TImageGenInstance;
+begin
+  Result := Self.Add(TImageGenInstanceParams.New(Value));
+end;
+
+{ TImageGenMedia }
+
+class function TImageGenMedia.InstanceList: TImageGenInstance;
+begin
+  Result := TImageGenInstance.Create;
+end;
+
+class function TImageGenMedia.Prompt(
+  const Value: string): TImageGenInstanceParams;
+begin
+  Result := TImageGenInstanceParams.Create
+    .Prompt(Value);
 end;
 
 end.

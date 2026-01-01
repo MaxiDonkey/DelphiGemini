@@ -30,7 +30,8 @@ const
     'metadata',
     'partMetadata',
     'arguments',
-    'result'
+    'result',
+    'predictions'
   ];
 
 implementation

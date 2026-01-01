@@ -6,7 +6,8 @@ uses
   System.SysUtils, System.JSON,
   Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Safety, Gemini.Schema,
   Gemini.Functions.Core, Gemini.Tools, Gemini.Chat.Request.Content, Gemini.GoogleSearch,
-  Gemini.Chat.Request.GenerationConfig, Gemini.Chat.Request.Tools, Gemini.Chat.Request.ToolConfig;
+  Gemini.Chat.Request.GenerationConfig, Gemini.Chat.Request.Tools, Gemini.Chat.Request.ToolConfig,
+  Gemini.Exceptions;
 
 type
   /// <summary>
@@ -278,7 +279,21 @@ type
     /// <remarks>
     /// For single-turn queries, this array contains a single message. For multi-turn conversations, include the entire conversation history and the latest message.
     /// </remarks>
-    function Contents(const Value: TArray<TContentPayload>): TChatParams;
+    function Contents(const Value: TArray<TContentPayload>): TChatParams; overload;
+
+    /// <summary>
+    /// Sets the content of the current conversation with the model.
+    /// </summary>
+    /// <param name="Value">
+    /// A JSONArray  string
+    /// </param>
+    /// <returns>
+    /// Returns the updated <c>TChatParams</c> instance, allowing for method chaining.
+    /// </returns>
+    /// <remarks>
+    /// For single-turn queries, this array contains a single message. For multi-turn conversations, include the entire conversation history and the latest message.
+    /// </remarks>
+    function Contents(const Value: string): TChatParams; overload;
 
     /// <summary>
     /// Specifies a list of tools that the model may use to generate the next response.
@@ -296,33 +311,17 @@ type
     function Tools(const Value: TArray<IFunctionCore>): TChatParams; overload;
 
     /// <summary>
-    /// Enables a specific tool for the chat interaction based on the provided tool kind and threshold.
+    /// Optional. Input only. Immutable. A list of Tools the model may use to generate the next response
     /// </summary>
-    /// <param name="Value">
-    /// Specifies the type of tool to enable. This can be either <c>TToolKind.CodeExecution</c> to allow code execution capabilities or <c>TToolKind.GoogleSearch</c> to enable Google search functionality.
-    /// </param>
-    /// <param name="Threshold">
-    /// An optional parameter that sets the activation threshold for the specified tool. The default value is <c>0.7</c>.
-    /// </param>
-    /// <returns>
-    /// Returns the updated <c>TChatParams</c> instance, facilitating method chaining for configuring multiple parameters.
-    /// </returns>
-    /// <remarks>
-    /// This method allows you to specify additional functionalities that the AI model can utilize during the chat session.
-    /// <para>
-    /// •  <c>TToolKind.CodeExecution</c>: Enables the model to generate and execute code snippets, which can be useful for tasks requiring computational operations or automation.
-    /// </para>
-    /// <para>
-    /// •  <c>TToolKind.GoogleSearch</c>: Allows the model to perform Google searches to fetch real-time information, enhancing its ability to provide up-to-date responses.
-    /// </para>
-    /// The <c>Threshold</c> parameter determines the sensitivity or confidence level required for the tool to be activated. Adjusting this value can help control how often the tool is utilized based on the context of the conversation.
-    /// </remarks>
-    function Tools(const Value: TToolKind; const Threshold: Double = 0.7): TChatParams; overload; deprecated;
+    function Tools(const Value: TArray<TToolParams>): TChatParams; overload;
 
     /// <summary>
     /// Optional. Input only. Immutable. A list of Tools the model may use to generate the next response
     /// </summary>
-    function Tools(const Value: TArray<TToolParams>): TChatParams; overload;
+    /// <param name="Value">
+    /// A JSONArray  string
+    /// </param>
+    function Tools(const Value: string): TChatParams; overload;
 
     /// <summary>
     /// Optional. Tool configuration for any Tool specified in the request.
@@ -353,7 +352,27 @@ type
     /// Supported harm categories include <c>HARM_CATEGORY_HATE_SPEECH</c>, <c>HARM_CATEGORY_SEXUALLY_EXPLICIT</c>, <c>HARM_CATEGORY_DANGEROUS_CONTENT</c>, and <c>HARM_CATEGORY_HARASSMENT</c>.
     /// Refer to the documentation for detailed information on available safety settings and how to incorporate safety considerations into your application.
     /// </remarks>
-    function SafetySettings(const Value: TArray<TSafety>): TChatParams;
+    function SafetySettings(const Value: TArray<TSafety>): TChatParams; overload;
+
+    /// <summary>
+    /// Specifies safety settings to block unsafe content.
+    /// </summary>
+    /// <param name="Value">
+    /// A JSONArray string
+    /// </param>
+    /// <returns>
+    /// Returns the updated <c>TChatParams</c> instance, allowing for method chaining.
+    /// </returns>
+    /// <remarks>
+    /// These settings are enforced on both the request and the response.
+    /// There should not be more than one setting for each safety category.
+    /// The API will block any content that fails to meet the thresholds set by these settings.
+    /// This list overrides the default settings for each specified category.
+    /// If a category is not specified, the API uses the default safety setting for that category.
+    /// Supported harm categories include <c>HARM_CATEGORY_HATE_SPEECH</c>, <c>HARM_CATEGORY_SEXUALLY_EXPLICIT</c>, <c>HARM_CATEGORY_DANGEROUS_CONTENT</c>, and <c>HARM_CATEGORY_HARASSMENT</c>.
+    /// Refer to the documentation for detailed information on available safety settings and how to incorporate safety considerations into your application.
+    /// </remarks>
+    function SafetySettings(const Value: string): TChatParams; overload;
 
     /// <summary>
     /// Sets developer-defined system instructions for the model.
@@ -388,6 +407,14 @@ type
     /// Optional. Configuration options for model generation and outputs.
     /// </summary>
     function GenerationConfig(const Value: TGenerationConfig): TChatParams; overload;
+
+    /// <summary>
+    /// Optional. Configuration options for model generation and outputs.
+    /// </summary>
+    /// <param name="paramname">
+    /// A JSONArray string
+    /// </param>
+    function GenerationConfig(const Value: string): TChatParams; overload;
 
     /// <summary>
     /// Optional. The name of the content cached to use as context to serve the prediction.
@@ -528,10 +555,30 @@ begin
     TJSONHelper.ToJsonArray<TContentPayload>(Value)));
 end;
 
+function TChatParams.Contents(const Value: string): TChatParams;
+var
+  JSONArray: TJSONArray;
+begin
+  if TJSONHelper.TryGetArray(Value, JSONArray) then
+    Exit(TChatParams(Add('contents', JSONArray)));
+
+  raise EGeminiException.Create('Invalid JSON Array');
+end;
+
 function TChatParams.GenerationConfig(
   const Value: TGenerationConfig): TChatParams;
 begin
   Result := TChatParams(Add('generationConfig', Value.Detach));
+end;
+
+function TChatParams.GenerationConfig(const Value: string): TChatParams;
+var
+  JSONObject: TJSONObject;
+begin
+  if TJSONHelper.TryGetObject(Value, JSONObject) then
+    Exit(TChatParams(Add('generationConfig', JSONObject)));
+
+  raise EGeminiException.Create('Invalid JSON Object');
 end;
 
 function TChatParams.GenerationConfig(const ParamProc: TProcRef<TGenerationConfig>): TChatParams;
@@ -564,6 +611,16 @@ begin
   Result := TChatParams(Add('safetySettings', JSONSafetySettings));
 end;
 
+function TChatParams.SafetySettings(const Value: string): TChatParams;
+var
+  JSONArray: TJSONArray;
+begin
+  if TJSONHelper.TryGetArray(Value, JSONArray) then
+    Exit(TChatParams(Add('safetySettings', JSONArray)));
+
+  raise EGeminiException.Create('Invalid JSON Array');
+end;
+
 function TChatParams.SystemInstruction(const Value: string): TChatParams;
 begin
   Result := TChatParams(Add('systemInstruction', TContentPayload.Add(Value).Detach));
@@ -591,25 +648,17 @@ begin
   Result := TChatParams(Add('tools', TJSONArray.Create.Add(JSONDeclaration)));
 end;
 
-function TChatParams.Tools(const Value: TToolKind; const Threshold: Double): TChatParams;
+function TChatParams.Tools(const Value: string): TChatParams;
+var
+  JSONArray: TJSONArray;
 begin
-//  case Value of
-//    CodeExecution:
-//      begin
-//        var JSONCodeExecution := TJSONObject.Create.AddPair('codeExecution', TJSONObject.Create);
-//        Result := TChatParams(Add('tools', TJSONArray.Create.Add(JSONCodeExecution)));
-//      end;
-//    GoogleSearch:
-//      begin
-//        var JSONValue := TGoogleSearchRetrieval.Create.DynamicRetrievalConfig('MODE_DYNAMIC', Threshold);
-//        Result := TChatParams(Add('tools', TJSONObject.Create.AddPair('googleSearchRetrieval', JSONValue.Detach)));
-//      end;
-//    else
-//      Result := Self;
-//  end;
+  if TJSONHelper.TryGetArray(Value, JSONArray) then
+    Exit(TChatParams(Add('tools', JSONArray)));
 
-  Result := Self;
+  raise EGeminiException.Create('Invalid JSON Array');
 end;
+
+
 
 { TUsageMetadataParams }
 

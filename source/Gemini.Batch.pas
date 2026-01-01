@@ -290,7 +290,7 @@ type
     /// A parameter builder callback used to populate the batch request payload (<c>TBatchParams</c>).
     /// </param>
     /// <returns>
-    /// A <c>TOperation</c> representing the server-side long-running operation (LRO) for this batch.
+    /// A <c>Operation</c> representing the server-side long-running operation (LRO) for this batch.
     /// </returns>
     /// <remarks>
     /// This method is synchronous and blocks until the create request completes.
@@ -570,7 +570,7 @@ type
 implementation
 
 uses
-  System.IOUtils;
+  System.IOUtils, Gemini.JsonPathHelper;
 
 { TBatchParams }
 

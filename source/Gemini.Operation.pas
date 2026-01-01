@@ -48,7 +48,7 @@ type
 
   TOperation = class(TJSONFingerprint)
   strict private
-    function JsonStrOf(const FieldName: TOperationPath): string; inline;
+    function JsonStrOf(const FieldName: TBatchOperationType): string; inline;
   private
     FName: string;
     FDone: Boolean;
@@ -63,9 +63,9 @@ type
     function GetUpdateTime: string;
     function GetRequestCount: string;
     function GetPendingRequestCount: string;
-    function GetType: string;
     function GetSuccessfulRequestCount: string;
     function GetFailedRequestCount: string;
+    function GetType: string;
   public
     /// <summary>
     /// The server-assigned name, which is only unique within the same service that originally returns it.
@@ -275,52 +275,52 @@ end;
 
 function TOperation.GetCreateTime: string;
 begin
-  Result := JsonStrOf(op_createTime);
+  Result := JsonStrOf(bo_createTime);
 end;
 
 function TOperation.GetDisplayName: string;
 begin
-  Result := JsonStrOf(op_displayName);
+  Result := JsonStrOf(bo_displayName);
 end;
 
 function TOperation.GetEndTime: string;
 begin
-  Result := JsonStrOf(op_endTime);
+  Result := JsonStrOf(bo_endTime);
 end;
 
 function TOperation.GetFailedRequestCount: string;
 begin
-  Result := JsonStrOf(op_failedRequestCount);
+  Result := JsonStrOf(bo_failedRequestCount);
 end;
 
 function TOperation.GetFileName: string;
 begin
-  Result := JsonStrOf(op_inputFileName);
+  Result := JsonStrOf(bo_inputFileName);
 end;
 
 function TOperation.GetModel: string;
 begin
-  Result := JsonStrOf(op_model);
+  Result := JsonStrOf(bo_model);
 end;
 
 function TOperation.GetPendingRequestCount: string;
 begin
-  Result := JsonStrOf(op_pendingRequestCount);
+  Result := JsonStrOf(bo_pendingRequestCount);
 end;
 
 function TOperation.GetRequestCount: string;
 begin
-  Result := JsonStrOf(op_requestCount);
+  Result := JsonStrOf(bo_requestCount);
 end;
 
 function TOperation.GetResponseFile: string;
 begin
-  Result := JsonStrOf(op_responsesFile);
+  Result := JsonStrOf(bo_responsesFile);
 end;
 
 function TOperation.GetState: TBatchStateType;
 begin
-  var S := JsonStrOf(op_state);
+  var S := JsonStrOf(bo_state);
   try
     Result := TBatchStateType.Parse(S);
   except
@@ -330,20 +330,20 @@ end;
 
 function TOperation.GetSuccessfulRequestCount: string;
 begin
-  Result := JsonStrOf(op_successfulRequestCount);
+  Result := JsonStrOf(bo_successfulRequestCount);
 end;
 
 function TOperation.GetType: string;
 begin
-  Result := JsonStrOf(op_type);
+  Result := JsonStrOf(bo_type);
 end;
 
 function TOperation.GetUpdateTime: string;
 begin
-  Result := JsonStrOf(op_updateTime);
+  Result := JsonStrOf(bo_updateTime);
 end;
 
-function TOperation.JsonStrOf(const FieldName: TOperationPath): string;
+function TOperation.JsonStrOf(const FieldName: TBatchOperationType): string;
 begin
   Result := TJsonReader
     .Parse(JSONResponse)

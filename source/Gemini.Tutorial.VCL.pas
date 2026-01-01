@@ -20,9 +20,8 @@ uses
   Gemini, Gemini.Types, Gemini.Chat.Response, Gemini.Models, Gemini.Embeddings,
   Gemini.Files, Gemini.Caching, Gemini.VectorFiles, Gemini.VectorFiles.Documents,
   Gemini.Operation, Gemini.Batch,
-
   Gemini.Interactions.ResponsesContent, Gemini.Interactions.Responses,
-  Gemini.Interactions.Stream;
+  Gemini.Interactions.Stream, Gemini.Video, Gemini.Types.EnumWire;
 
 type
   TVCLTutorialHub = class
@@ -98,6 +97,9 @@ type
   procedure Display(Sender: TObject; Value: TIxContent); overload;
   procedure Display(Sender: TObject; Value: TInteraction); overload;
   procedure Display(Sender: TObject; Value: TCRUDDeleted); overload;
+  procedure Display(Sender: TObject; Value: TVideoOpereration); overload; //new
+
+
   function DisplayIx(Sender: TObject; Value: TInteraction): string; overload;
   function DisplayIx(Sender: TObject; Value: string): string; overload;
 
@@ -563,6 +565,25 @@ end;
 procedure Display(Sender: TObject; Value: TCRUDDeleted);
 begin
   Display(Sender, 'Deleted'#10);
+end;
+
+procedure Display(Sender: TObject; Value: TVideoOpereration); overload;
+begin
+  TutorialHub.JSONResponse := Value.JSONResponse;
+  Display(Sender, Value.Name);
+
+  var ErrorMsg := EmptyStr;
+  if Assigned(Value.Error) then
+    ErrorMsg := F('• Error', Format('(%d) %s', [Value.Error.Code, Value.Error.Message]));
+
+  Display(Sender, [
+    IfThen( ErrorMsg.IsEmpty, F('• Name', Value.Name), ErrorMsg),
+    F('• Type', Value.&Type),
+    F('• Done', BoolToStr(Value.Done, True)),
+    F('• Uri', Value.Uri[0])
+  ]);
+
+  Display(Sender);
 end;
 
 procedure DisplayStream(Sender: TObject; Value: string);

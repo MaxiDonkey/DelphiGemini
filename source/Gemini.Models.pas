@@ -10,11 +10,41 @@ unit Gemini.Models;
 interface
 
 uses
-  System.SysUtils,
-  Gemini.API, Gemini.API.Params,
-  Gemini.Async.Support, Gemini.Async.Promise;
+  System.SysUtils, System.JSON,
+  REST.JsonReflect, REST.Json.Types,
+  Gemini.API, Gemini.API.Params, Gemini.Types,
+  Gemini.Async.Support, Gemini.Async.Promise, Gemini.Exceptions, Gemini.Operation,
+  Gemini.Net.MediaCodec;
 
 type
+  TPredictParams = class(TJSONParam)
+    /// <summary>
+    /// Required. The instances that are the input to the prediction call.
+    /// </summary>
+    function Instances(const Value: TArray<TJSONObject>): TPredictParams; overload;
+
+    /// <summary>
+    /// Required. The instances that are the input to the prediction call.
+    /// </summary>
+    /// <param name="Value">
+    /// A JSONArray string
+    /// </param>
+    function Instances(const Value: string): TPredictParams; overload;
+
+    /// <summary>
+    /// Optional. The parameters that govern the prediction call.
+    /// </summary>
+    function Parameters(const Value: TJSONObject): TPredictParams; overload;
+
+    /// <summary>
+    /// Optional. The parameters that govern the prediction call.
+    /// </summary>
+    /// <param name="Value">
+    /// A JSON string
+    /// </param>
+    function Parameters(const Value: string): TPredictParams; overload;
+  end;
+
   TModel = class(TJSONFingerprint)
   private
     FName: string;
@@ -158,6 +188,17 @@ type
     destructor Destroy; override;
   end;
 
+  TPredict = class(TJSONFingerprint)
+  private
+    [JsonReflectAttribute(ctString, rtString, TArgsFixInterceptor)]
+    FPredictions: string;
+  public
+    /// <summary>
+    /// The outputs of the prediction call.
+    /// </summary>
+    property Predictions: string read FPredictions write FPredictions;
+  end;
+
   /// <summary>
   /// Manages asynchronous callbacks for a model search request using <c>TModel</c> as the response type.
   /// </summary>
@@ -261,6 +302,12 @@ type
     /// </remarks>
     function List(const PageSize: Integer;
       const PageToken: string): TModels; overload; override;
+
+    function Predict(const ModelName: string;
+      const ParamProc: TProc<TPredictParams>): TPredict;
+
+    function PredictLongRunning(const ModelName: string;
+      const ParamProc: TProc<TPredictParams>): TOperation;
 
     /// <summary>
     /// Retrieves a specific model by its name.
@@ -404,6 +451,18 @@ begin
   Result := API.Get<TModels>('models', ParamsBuilder(PageSize, PageToken));
 end;
 
+function TModelsRoute.Predict(const ModelName: string;
+  const ParamProc: TProc<TPredictParams>): TPredict;
+begin
+  Result := API.Post<TPredict, TPredictParams>(ModelNormalize(ModelName) + ':predict', ParamProc);
+end;
+
+function TModelsRoute.PredictLongRunning(const ModelName: string;
+  const ParamProc: TProc<TPredictParams>): TOperation;
+begin
+  Result := API.Post<TOperation, TPredictParams>(ModelNormalize(ModelName) + ':predictLongRunning', ParamProc);
+end;
+
 function TModelsRoute.Retrieve(const ModelName: string): TModel;
 begin
   Result := API.Get<TModel>(ModelNormalize(ModelName));
@@ -465,6 +524,40 @@ begin
   finally
     Free;
   end;
+end;
+
+{ TPredictParams }
+
+function TPredictParams.Instances(
+  const Value: TArray<TJSONObject>): TPredictParams;
+begin
+  Result := TPredictParams(Add('instances',
+    TJSONHelper.ToJsonArray(Value)));
+end;
+
+function TPredictParams.Instances(const Value: string): TPredictParams;
+var
+  JSONArray: TJSONArray;
+begin
+  if TJSONHelper.TryGetArray(Value, JSONArray) then
+    Exit(TPredictParams(Add('instances', JSONArray)));
+
+  raise EGeminiException.Create('Invalid JSON Array');
+end;
+
+function TPredictParams.Parameters(const Value: string): TPredictParams;
+var
+  JSONObject: TJSONObject;
+begin
+  if TJSONHelper.TryGetObject(Value, JSONObject) then
+    Exit(TPredictParams(Add('parameters', JSONObject)));
+
+  raise EGeminiException.Create('Invalid JSON Object');
+end;
+
+function TPredictParams.Parameters(const Value: TJSONObject): TPredictParams;
+begin
+  Result := TPredictParams(Add('parameters', Value));
 end;
 
 end.

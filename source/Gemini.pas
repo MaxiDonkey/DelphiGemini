@@ -24,7 +24,8 @@ uses
   Gemini.Interactions.GenerationConfig, Gemini.Interactions.Tools,
   Gemini.Interactions.Request, Gemini.Interactions.ResponsesContent,
   Gemini.Interactions.Responses, Gemini.Interactions.Stream,
-  Gemini.Interactions.StreamEngine, Gemini.Interactions.StreamCallbacks;
+  Gemini.Interactions.StreamEngine, Gemini.Interactions.StreamCallbacks,
+  Gemini.Video, Gemini.ImageGen;
 
 const
   VERSION = 'Geminiv1.1.0';
@@ -72,6 +73,8 @@ type
     function GetDocumentsRoute: TDocumentsRoute;
     function GetBatchRoute: TBatchRoute;
     function GetInteractionsRoute: TInteractionsRoute;
+    function GetVideoRoute: TVideoRoute;
+    function GetImageGenRoute: TImageGenRoute;
 
     /// <summary>
     /// The HTTP client used to send requests to the API.
@@ -183,7 +186,48 @@ type
     /// </returns>
     property Files: TFilesRoute read GetFilesRoute;
 
+    /// <summary>
+    /// Provides access to the Image Generation API route.
+    /// </summary>
+    /// <remarks>
+    /// Use this route to generate images from text prompts, including synchronous and asynchronous workflows:
+    /// <para>
+    /// • Create an image generation request (<c>Create</c> / <c>AsyncAwaitCreate</c>).
+    /// </para>
+    /// <para>
+    /// • Configure request payloads via <see cref="TImageGenParams"/> (instances and parameters), including
+    /// prompt enhancement, aspect ratio, output size, sample count, and person generation policy.
+    /// </para>
+    /// <para>
+    /// The returned <see cref="TImageGenRoute"/> instance is created lazily and reused for subsequent calls.
+    /// </para>
+    /// </remarks>
+    property ImageGen: TImageGenRoute read GetImageGenRoute;
 
+    /// <summary>
+    /// Provides access to the Interactions API route.
+    /// </summary>
+    /// <remarks>
+    /// Use this route to create and manage multi-turn interactions, including streaming workflows and
+    /// tool-enabled execution. Typical capabilities include:
+    /// <para>
+    /// • Create interaction requests (synchronous/asynchronous variants exposed by <see cref="TInteractionsRoute"/>).
+    /// </para>
+    /// <para>
+    /// • Stream interaction responses (SSE) to receive incremental content and status updates.
+    /// </para>
+    /// <para>
+    /// • Use built-in tools such as Google Search, URL Context, Code Execution, Computer Use, and File Search
+    /// when enabled by your request configuration.
+    /// </para>
+    /// <para>
+    /// • Control generation via interaction-specific generation config (for example, tool choice, speech config,
+    /// and modality settings) and consume structured response content blocks.
+    /// </para>
+    /// <para>
+    /// The returned <see cref="TInteractionsRoute"/> instance is created lazily and reused for subsequent calls.
+    /// </para>
+    /// </remarks>
     property Interactions: TInteractionsRoute read GetInteractionsRoute;
 
     /// <summary>
@@ -216,6 +260,34 @@ type
     property VectorFiles: TVectorFilesRoute read GetVectorFilesRoute;
 
     /// <summary>
+    /// Provides access to the Video Generation API route.
+    /// </summary>
+    /// <remarks>
+    /// Use this route to generate and manage videos using Veo models, including long-running operations (LRO)
+    /// and media downloads:
+    /// <para>
+    /// • Start a long-running video generation request that returns an operation
+    /// (<c>Create</c> / <c>AsynCreate</c> / <c>AsyncAwaitCreate</c>).
+    /// </para>
+    /// <para>
+    /// • Poll an operation until completion and read generated sample URIs
+    /// (<c>GetOperation</c> / <c>AsynGetOperation</c> / <c>AsyncAwaitGetOperation</c>).
+    /// </para>
+    /// <para>
+    /// • Download generated video media payloads (Base64) from a file resource or URI
+    /// (<c>VideoDownload</c> / <c>AsynVideoDownload</c> / <c>AsyncAwaitVideoDownload</c>).
+    /// </para>
+    /// <para>
+    /// • Generate, poll, download, and save an MP4 in a single promise workflow
+    /// (<c>AsyncAwaitGenerateToFile</c>).
+    /// </para>
+    /// <para>
+    /// The returned <see cref="TVideoRoute"/> instance is created lazily and reused for subsequent calls.
+    /// </para>
+    /// </remarks>
+    property Video: TVideoRoute read GetVideoRoute;
+
+    /// <summary>
     /// Sets or retrieves the base URL for API requests.
     /// Default is https://api.Gemini.com/v1
     /// </summary>
@@ -239,11 +311,29 @@ type
     property Token: string read GetToken write SetToken;
 
     /// <summary>
-    /// Gets the current version of the Gemini library.
+    /// Gets or sets the API version segment used to build Gemini request URLs.
     /// </summary>
+    /// <value>
+    /// The version path component inserted between <see cref="BaseUrl"/> and the route path
+    /// (default: <c>v1beta</c>).
+    /// </value>
     /// <remarks>
-    /// The <c>Version</c> property provides the semantic version number of the library as a string.
-    /// This can be used for compatibility checks or displaying version information in your application.
+    /// This property controls the API version prefix used by URL builders (see
+    /// <c>TGeminiUrl.Create(BaseUrl, Version, Token)</c>) to produce request URLs such as:
+    /// <para>
+    /// <c>{BaseUrl}/{Version}/{Path}?key={Token}</c>
+    /// </para>
+    /// <para>
+    /// • Default initialization: <c>VERSION_BASE = 'v1beta'</c>.
+    /// </para>
+    /// <para>
+    /// • Changing this value redirects all subsequent HTTP requests to the selected API
+    /// version namespace (for example switching from <c>v1beta</c> to <c>v1</c> if/when supported).
+    /// </para>
+    /// <para>
+    /// • This is independent from the library version string exposed elsewhere (e.g. the
+    /// root unit <c>VERSION</c> constant).
+    /// </para>
     /// </remarks>
     property Version: string read GetVersion;
 
@@ -298,6 +388,8 @@ type
     FDocumentsLock: TObject;
     FBatchLock: TObject;
     FInteractionsLock: TObject;
+    FVideoLock: TObject;
+    FImageGenLock: TObject;
 
     function Lazy<T: class>(var AField: T; const ALock: TObject;
       const AFactory: TFunc<T>): T; inline;
@@ -332,6 +424,8 @@ type
     FDocumentsRoute: TDocumentsRoute;
     FBatchRoute: TBatchRoute;
     FInteractionsRoute: TInteractionsRoute;
+    FVideoRoute: TVideoRoute;
+    FImageGenRoute: TImageGenRoute;
 
     function GetAPI: TGeminiAPI;
     function GetToken: string;
@@ -351,6 +445,8 @@ type
     function GetDocumentsRoute: TDocumentsRoute;
     function GetBatchRoute: TBatchRoute;
     function GetInteractionsRoute: TInteractionsRoute;
+    function GetVideoRoute: TVideoRoute;
+    function GetImageGenRoute: TImageGenRoute;
 
   public
     property API: TGeminiAPI read GetAPI;
@@ -562,6 +658,8 @@ type
   TModels = Gemini.Models.TModels;
   TAsynModels = Gemini.Models.TAsynModels;
   TPromiseModels = Gemini.Models.TPromiseModels;
+  TPredictParams = Gemini.Models.TPredictParams;
+  TPredict = Gemini.Models.TPredict;
 
 {$ENDREGION}
 
@@ -852,6 +950,35 @@ type
 
 {$ENDREGION}
 
+{$REGION 'Gemini.Video'}
+
+  TVideoParameters = Gemini.Video.TVideoParameters;
+  TImageInstanceParams = Gemini.Video.TImageInstanceParams;
+  TReferenceImages = Gemini.Video.TReferenceImages;
+  TVideoInstanceParams = Gemini.Video.TVideoInstanceParams;
+  TVideoParams = Gemini.Video.TVideoParams;
+  TVideo = Gemini.Video.TVideo;
+  TVideoOpereration = Gemini.Video.TVideoOpereration;
+  TAsynVideoOpereration = Gemini.Video.TAsynVideoOpereration;
+  TPromiseVideoOpereration = Gemini.Video.TPromiseVideoOpereration;
+  TAsynVideo = Gemini.Video.TAsynVideo;
+  TPromiseVideo = Gemini.Video.TPromiseVideo;
+  TVideoStatus = Gemini.Video.TVideoStatus;
+
+{$ENDREGION}
+
+{$REGION 'Gemini.ImageGen'}
+
+  TImageGenInstanceParams = Gemini.ImageGen.TImageGenInstanceParams;
+  TImageGenParameters= Gemini.ImageGen.TImageGenParameters;
+  TImageGenParams= Gemini.ImageGen.TImageGenParams;
+  TImageGenPrediction = Gemini.ImageGen.TImageGenPrediction;
+  TImageGen = Gemini.ImageGen.TImageGen;
+  TAsynImageGen = Gemini.ImageGen.TAsynImageGen;
+  TPromiseImageGen = Gemini.ImageGen.TPromiseImageGen;
+
+{$ENDREGION}
+
 function HttpMonitoring: IRequestMonitor;
 function CurrentVersion: string;
 function NewBatchContent(const DisplayName: string; const FileURI: string): TBatchContentParams;
@@ -894,6 +1021,8 @@ begin
   FDocumentsLock := TObject.Create;
   FBatchLock := TObject.Create;
   FInteractionsLock := TObject.Create;
+  FVideoLock := TObject.Create;
+  FImageGenLock := TObject.Create;
 end;
 
 destructor TLazyRouteFactory.Destroy;
@@ -908,6 +1037,8 @@ begin
   FDocumentsLock.Free;
   FBatchLock.Free;
   FInteractionsLock.Free;
+  FVideoLock.Free;
+  FImageGenLock.Free;
   inherited;
 end;
 
@@ -954,6 +1085,8 @@ begin
   FDocumentsRoute.Free;
   FBatchRoute.Free;
   FInteractionsRoute.Free;
+  FVideoRoute.Free;
+  FImageGenRoute.Free;
   FAPI.Free;
   inherited;
 end;
@@ -1036,6 +1169,15 @@ begin
   Result := API.HttpClient;
 end;
 
+function TGemini.GetImageGenRoute: TImageGenRoute;
+begin
+  Result := Lazy<TImageGenRoute>(FImageGenRoute, FImageGenLock,
+    function: TImageGenRoute
+    begin
+      Result := TImageGenRoute.CreateRoute(API);
+    end);
+end;
+
 function TGemini.GetInteractionsRoute: TInteractionsRoute;
 begin
   Result := Lazy<TInteractionsRoute>(FInteractionsRoute, FInteractionsLock,
@@ -1071,6 +1213,15 @@ end;
 function TGemini.GetVersion: string;
 begin
   Result := VERSION;
+end;
+
+function TGemini.GetVideoRoute: TVideoRoute;
+begin
+  Result := Lazy<TVideoRoute>(FVideoRoute, FVideoLock,
+    function: TVideoRoute
+    begin
+      Result := TVideoRoute.CreateRoute(API);
+    end);
 end;
 
 procedure TGemini.SetBaseUrl(const Value: string);

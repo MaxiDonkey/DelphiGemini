@@ -208,24 +208,58 @@ type
     procedure RaiseError(Code: Int64; Error: TErrorCore);
 
     /// <summary>
-    /// Deserializes the API response into a strongly typed object.
+    /// Deserializes an HTTP response payload into a strongly typed Delphi object, or raises
+    /// a structured exception when the response represents an API error.
     /// </summary>
-    /// <param name="T">
-    /// The type of the object to deserialize into. It must be a class with a parameterless constructor.
-    /// </param>
+    /// <typeparam name="T">
+    /// The target type to deserialize into. Must be a class type with a parameterless constructor.
+    /// </typeparam>
     /// <param name="Code">
-    /// The HTTP status code of the API response.
+    /// The HTTP status code returned by the server.
     /// </param>
     /// <param name="ResponseText">
-    /// The response body as a JSON string.
+    /// The response body as a JSON string (success payload or error payload).
+    /// </param>
+    /// <param name="NullConversion">
+    /// When <c>True</c>, disables metadata preprocessing and performs a direct JSON-to-object
+    /// conversion (see <c>Parse{T}</c>). When <c>False</c> (default), parsing follows the global
+    /// metadata configuration (<c>MetadataAsObject</c>/<c>MetadataManager</c>).
     /// </param>
     /// <returns>
-    /// A deserialized object of type <c>T</c>.
+    /// A deserialized instance of <typeparamref name="T"/> when <paramref name="Code"/> indicates success (2xx).
+    /// <para>
+    /// • If <typeparamref name="T"/> inherits from <c>TJSONFingerprint</c>, the original JSON payload is
+    /// normalized (formatted) and stored in <c>JSONResponse</c>, then propagated to nested fingerprint
+    /// instances in the object graph.
+    /// </para>
     /// </returns>
-    /// <exception cref="EInvalidResponse">
-    /// Raised if the response is non-compliant or deserialization fails.
+    /// <remarks>
+    /// <para>
+    /// • Success path: for HTTP status codes in the range 200..299, this method maps
+    /// <paramref name="ResponseText"/> into <typeparamref name="T"/> by calling <c>Parse{T}</c>.
+    /// </para>
+    /// <para>
+    /// • Error path: for any non-2xx code, this method delegates to <c>DeserializeErrorData</c>,
+    /// which attempts to parse the API error payload and raises an appropriate <c>GeminiException</c>
+    /// subtype. This method does not return normally in that case.
+    /// </para>
+    /// <para>
+    /// • This method does not validate transport-level concerns (timeouts, connectivity). It only
+    /// interprets the HTTP status code and JSON payload already obtained by the caller.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the server returns a structured error payload that can be parsed and mapped to a known error type.
     /// </exception>
-    function Deserialize<T: class, constructor>(const Code: Int64; const ResponseText: string): T;
+    /// <exception cref="EGeminiExceptionAPI">
+    /// Raised when the server returns an error payload that is not parseable as a structured error object.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the JSON success payload cannot be mapped to <typeparamref name="T"/> under the active
+    /// parsing mode (for example metadata preprocessing requirements not satisfied).
+    /// </exception>
+    function Deserialize<T: class, constructor>(const Code: Int64;
+      const ResponseText: string; NullConversion: Boolean = False): T;
   public
     class constructor Create;
 
@@ -274,21 +308,54 @@ type
     class property MetadataManager: ICustomFieldsPrepare read FMetadataManager write FMetadataManager;
 
     /// <summary>
-    /// Deserializes the API response into a strongly typed object.
+    /// Parses a JSON payload and maps it to a strongly typed Delphi object.
     /// </summary>
-    /// <param name="T">
-    /// The type of the object to deserialize into. It must be a class with a parameterless constructor.
+    /// <typeparam name="T">
+    /// The target type to deserialize into. Must be a class type with a parameterless constructor.
+    /// </typeparam>
+    /// <param name="Value">
+    /// The JSON payload to parse.
     /// </param>
-    /// <param name="ResponseText">
-    /// The response body as a JSON string.
+    /// <param name="NullConversion">
+    /// When <c>True</c>, performs a direct JSON-to-object conversion without applying the metadata
+    /// preprocessing pipeline. When <c>False</c> (default), parsing follows the global metadata
+    /// configuration (<see cref="MetadataAsObject"/> / <see cref="MetadataManager"/>).
     /// </param>
     /// <returns>
-    /// A deserialized object of type <c>T</c>.
+    /// An instance of <typeparamref name="T"/> populated from <paramref name="Value"/>.
+    /// <para>
+    /// • If <typeparamref name="T"/> inherits from <c>TJSONFingerprint</c>, the original JSON payload
+    /// is normalized (formatted) and stored in <c>JSONResponse</c>, then propagated to nested
+    /// <c>TJSONFingerprint</c> instances in the object graph.
+    /// </para>
     /// </returns>
+    /// <remarks>
+    /// Parsing behavior depends on the global deserialization configuration:
+    /// <para>
+    /// • If <paramref name="NullConversion"/> is <c>True</c>, this method calls <c>TJson.JsonToObject&lt;T&gt;</c>
+    /// directly on <paramref name="Value"/> (no metadata conversion).
+    /// </para>
+    /// <para>
+    /// • Otherwise, when <see cref="MetadataAsObject"/> is <c>True</c>, metadata fields are expected to
+    /// be proper JSON objects and parsing is direct.
+    /// </para>
+    /// <para>
+    /// • When <see cref="MetadataAsObject"/> is <c>False</c>, <see cref="MetadataManager"/> is used to
+    /// preprocess/normalize metadata fields before mapping to <typeparamref name="T"/>. If
+    /// <see cref="MetadataManager"/> is <c>nil</c> in this mode, parsing raises an invalid-response
+    /// exception.
+    /// </para>
+    /// <para>
+    /// This method is a pure deserialization utility: it does not interpret HTTP status codes.
+    /// Error payload handling is performed by higher-level routines (for example
+    /// <c>Deserialize{T}</c>/<c>DeserializeErrorData</c>).
+    /// </para>
+    /// </remarks>
     /// <exception cref="EInvalidResponse">
-    /// Raised if the response is non-compliant or deserialization fails.
+    /// Raised when <see cref="MetadataAsObject"/> is <c>False</c> and <see cref="MetadataManager"/> is <c>nil</c>,
+    /// or when the JSON payload cannot be mapped to <typeparamref name="T"/> under the active mode.
     /// </exception>
-    class function Parse<T: class, constructor>(const Value: string): T;
+    class function Parse<T: class, constructor>(const Value: string; NullConversion: Boolean = False): T;
   end;
 
   TGeminiAPI = class(TApiDeserializer)
@@ -300,7 +367,9 @@ type
     function GetRequestURL(const Path, Params: string): string; overload;
     function GetRequestFilesURL(const Path: string): string;
     function GetPatchURL(const Path, Params: string): string;
-    function MockJsonFile(const FieldName: string; Response: TStringStream): string;
+    function MockJsonFile(const FieldName: string; Response: TStringStream): string; overload;
+    function MockJsonFile(const FieldName: string; Response: TStream): string; overload;
+
   public
     /// <summary>
     /// Executes a request expected to return information in the HTTP response headers and extracts a header value.
@@ -335,7 +404,8 @@ type
     /// <exception cref="Exception">
     /// Raised when the HTTP status code is not in the 2xx range.
     /// </exception>
-    function Find<TParams: TJSONParam>(const Path: string; KeyName: string; ParamProc: TProc<TParams>): string;
+    function Find<TParams: TJSONParam>(const Path: string; KeyName: string;
+      ParamProc: TProc<TParams>): string;
 
     /// <summary>
     /// Sends a GET request to the specified API endpoint and deserializes the JSON response into a strongly typed object.
@@ -369,9 +439,64 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is not compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Get<TResult: class, constructor>(const Path: string; const Params: string = ''): TResult; overload;
+    function Get<TResult: class, constructor>(const Path: string;
+      const Params: string = ''): TResult; overload;
 
-    function Get<TResult: class, constructor; TParams: TUrlParam>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+    /// <summary>
+    /// Sends a GET request to the specified API endpoint, using URL query parameters built by a
+    /// <see cref="TUrlParam"/>-derived parameter object, and deserializes the JSON response into a
+    /// strongly typed result object.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type to deserialize into. Must be a class type with a parameterless
+    /// constructor.
+    /// </typeparam>
+    /// <typeparam name="TParams">
+    /// A URL-parameter builder type deriving from <see cref="TUrlParam"/>. It is instantiated by this
+    /// method and used to produce the query string (via <c>ToQueryString</c>).
+    /// </typeparam>
+    /// <param name="Path">
+    /// The relative API endpoint path (without the base URL).
+    /// </param>
+    /// <param name="ParamProc">
+    /// A procedure invoked to populate the <typeparamref name="TParams"/> instance (for example
+    /// setting page size, filters, or other query fields). If <c>nil</c>, an empty/default parameter
+    /// instance is used.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the JSON response body.
+    /// <para>
+    /// • On HTTP 2xx responses, the JSON is deserialized into <typeparamref name="TResult"/>.
+    /// </para>
+    /// <para>
+    /// • On deserialization failure for a successful response, a new <typeparamref name="TResult"/>
+    /// instance is still returned and, when it inherits from <c>TJSONFingerprint</c>, the raw JSON
+    /// response is stored in <c>JSONResponse</c>.
+    /// </para>
+    /// </returns>
+    /// <remarks>
+    /// The request URL is built by combining the API settings (base URL + version) with the given
+    /// <paramref name="Path"/> and the query string produced by <typeparamref name="TParams"/>:
+    /// <para>
+    /// <c>{BaseUrl}/{Version}/{Path}?key={Token}{TParams.ToQueryString}</c>
+    /// </para>
+    /// This overload is intended for endpoints that expose their parameters via query strings rather
+    /// than JSON bodies (typical for list/retrieve operations with pagination, filters, or masks).
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a
+    /// known Gemini error type.
+    /// </exception>
+    /// <exception cref="EGeminiExceptionAPI">
+    /// Raised if API settings are invalid (for example, missing API key or base URL) when validated
+    /// prior to the request.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the server response is non-compliant or cannot be deserialized into
+    /// <typeparamref name="TResult"/> (depending on error parsing / deserialization mode).
+    /// </exception>
+    function Get<TResult: class, constructor; TParams: TUrlParam>(const Path: string;
+      ParamProc: TProc<TParams>): TResult; overload;
 
     /// <summary>
     /// Sends a GET request to the specified API endpoint and returns the raw response body as a string.
@@ -404,34 +529,54 @@ type
     function Get(const Path: string; const Params: string = ''): string; overload;
 
     /// <summary>
-    /// Sends a GET request to the specified API endpoint and writes the response body to the provided stream.
+    /// Sends a GET request to the specified API endpoint and writes the raw response body to the provided stream.
     /// </summary>
     /// <param name="Path">
     /// The relative API endpoint path (without the base URL).
+    /// The final request URL is built with <see cref="GetRequestURL(string)"/> (base URL + version + API key).
     /// </param>
     /// <param name="Response">
-    /// The destination stream that will receive the response body. The stream is not created or freed by this method.
+    /// Destination stream that receives the response body. The stream is not created or freed by this method.
+    /// The caller is responsible for providing a writable stream positioned as desired before the call.
     /// </param>
+    /// <returns>
+    /// The HTTP status code returned by the server.
+    /// On success (HTTP 2xx), the payload has been written to <paramref name="Response"/>.
+    /// </returns>
     /// <remarks>
-    /// This overload is intended for binary or large payloads (for example, downloaded files) where streaming is preferred.
-    /// The request is executed through the configured <see cref="IHttpClientAPI"/> implementation.
     /// <para>
-    /// • On HTTP 2xx, the method returns after writing the payload into <paramref name="Response"/>.
-    /// On non-2xx, it rewinds <paramref name="Response"/> to position 0, copies it into a temporary UTF-8 string stream,
-    /// and attempts to parse a structured error via <see cref="ParseError(Int64,string)"/>.
+    /// • This overload is intended for raw downloads (binary or text) where the caller wants direct access to the payload.
+    /// It does not attempt to interpret or decode the response body.
+    /// </para>
+    /// <para>
+    /// • Success path:<br/>
+    /// For HTTP 2xx status codes, the method returns immediately after the underlying HTTP client has written the
+    /// response body into <paramref name="Response"/>.
+    /// </para>
+    /// <para>
+    /// • Error path:<br/>
+    /// For non-2xx status codes, this method rewinds <paramref name="Response"/> to position 0, copies its contents into a
+    /// temporary UTF-8 string stream, and attempts to parse a structured error payload via
+    /// <see cref="DeserializeErrorData(Int64,string)"/>. When an error payload is recognized, the corresponding exception
+    /// is raised and the method does not return normally.
+    /// </para>
+    /// <para>
+    /// • Stream position:<br/>
+    /// On error handling, <paramref name="Response"/> is explicitly rewound (<c>Position := 0</c>) before reading.
+    /// On success, the stream position is left as written by the HTTP client (typically at end-of-stream).
     /// </para>
     /// </remarks>
     /// <exception cref="GeminiException">
     /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
     /// </exception>
     /// <exception cref="GeminiExceptionAPI">
-    /// Raised if configuration is invalid (for example, missing API key or base URL) when the HTTP client validates settings.
+    /// Raised if configuration is invalid (for example, missing API key or base URL) when validated prior to the request.
     /// </exception>
     function GetFile(const Path: string; Response: TStream): Integer; overload;
 
     /// <summary>
-    /// Sends a GET request that downloads a raw payload into memory, then wraps that payload into a JSON object
-    /// under a single field and deserializes it into <typeparamref name="TResult"/>.
+    /// Downloads a raw payload from the specified endpoint into memory, wraps it into a minimal JSON object as a
+    /// Base64-encoded string under a single field, and deserializes that JSON into <typeparamref name="TResult"/>.
     /// </summary>
     /// <typeparam name="TResult">
     /// The target result type. It must be a class type with a parameterless constructor.
@@ -445,26 +590,29 @@ type
     /// The name of the JSON field that will receive the downloaded payload as a Base64-encoded string.
     /// </param>
     /// <returns>
-    /// An instance of <typeparamref name="TResult"/> populated from the generated JSON payload
-    /// containing the Base64-encoded download.
+    /// An instance of <typeparamref name="TResult"/> populated from the generated JSON payload containing the
+    /// Base64-encoded download.
     /// </returns>
     /// <remarks>
     /// <para>
     /// • This overload is a convenience wrapper around <see cref="GetFile(string,TStream)"/>:
-    /// it downloads the raw response into an in-memory string stream, Base64-encodes the payload,
+    /// it downloads the raw response body into an in-memory string stream, Base64-encodes the payload,
     /// then builds a minimal JSON object and calls <see cref="Deserialize{T}(Int64,string)"/>.
+    /// </para>
+    /// <para>
+    /// • Default/assumption:<br/>
+    /// This method assumes the downloaded payload can be represented safely as text before encoding.
+    /// If the endpoint returns binary content (e.g., video, audio, images, PDF), using a text stream may corrupt data
+    /// or raise encoding errors. Prefer <see cref="GetMedia{TResult}(string,string)"/> (binary-safe) for media/binary payloads.
     /// </para>
     /// <para>
     /// • The generated JSON has the form <c>{"&lt;JSONFieldName&gt;":"&lt;base64&gt;"}</c> and is intended for DTOs that
     /// expose a single Base64 string field mapped to <paramref name="JSONFieldName"/>.
     /// </para>
     /// <para>
-    /// • On non-success HTTP status codes, the underlying <see cref="GetFile(string,TStream)"/> performs error parsing
-    /// and raises the corresponding exception.
-    /// </para>
-    /// <para>
     /// • Memory note:<br/>
     /// The entire response body is buffered in memory before encoding and deserialization.
+    /// Base64 increases size by ~33% and may create additional temporary copies during JSON serialization/deserialization.
     /// For large payloads, prefer <see cref="GetFile(string,TStream)"/> to stream to a caller-managed destination.
     /// </para>
     /// </remarks>
@@ -477,7 +625,60 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response cannot be wrapped/decoded as expected or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function GetFile<TResult: class, constructor>(const Endpoint: string; const JSONFieldName: string):TResult; overload;
+    function GetFile<TResult: class, constructor>(const Endpoint: string;
+      const JSONFieldName: string):TResult; overload;
+
+    /// <summary>
+    /// Downloads a raw (binary) payload from the specified endpoint, wraps it into a minimal JSON object as a
+    /// Base64-encoded string under a single field, and deserializes that JSON into <typeparamref name="TResult"/>.
+    /// </summary>
+    /// <typeparam name="TResult">
+    /// The target result type. It must be a class type with a parameterless constructor.
+    /// The generated JSON must be compatible with the DTO mapping for <typeparamref name="TResult"/>.
+    /// </typeparam>
+    /// <param name="Endpoint">
+    /// The relative API endpoint path (without the base URL) to download from.
+    /// This value is combined with <see cref="GetRequestURL(string)"/> (base URL + version + API key) to form the final URL.
+    /// </param>
+    /// <param name="JSONFieldName">
+    /// The name of the JSON field that will receive the downloaded payload as a Base64-encoded string.
+    /// </param>
+    /// <returns>
+    /// An instance of <typeparamref name="TResult"/> populated from the generated JSON payload containing the
+    /// Base64-encoded download.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// • This method is intended for media and other binary payloads (e.g., video, audio, images, PDF) returned as raw bytes
+    /// (for example with <c>alt=media</c>).
+    /// </para>
+    /// <para>
+    /// • Internally, it downloads the response body into an in-memory stream, Base64-encodes the raw bytes,
+    /// builds a JSON object of the form <c>{"&lt;JSONFieldName&gt;":"&lt;base64&gt;"}</c>, then calls
+    /// <see cref="Deserialize{T}(Int64,string)"/>.
+    /// </para>
+    /// <para>
+    /// • Memory note:<br/>
+    /// The entire payload is buffered in memory and expanded by Base64 (~33% larger) before JSON deserialization.
+    /// For large payloads, prefer streaming APIs that write to a caller-managed destination (e.g. <see cref="GetFile(string,TStream)"/>)
+    /// and avoid wrapping binary data into JSON.
+    /// </para>
+    /// <para>
+    /// • Content-type note:<br/>
+    /// This method does not attempt to interpret the payload as text; it always treats the response body as raw bytes.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="GeminiException">
+    /// Raised when the API returns a structured error payload that can be parsed and mapped to a known error type.
+    /// </exception>
+    /// <exception cref="GeminiExceptionAPI">
+    /// Raised if configuration is invalid (for example, missing API key or base URL) when validated prior to the request.
+    /// </exception>
+    /// <exception cref="EInvalidResponse">
+    /// Raised when the response cannot be wrapped/decoded as expected or cannot be deserialized into <typeparamref name="TResult"/>.
+    /// </exception>
+    function GetMedia<TResult: class, constructor>(const Endpoint: string;
+      const JSONFieldName: string):TResult; overload;
 
     /// <summary>
     /// Sends a DELETE request to the specified API endpoint and deserializes the JSON response into a strongly typed object.
@@ -506,7 +707,8 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is not compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Delete<TResult: class, constructor>(const Path: string; const Params: string = ''): TResult; overload;
+    function Delete<TResult: class, constructor>(const Path: string; const
+      Params: string = ''): TResult; overload;
 
     /// <summary>
     /// Sends a PATCH request to the specified API endpoint using a JSON body built by a parameter object,
@@ -542,7 +744,8 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Patch<TResult: class, constructor; TParams: TJSONParam>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+    function Patch<TResult: class, constructor; TParams: TJSONParam>(const Path: string;
+      ParamProc: TProc<TParams>): TResult; overload;
 
     /// <summary>
     /// Sends a PATCH request to the specified API endpoint using an update mask in the URL and a JSON body built by a
@@ -583,7 +786,8 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Patch<TResult: class, constructor; TParams: TJSONParam>(const Path, UriParams: string; ParamProc: TProc<TParams>): TResult; overload;
+    function Patch<TResult: class, constructor; TParams: TJSONParam>(const Path, UriParams: string;
+      ParamProc: TProc<TParams>): TResult; overload;
 
     /// <summary>
     /// Sends a PATCH request to the specified API endpoint using an update mask in the URL and a JSON payload,
@@ -620,7 +824,8 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Patch<TResult: class, constructor>(const Path, Params: string; ParamJSON: TJSONObject): TResult; overload;
+    function Patch<TResult: class, constructor>(const Path, Params: string;
+      ParamJSON: TJSONObject): TResult; overload;
 
     /// <summary>
     /// Sends a PATCH request to the specified API endpoint using the provided JSON payload,
@@ -653,7 +858,8 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Patch<TResult: class, constructor>(const Path: string; ParamJSON: TJSONObject): TResult; overload;
+    function Patch<TResult: class, constructor>(const Path: string;
+      ParamJSON: TJSONObject): TResult; overload;
 
     /// <summary>
     /// Sends a POST request to the specified API endpoint using a JSON body built by a parameter object,
@@ -689,7 +895,9 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Post<TResult: class, constructor; TParams: TJSONParam>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+    function Post<TResult: class, constructor; TParams: TJSONParam>(const Path: string;
+      ParamProc: TProc<TParams>;
+      NullConversion: Boolean = False): TResult; overload;
 
     /// <summary>
     /// Sends a POST request to the specified API endpoint using the provided JSON payload,
@@ -722,7 +930,8 @@ type
     /// <exception cref="EInvalidResponse">
     /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
-    function Post<TResult: class, constructor>(const Path: string; ParamJSON: TJSONObject): TResult; overload;
+    function Post<TResult: class, constructor>(const Path: string;
+      ParamJSON: TJSONObject): TResult; overload;
 
     /// <summary>
     /// Sends a POST request to the specified API endpoint without a request body and deserializes the JSON response
@@ -1200,6 +1409,29 @@ begin
   Result := TGeminiUrl.Create(FBaseURL, FVersion, Token).RequestUrl(Path, Params);
 end;
 
+function TGeminiAPI.MockJsonFile(const FieldName: string;
+  Response: TStream): string;
+var
+  Bytes: TBytes;
+  B64: string;
+  Obj: TJSONObject;
+begin
+  Response.Position := 0;
+  SetLength(Bytes, Response.Size);
+  if Length(Bytes) > 0 then
+    Response.ReadBuffer(Bytes[0], Length(Bytes));
+
+  B64 := TNetEncoding.Base64.EncodeBytesToString(Bytes);
+
+  Obj := TJSONObject.Create;
+  try
+    Obj.AddPair(FieldName, B64);     // JSON escaping géré
+    Result := Obj.ToString;
+  finally
+    Obj.Free;
+  end;
+end;
+
 function BytesToString(const Value: TBytes): string;
 begin
   if Length(Value) = 0 then
@@ -1421,6 +1653,20 @@ begin
   end;
 end;
 
+function TGeminiAPI.GetMedia<TResult>(const Endpoint,
+  JSONFieldName: string): TResult;
+begin
+  Monitoring.Inc;
+  var Stream := TMemoryStream.Create;
+  try
+    var Code := GetFile(Endpoint, Stream);
+    Result := Deserialize<TResult>(Code, MockJsonFile(JSONFieldName, Stream));
+  finally
+    Stream.Free;
+    Monitoring.Dec;
+  end;
+end;
+
 function TGeminiAPI.Delete<TResult>(const Path: string; const Params: string): TResult;
 var
   Response: TStringStream;
@@ -1546,7 +1792,9 @@ begin
   end;
 end;
 
-function TGeminiAPI.Post<TResult, TParams>(const Path: string; ParamProc: TProc<TParams>): TResult;
+function TGeminiAPI.Post<TResult, TParams>(const Path: string;
+  ParamProc: TProc<TParams>;
+  NullConversion: Boolean): TResult;
 var
   Response: TStringStream;
   Params: TParams;
@@ -1560,7 +1808,7 @@ begin
       ParamProc(Params);
     var Http := NewHttpClient;
     Code := Http.Post(GetRequestURL(Path), Params.JSON, Response, GetJsonHeaders, nil);
-    Result := Deserialize<TResult>(Code, Response.DataString);
+    Result := Deserialize<TResult>(Code, Response.DataString, NullConversion);
   finally
     Params.Free;
     Response.Free;
@@ -1864,13 +2112,13 @@ begin
 end;
 
 function TApiDeserializer.Deserialize<T>(const Code: Int64;
-  const ResponseText: string): T;
+  const ResponseText: string; NullConversion: Boolean): T;
 begin
   Result := nil;
   case Code of
     200..299:
       try
-        Result := Parse<T>(ResponseText);
+        Result := Parse<T>(ResponseText, NullConversion);
       except
         raise;
       end;
@@ -1902,7 +2150,7 @@ begin
   end;
 end;
 
-class function TApiDeserializer.Parse<T>(const Value: string): T;
+class function TApiDeserializer.Parse<T>(const Value: string; NullConversion: Boolean): T;
 {$REGION 'Dev note'}
   (*
     • If MetadataManager are to be treated as objects, a dedicated TMetadata class is required, containing
@@ -1934,17 +2182,22 @@ var
 begin
   Result := Default(T);
   try
-    case MetadataAsObject of
-      True:
+    if NullConversion then
+      begin
         Result := TJson.JsonToObject<T>(Value);
-      else
-        begin
-          if MetadataManager = nil then
-            raise EInvalidResponse.Create('MetadataManager is nil while MetadataAsObject=False');
+      end
+    else
+      case MetadataAsObject of
+        True:
+          Result := TJson.JsonToObject<T>(Value);
+        else
+          begin
+            if MetadataManager = nil then
+              raise EInvalidResponse.Create('MetadataManager is nil while MetadataAsObject=False');
 
-          Result := TJson.JsonToObject<T>(MetadataManager.Convert(Value));
-        end;
-    end;
+            Result := TJson.JsonToObject<T>(MetadataManager.Convert(Value));
+          end;
+      end;
 
     {--- Add JSON response if class inherits from TJSONFingerprint class. }
     if Assigned(Result) and (Result is TJSONFingerprint) then

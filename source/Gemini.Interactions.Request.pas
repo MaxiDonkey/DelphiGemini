@@ -14,7 +14,7 @@ uses
   REST.JsonReflect, REST.Json.Types,
   Gemini.API.Params, Gemini.API, Gemini.Types, Gemini.Exceptions,
   Gemini.Interactions.Content, Gemini.Interactions.Tools, Gemini.Schema,
-  Gemini.Interactions.GenerationConfig;
+  Gemini.Interactions.GenerationConfig, Gemini.Types.EnumWire;
 
 type
   TDynamicAgentConfigIxParams = class(TJSONParam)

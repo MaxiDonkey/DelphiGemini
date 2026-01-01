@@ -21,23 +21,6 @@ type
 
   {$REGION 'Gemini.Chat'}
 
-    {$SCOPEDENUMS OFF}
-
-    /// <summary>
-    /// Kind of tool call
-    /// </summary>
-    TToolKind = (
-      /// <summary>
-      /// Enable code execution
-      /// </summary>
-      CodeExecution,
-
-      /// <summary>
-      /// Enable google search
-      /// </summary>
-      GoogleSearch
-    );
-
     {$SCOPEDENUMS ON}
 
     /// <summary>
@@ -57,16 +40,7 @@ type
       agent
     );
 
-    {$SCOPEDENUMS OFF}
-
     TMessageRoleHelper = record helper for TMessageRole
-    const
-      MessageRoles: array[TMessageRole] of string = (
-        'user',
-        'model',
-        'agent'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TMessageRole; static;
     end;
@@ -179,29 +153,6 @@ type
     );
 
     TFinishReasonHelper = record helper for TFinishReason
-    const
-      FinishReasons: array[TFinishReason] of string = (
-        'FINISH_REASON_UNSPECIFIED',
-        'STOP',
-        'MAX_TOKENS',
-        'SAFETY',
-        'RECITATION',
-        'LANGUAGE',
-        'OTHER',
-        'BLOCKLIST',
-        'PROHIBITED_CONTENT',
-        'SPII',
-        'MALFORMED_FUNCTION_CALL',
-        'IMAGE_SAFETY',
-        'IMAGE_PROHIBITED_CONTENT',
-        'IMAGE_OTHER',
-        'NO_IMAGE',
-        'IMAGE_RECITATION',
-        'UNEXPECTED_TOOL_CALL',
-        'TOO_MANY_TOOL_CALLS',
-        'MISSING_THOUGHT_SIGNATURE'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TFinishReason; static;
     end;
@@ -229,12 +180,6 @@ type
     );
 
     TLanguageTypeHelper = record helper for TLanguageType
-    const
-      LanguageTypes: array[TLanguageType] of string = (
-        'LANGUAGE_UNSPECIFIED',
-        'PYTHON'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TLanguageType; static;
     end;
@@ -272,14 +217,6 @@ type
     );
 
     TOutcomeTypeHelper = record helper for TOutcomeType
-    const
-      OutcomeTypes: array[TOutcomeType] of string = (
-        'OUTCOME_UNSPECIFIED',
-        'OUTCOME_OK',
-        'OUTCOME_FAILED',
-        'OUTCOME_DEADLINE_EXCEEDED'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TOutcomeType; static;
     end;
@@ -318,14 +255,6 @@ type
     );
 
     TSchedulingTypeHelper = record Helper for TSchedulingType
-    const
-      SchedulingTypes: array[TSchedulingType] of string = (
-        'SCHEDULING_UNSPECIFIED',
-        'SILENT',
-        'WHEN_IDLE',
-        'INTERRUPT'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TSchedulingType; static;
     end;
@@ -360,13 +289,6 @@ type
     );
 
     TBehaviorTypeHelper = record Helper for TBehaviorType
-    const
-      BehaviorTypes: array[TBehaviorType] of string = (
-        'UNSPECIFIED',
-        'BLOCKING',
-        'NON_BLOCKING'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TBehaviorType; static;
     end;
@@ -389,12 +311,6 @@ type
     );
 
     TModeTypeHelper = record Helper for TModeType
-    const
-      ModeTypes: array[TModeType] of string = (
-        'MODE_UNSPECIFIED',
-        'MODE_DYNAMIC'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TModeType; static;
     end;
@@ -417,12 +333,6 @@ type
     );
 
     TEnvironmentTypeHelper = record Helper for TEnvironmentType
-    const
-      EnvironmentTypes: array[TEnvironmentType] of string = (
-        'ENVIRONMENT_UNSPECIFIED',
-        'ENVIRONMENT_BROWSER'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TEnvironmentType; static;
     end;
@@ -466,15 +376,6 @@ type
     );
 
     TToolConfigModeHelper = record Helper for TToolConfigMode
-    const
-      ToolConfigModes: array[TToolConfigMode] of string = (
-        'MODE_UNSPECIFIED',
-        'AUTO',
-        'ANY',
-        'NONE',
-        'VALIDATED'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TToolConfigMode; static;
     end;
@@ -507,14 +408,6 @@ type
     );
 
     TModalityTypeHelper = record Helper for TModalityType
-    const
-      ModalityTypes: array[TModalityType] of string = (
-        'MODALITY_UNSPECIFIED',
-        'TEXT',
-        'IMAGE',
-        'AUDIO'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TModalityType; static;
     end;
@@ -542,13 +435,6 @@ type
     );
 
     TThinkingLevelTypeHelper = record Helper for TThinkingLevelType
-    const
-      ThinkingLevelTypes: array[TThinkingLevelType] of string = (
-        'THINKING_LEVEL_UNSPECIFIED',
-        'LOW',
-        'HIGH'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TThinkingLevelType; static;
     end;
@@ -581,14 +467,6 @@ type
     );
 
     TMediaResolutionTypeHelper = record Helper for TMediaResolutionType
-    const
-      MediaResolutionTypes: array[TMediaResolutionType] of string = (
-        'MEDIA_RESOLUTION_UNSPECIFIED',
-        'MEDIA_RESOLUTION_LOW',
-        'MEDIA_RESOLUTION_MEDIUM',
-        'MEDIA_RESOLUTION_HIGH'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TMediaResolutionType; static;
     end;
@@ -626,15 +504,6 @@ type
     );
 
     TUrlRetrievalStatusTypeHelper = record Helper for TUrlRetrievalStatusType
-    const
-      UrlRetrievalStatusTypes: array[TUrlRetrievalStatusType] of string = (
-        'URL_RETRIEVAL_STATUS_UNSPECIFIED',
-        'URL_RETRIEVAL_STATUS_SUCCESS',
-        'URL_RETRIEVAL_STATUS_ERROR',
-        'URL_RETRIEVAL_STATUS_PAYWALL',
-        'URL_RETRIEVAL_STATUS_UNSAFE'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TUrlRetrievalStatusType; static;
     end;
@@ -682,16 +551,6 @@ type
     );
 
     TBlockReasonHelper = record Helper for TBlockReason
-    const
-      BlockReasons: array[TBlockReason] of string = (
-        'BLOCK_REASON_UNSPECIFIED',
-        'SAFETY',
-        'OTHER',
-        'BLOCKLIST',
-        'PROHIBITED_CONTENT',
-        'IMAGE_SAFETY'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TBlockReason; static;
     end;
@@ -713,16 +572,6 @@ type
     );
 
     TTokenModalityTypeHelper = record Helper for TTokenModalityType
-    const
-      TokenModalityTypes: array[TTokenModalityType] of string = (
-        'MODALITY_UNSPECIFIED',
-        'TEXT',
-        'IMAGE',
-        'VIDEO',
-        'AUDIO',
-        'DOCUMENT'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TTokenModalityType; static;
     end;
@@ -782,17 +631,6 @@ type
     );
 
     TSchemaTypeHelper = record Helper for TSchemaType
-    const
-      SchemaTypes: array[TSchemaType] of string = (
-        'unspecified',
-        'string',
-        'number',
-        'integer',
-        'boolean',
-        'array',
-        'object'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TSchemaType; static;
     end;
@@ -854,19 +692,6 @@ type
     );
 
     TTaskTypeHelper = record helper for TTaskType
-    const
-      TaskTypes: array[TTaskType] of string = (
-        'TASK_TYPE_UNSPECIFIED',
-        'RETRIEVAL_QUERY',
-        'RETRIEVAL_DOCUMENT',
-        'SEMANTIC_SIMILARITY',
-        'CLASSIFICATION',
-        'CLUSTERING',
-        'QUESTION_ANSWERING',
-        'FACT_VERIFICATION',
-        'CODE_RETRIEVAL_QUERY'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TTaskType; static;
     end;
@@ -941,21 +766,6 @@ type
     );
 
     THarmCategoryHelper = record Helper for THarmCategory
-    const
-      HarmCategories: array[THarmCategory] of string = (
-        'HARM_CATEGORY_UNSPECIFIED',
-        'HARM_CATEGORY_DEROGATORY',
-        'HARM_CATEGORY_TOXICITY',
-        'HARM_CATEGORY_VIOLENCE',
-        'HARM_CATEGORY_SEXUAL',
-        'HARM_CATEGORY_MEDICAL',
-        'HARM_CATEGORY_DANGEROUS',
-        'HARM_CATEGORY_HARASSMENT',
-        'HARM_CATEGORY_HATE_SPEECH',
-        'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        'HARM_CATEGORY_DANGEROUS_CONTENT'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): THarmCategory; static;
     end;
@@ -1003,16 +813,6 @@ type
     );
 
     THarmBlockThresholdHelper = record Helper for THarmBlockThreshold
-    const
-      HarmBlockThresholds: array[THarmBlockThreshold] of string = (
-        'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
-        'BLOCK_LOW_AND_ABOVE',
-        'BLOCK_MEDIUM_AND_ABOVE',
-        'BLOCK_ONLY_HIGH',
-        'BLOCK_NONE',
-        'OFF'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): THarmBlockThreshold; static;
     end;
@@ -1054,15 +854,6 @@ type
     );
 
     THarmProbabilityHelper = record Helper for THarmProbability
-    const
-      HarmProbabilities: array[THarmProbability] of string = (
-        'HARM_PROBABILITY_UNSPECIFIED',
-        'NEGLIGIBLE',
-        'LOW',
-        'MEDIUM',
-        'HIGH'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): THarmProbability; static;
     end;
@@ -1104,14 +895,6 @@ type
     );
 
     TStateTypeHelper = record Helper for TStateType
-    const
-      StateTypes: array[TStateType] of string = (
-        'STATE_UNSPECIFIED',
-        'PROCESSING',
-        'ACTIVE',
-        'FAILED'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TStateType; static;
     end;
@@ -1144,14 +927,6 @@ type
     );
 
     TSourceTypeHelper = record Helper for TSourceType
-    const
-      SourceTypes: array[TSourceType] of string = (
-        'STATE_UNSPECIFIED',
-        'PROCESSING',
-        'ACTIVE',
-        'FAILED'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TSourceType; static;
     end;
@@ -1195,14 +970,6 @@ type
     );
 
     TToolModeHelper = record helper for TToolMode
-    const
-      ToolModes: array[TToolMode] of string = (
-        'MODE_UNSPECIFIED',
-        'AUTO',
-        'ANY',
-        'NONE'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TToolMode; static;
     end;
@@ -1236,14 +1003,6 @@ type
     );
 
     TModelStateHelper = record Helper for TModelState
-    const
-      ModelStates: array[TModelState] of string = (
-        'STATE_UNSPECIFIED',
-        'CREATING',
-        'ACTIVE',
-        'FAILED'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TModelState; static;
     end;
@@ -1285,14 +1044,6 @@ type
     );
 
     TDocumentStateHelper = record Helper for TDocumentState
-    const
-      DocumentStates: array[TDocumentState] of string = (
-        'STATE_UNSPECIFIED',
-        'STATE_PENDING',
-        'STATE_ACTIVE',
-        'STATE_FAILED'
-      );
-    public
       function ToString: string;
       class function Parse(const S: string): TDocumentState; static;
     end;
@@ -1349,17 +1100,6 @@ type
    );
 
    TBatchStateTypeHelper = record Helper for TBatchStateType
-   const
-      BatchStateTypes: array[TBatchStateType] of string = (
-        'BATCH_STATE_UNSPECIFIED',
-        'BATCH_STATE_PENDING',
-        'BATCH_STATE_RUNNING',
-        'BATCH_STATE_SUCCEEDED',
-        'BATCH_STATE_FAILED',
-        'BATCH_STATE_CANCELLED',
-        'BATCH_STATE_EXPIRED'
-      );
-   public
      function ToString: string;
      class function Parse(const S: string): TBatchStateType; static;
    end;
@@ -1373,25 +1113,25 @@ type
    /// <summary>
    /// JsonPath fields for Operation metadata/response.
    /// </summary>
-   TOperationPath = (
-     op_type,
-     op_model,
-     op_displayName,
-     op_inputFileName,
-     op_createTime,
-     op_endTime,
-     op_updateTime,
-     op_state,
-     op_requestCount,
-     op_successfulRequestCount,
-     op_failedRequestCount,
-     op_pendingRequestCount,
-     op_responsesFile
+   TBatchOperationType = (
+     bo_type,
+     bo_model,
+     bo_displayName,
+     bo_inputFileName,
+     bo_createTime,
+     bo_endTime,
+     bo_updateTime,
+     bo_state,
+     bo_requestCount,
+     bo_successfulRequestCount,
+     bo_failedRequestCount,
+     bo_pendingRequestCount,
+     bo_responsesFile
    );
 
-   TOperationPathHelper = record helper for TOperationPath
+   TBatchOperationTypeHelper = record helper for TBatchOperationType
    const
-     OperationPaths: array[TOperationPath] of string = (
+     BatchOperations: array[TBatchOperationType] of string = (
        'metadata.@type',
        'metadata.model',
        'metadata.displayName',
@@ -1408,7 +1148,7 @@ type
      );
    public
      function ToString: string; inline;
-     class function Parse(const S: string): TOperationPath; static;
+     class function Parse(const S: string): TBatchOperationType; static;
    end;
 
   {$ENDREGION}
@@ -1440,29 +1180,6 @@ type
     );
 
     TContentTypeHelper = record Helper for TContentType
-    const
-      ContentTypes: array[TContentType] of string = (
-        'text',
-        'image',
-        'audio',
-        'document',
-        'video',
-        'thought',
-        'function_call',
-        'function_result',
-        'code_execution_call',
-        'code_execution_result',
-        'url_context_call',
-        'url_context_result',
-        'google_search_call',
-        'google_search_result',
-        'mcp_server_tool_call',
-        'mcp_server_tool_result',
-        'file_search_result',
-        'thought_summary',
-        'thought_signature'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TContentType; static;
     end;
@@ -1506,14 +1223,6 @@ type
     );
 
     TMediaResolutionHelper = record Helper for TMediaResolution
-    const
-      MediaResolutions: array[TMediaResolution] of string = (
-        'low',
-        'medium',
-        'high',
-        'ultra_high'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TMediaResolution; static;
     end;
@@ -1604,14 +1313,6 @@ type
     );
 
     TUrlStatusHelper = record Helper for TUrlStatus
-    const
-      UrlStatus: array[TUrlStatus] of string = (
-        'success',
-        'error',
-        'paywall',
-        'unsafe'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TUrlStatus; static;
     end;
@@ -1633,17 +1334,6 @@ type
     );
 
     TToolTypeHelper = record Helper for TToolType
-    const
-      ToolTypes: array[TToolType] of string = (
-        'function',
-        'google_search',
-        'code_execution',
-        'url_context',
-        'computer_use',
-        'mcp_server',
-        'file_search'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TToolType; static;
     end;
@@ -1655,11 +1345,6 @@ type
     );
 
     TComputerEnvironmentTypeHelper = record Helper for TComputerEnvironmentType
-    const
-      ComputerEnvironmentTypes: array[TComputerEnvironmentType] of string = (
-        'browser'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TComputerEnvironmentType; static;
     end;
@@ -1674,14 +1359,6 @@ type
     );
 
     ToolChoiceTypeHelper = record Helper for TToolChoiceType
-    const
-      ToolChoiceTypes: array[TToolChoiceType] of string = (
-        'auto',
-        'any',
-        'none',
-        'validated'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TToolChoiceType; static;
     end;
@@ -1700,14 +1377,6 @@ type
     );
 
     TThinkingLevelHelper = record Helper for TThinkingLevel
-    const
-      ThinkingLevels: array[TThinkingLevel] of string = (
-        'minimal',
-        'low',
-        'medium',
-        'high'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TThinkingLevel; static;
     end;
@@ -1720,12 +1389,6 @@ type
     );
 
     TThinkingSummariesHelper = record Helper for TThinkingSummaries
-    const
-      ThinkingSummaries: array[TThinkingSummaries] of string = (
-        'auto',
-        'none'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TThinkingSummaries; static;
     end;
@@ -1761,13 +1424,6 @@ type
     );
 
     TResponseModalityHelper = record Helper for TResponseModality
-    const
-      ResponseModalities: array[TResponseModality] of string = (
-        'text',
-        'image',
-        'audio'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TResponseModality; static;
       class function ToStringArray(const Enums: TArray<TResponseModality>): TArray<string>; static;
@@ -1788,15 +1444,6 @@ type
     );
 
     TInteractionStatusTypeHelper = record Helper for TInteractionStatusType
-    const
-      InteractionStatusTypes: array[TInteractionStatusType] of string = (
-        'in_progress',
-        'requires_action',
-        'completed',
-        'failed',
-        'cancelled'
-      );
-    public
       function ToString: string; inline;
       class function Parse(const S: string): TInteractionStatusType; static;
     end;
@@ -1807,7 +1454,6 @@ type
     end;
 
   {$ENDREGION}
-
 
   {$REGION 'Gemini.Interactions.Stream'}
 
@@ -1846,6 +1492,48 @@ type
 
   {$ENDREGION}
 
+  {$REGION 'Gemini.Video'}
+
+    {$SCOPEDENUMS OFF}
+
+    TVideoAspectRatio = (
+      r16_9,
+      r9_16
+    );
+
+    TVideoAspectRatioHelper = record Helper for TVideoAspectRatio
+    const
+      VideoAspectRatios: array[TVideoAspectRatio] of string = (
+        '16:9',
+        '9:16'
+      );
+    public
+      function ToString: string; inline;
+      class function Parse(const S: string): TVideoAspectRatio; static;
+    end;
+
+    {$SCOPEDENUMS OFF}
+
+    TVideoOperation = (
+      vo_type,
+      vo_uri_fmt,
+      vo_uri_count
+    );
+
+    TVideoOperationHelper = record Helper for TVideoOperation
+    const
+     VideoOperations: array[TVideoOperation] of string = (
+       'response.@type',
+       'response.generateVideoResponse.generatedSamples[%d].video.uri',
+       'response.generateVideoResponse.generatedSamples'
+     );
+    public
+      function ToString: string; inline;
+      class function Parse(const S: string): TVideoOperation; static;
+    end;
+
+  {$ENDREGION}
+
 implementation
 
 uses
@@ -1865,12 +1553,12 @@ end;
 
 class function TMessageRoleHelper.Parse(const S: string): TMessageRole;
 begin
-  Result := TEnumWire.Parse<TMessageRole>(S, MessageRoles);
+  Result := TEnumWire.Parse<TMessageRole>(S);
 end;
 
 function TMessageRoleHelper.ToString: string;
 begin
-  Result := MessageRoles[Self];
+  Result := TEnumWire.ToString<TMessageRole>(Self);
 end;
 
 { TMessageRoleInterceptor }
@@ -1891,12 +1579,12 @@ end;
 
 class function TFinishReasonHelper.Parse(const S: string): TFinishReason;
 begin
-  Result := TEnumWire.Parse<TFinishReason>(S, FinishReasons);
+  Result := TEnumWire.Parse<TFinishReason>(S);
 end;
 
 function TFinishReasonHelper.ToString: string;
 begin
-  Result := FinishReasons[Self];
+  Result := TEnumWire.ToString<TFinishReason>(Self);
 end;
 
 { TFinishReasonInterceptor }
@@ -1917,12 +1605,12 @@ end;
 
 class function TLanguageTypeHelper.Parse(const S: string): TLanguageType;
 begin
-  Result := TEnumWire.Parse<TLanguageType>(S, LanguageTypes);
+  Result := TEnumWire.Parse<TLanguageType>(S);
 end;
 
 function TLanguageTypeHelper.ToString: string;
 begin
-  Result := LanguageTypes[Self];
+  Result := TEnumWire.ToString<TLanguageType>(Self);
 end;
 
 { TLanguageTypeInterceptor }
@@ -1943,12 +1631,12 @@ end;
 
 class function TOutcomeTypeHelper.Parse(const S: string): TOutcomeType;
 begin
-  Result := TEnumWire.Parse<TOutcomeType>(S, OutcomeTypes);
+  Result := TEnumWire.Parse<TOutcomeType>(S);
 end;
 
 function TOutcomeTypeHelper.ToString: string;
 begin
-  Result := OutcomeTypes[Self];
+  Result := TEnumWire.ToString<TOutcomeType>(Self);
 end;
 
 { TOutcomeTypeInterceptor }
@@ -1969,96 +1657,96 @@ end;
 
 class function TSchemaTypeHelper.Parse(const S: string): TSchemaType;
 begin
-  Result := TEnumWire.Parse<TSchemaType>(S, SchemaTypes);
+  Result := TEnumWire.Parse<TSchemaType>(S);
 end;
 
 function TSchemaTypeHelper.ToString: string;
 begin
-  Result := SchemaTypes[Self];
+  Result := TEnumWire.ToString<TSchemaType>(Self);
 end;
 
 { TTaskTypeHelper }
 
 class function TTaskTypeHelper.Parse(const S: string): TTaskType;
 begin
-  Result := TEnumWire.Parse<TTaskType>(S, TaskTypes);
+  Result := TEnumWire.Parse<TTaskType>(S);
 end;
 
 function TTaskTypeHelper.ToString: string;
 begin
-  Result := TaskTypes[Self];
+  Result := TEnumWire.ToString<TTaskType>(Self);
 end;
 
 { TSchedulingTypeHelper }
 
 class function TSchedulingTypeHelper.Parse(const S: string): TSchedulingType;
 begin
-  Result := TEnumWire.Parse<TSchedulingType>(S, SchedulingTypes);
+  Result := TEnumWire.Parse<TSchedulingType>(S);
 end;
 
 function TSchedulingTypeHelper.ToString: string;
 begin
-  Result := SchedulingTypes[Self];
+  Result := TEnumWire.ToString<TSchedulingType>(Self);
 end;
 
 { TBehaviorTypeHelper }
 
 class function TBehaviorTypeHelper.Parse(const S: string): TBehaviorType;
 begin
-  Result := TEnumWire.Parse<TBehaviorType>(S, BehaviorTypes);
+  Result := TEnumWire.Parse<TBehaviorType>(S);
 end;
 
 function TBehaviorTypeHelper.ToString: string;
 begin
-  Result := BehaviorTypes[Self];
+  Result := TEnumWire.ToString<TBehaviorType>(Self);
 end;
 
 { TModeTypeHelper }
 
 class function TModeTypeHelper.Parse(const S: string): TModeType;
 begin
-  Result := TEnumWire.Parse<TModeType>(S, ModeTypes);
+  Result := TEnumWire.Parse<TModeType>(S);
 end;
 
 function TModeTypeHelper.ToString: string;
 begin
-  Result := ModeTypes[Self];
+  Result := TEnumWire.ToString<TModeType>(Self);
 end;
 
 { TEnvironmentTypeHelper }
 
 class function TEnvironmentTypeHelper.Parse(const S: string): TEnvironmentType;
 begin
-  Result := TEnumWire.Parse<TEnvironmentType>(S, EnvironmentTypes);
+  Result := TEnumWire.Parse<TEnvironmentType>(S);
 end;
 
 function TEnvironmentTypeHelper.ToString: string;
 begin
-  Result := EnvironmentTypes[Self];
+  Result := TEnumWire.ToString<TEnvironmentType>(Self);
 end;
 
 { TToolConfigModeHelper }
 
 class function TToolConfigModeHelper.Parse(const S: string): TToolConfigMode;
 begin
-  Result := TEnumWire.Parse<TToolConfigMode>(S, ToolConfigModes);
+  Result := TEnumWire.Parse<TToolConfigMode>(S);
 end;
 
 function TToolConfigModeHelper.ToString: string;
 begin
-  Result := ToolConfigModes[Self];
+  Result := TEnumWire.ToString<TToolConfigMode>(Self);
 end;
 
 { TModalityTypeHelper }
 
 class function TModalityTypeHelper.Parse(const S: string): TModalityType;
 begin
-  Result := TEnumWire.Parse<TModalityType>(S, ModalityTypes);
+  Result := TEnumWire.Parse<TModalityType>(S);
 end;
 
 function TModalityTypeHelper.ToString: string;
 begin
-  Result := ModalityTypes[Self];
+  Result := TEnumWire.ToString<TModalityType>(Self);
 end;
 
 { TThinkingLevelTypeHelper }
@@ -2066,12 +1754,12 @@ end;
 class function TThinkingLevelTypeHelper.Parse(
   const S: string): TThinkingLevelType;
 begin
-  Result := TEnumWire.Parse<TThinkingLevelType>(S, ThinkingLevelTypes);
+  Result := TEnumWire.Parse<TThinkingLevelType>(S);
 end;
 
 function TThinkingLevelTypeHelper.ToString: string;
 begin
-  Result := ThinkingLevelTypes[Self];
+  Result := TEnumWire.ToString<TThinkingLevelType>(Self);
 end;
 
 { TMediaResolutionTypeHelper }
@@ -2079,12 +1767,12 @@ end;
 class function TMediaResolutionTypeHelper.Parse(
   const S: string): TMediaResolutionType;
 begin
-  Result := TEnumWire.Parse<TMediaResolutionType>(S, MediaResolutionTypes);
+  Result := TEnumWire.Parse<TMediaResolutionType>(S);
 end;
 
 function TMediaResolutionTypeHelper.ToString: string;
 begin
-  Result := MediaResolutionTypes[Self];
+  Result := TEnumWire.ToString<TMediaResolutionType>(Self);
 end;
 
 { TSchedulingTypeInterceptor }
@@ -2108,12 +1796,12 @@ end;
 class function TUrlRetrievalStatusTypeHelper.Parse(
   const S: string): TUrlRetrievalStatusType;
 begin
-  Result := TEnumWire.Parse<TUrlRetrievalStatusType>(S, UrlRetrievalStatusTypes);
+  Result := TEnumWire.Parse<TUrlRetrievalStatusType>(S);
 end;
 
 function TUrlRetrievalStatusTypeHelper.ToString: string;
 begin
-  Result := UrlRetrievalStatusTypes[Self];
+  Result := TEnumWire.ToString<TUrlRetrievalStatusType>(Self);
 end;
 
 { TUrlRetrievalStatusTypeInterceptor }
@@ -2136,12 +1824,12 @@ end;
 
 class function TBlockReasonHelper.Parse(const S: string): TBlockReason;
 begin
-  Result := TEnumWire.Parse<TBlockReason>(S, BlockReasons);
+  Result := TEnumWire.Parse<TBlockReason>(S);
 end;
 
 function TBlockReasonHelper.ToString: string;
 begin
-  Result := BlockReasons[Self];
+  Result := TEnumWire.ToString<TBlockReason>(Self);
 end;
 
 { TBlockReasonInterceptor }
@@ -2164,12 +1852,12 @@ end;
 
 class function THarmCategoryHelper.Parse(const S: string): THarmCategory;
 begin
-  Result := TEnumWire.Parse<THarmCategory>(S, HarmCategories);
+  Result := TEnumWire.Parse<THarmCategory>(S);
 end;
 
 function THarmCategoryHelper.ToString: string;
 begin
-  Result := HarmCategories[Self];
+  Result := TEnumWire.ToString<THarmCategory>(Self);
 end;
 
 { THarmCategoryInterceptor }
@@ -2192,24 +1880,24 @@ end;
 
 class function THarmBlockThresholdHelper.Parse(const S: string): THarmBlockThreshold;
 begin
-  Result := TEnumWire.Parse<THarmBlockThreshold>(S, HarmBlockThresholds);
+  Result := TEnumWire.Parse<THarmBlockThreshold>(S);
 end;
 
 function THarmBlockThresholdHelper.ToString: string;
 begin
-  Result := HarmBlockThresholds[Self];
+  Result := TEnumWire.ToString<THarmBlockThreshold>(Self);
 end;
 
 { THarmProbabilityHelper }
 
 class function THarmProbabilityHelper.Parse(const S: string): THarmProbability;
 begin
-  Result := TEnumWire.Parse<THarmProbability>(S, HarmProbabilities);
+  Result := TEnumWire.Parse<THarmProbability>(S);
 end;
 
 function THarmProbabilityHelper.ToString: string;
 begin
-  Result := HarmProbabilities[Self];
+  Result := TEnumWire.ToString<THarmProbability>(Self);
 end;
 
 { THarmProbabilityInterceptor }
@@ -2233,12 +1921,12 @@ end;
 class function TTokenModalityTypeHelper.Parse(
   const S: string): TTokenModalityType;
 begin
-  Result := TEnumWire.Parse<TTokenModalityType>(S, TokenModalityTypes);
+  Result := TEnumWire.Parse<TTokenModalityType>(S);
 end;
 
 function TTokenModalityTypeHelper.ToString: string;
 begin
-  Result := TokenModalityTypes[Self];
+  Result := TEnumWire.ToString<TTokenModalityType>(Self);
 end;
 
 { TTokenModalityTypeInterceptor }
@@ -2261,12 +1949,12 @@ end;
 
 class function TStateTypeHelper.Parse(const S: string): TStateType;
 begin
-  Result := TEnumWire.Parse<TStateType>(S, StateTypes);
+  Result := TEnumWire.Parse<TStateType>(S);
 end;
 
 function TStateTypeHelper.ToString: string;
 begin
-  Result := StateTypes[Self];
+  Result := TEnumWire.ToString<TStateType>(Self);
 end;
 
 { TStateTypeInterceptor }
@@ -2289,12 +1977,12 @@ end;
 
 class function TSourceTypeHelper.Parse(const S: string): TSourceType;
 begin
-  Result := TEnumWire.Parse<TSourceType>(S, SourceTypes);
+  Result := TEnumWire.Parse<TSourceType>(S);
 end;
 
 function TSourceTypeHelper.ToString: string;
 begin
-  Result := SourceTypes[Self];
+  Result := TEnumWire.ToString<TSourceType>(Self);
 end;
 
 { TSourceTypeInterceptor }
@@ -2317,24 +2005,24 @@ end;
 
 class function TToolModeHelper.Parse(const S: string): TToolMode;
 begin
-  Result := TEnumWire.Parse<TToolMode>(S, ToolModes);
+  Result := TEnumWire.Parse<TToolMode>(S);
 end;
 
 function TToolModeHelper.ToString: string;
 begin
-  Result := ToolModes[Self];
+  Result := TEnumWire.ToString<TToolMode>(Self);
 end;
 
 { TModelStateHelper }
 
 class function TModelStateHelper.Parse(const S: string): TModelState;
 begin
-  Result := TEnumWire.Parse<TModelState>(S, ModelStates);
+  Result := TEnumWire.Parse<TModelState>(S);
 end;
 
 function TModelStateHelper.ToString: string;
 begin
-  Result := ModelStates[Self];
+  Result := TEnumWire.ToString<TModelState>(Self);
 end;
 
 { TModelStateInterceptor }
@@ -2357,12 +2045,12 @@ end;
 
 class function TDocumentStateHelper.Parse(const S: string): TDocumentState;
 begin
-  Result := TEnumWire.Parse<TDocumentState>(S, DocumentStates);
+  Result := TEnumWire.Parse<TDocumentState>(S);
 end;
 
 function TDocumentStateHelper.ToString: string;
 begin
-  Result := DocumentStates[Self];
+  Result := TEnumWire.ToString<TDocumentState>(Self);
 end;
 
 { TDocumentStateInterceptor }
@@ -2385,36 +2073,36 @@ end;
 
 class function TBatchStateTypeHelper.Parse(const S: string): TBatchStateType;
 begin
-  Result := TEnumWire.Parse<TBatchStateType>(S, BatchStateTypes);
+  Result := TEnumWire.Parse<TBatchStateType>(S);
 end;
 
 function TBatchStateTypeHelper.ToString: string;
 begin
-  Result := BatchStateTypes[Self];
+  Result := TEnumWire.ToString<TBatchStateType>(Self);
 end;
 
-{ TOperationPathHelper }
+{ TBatchOperationType }
 
-class function TOperationPathHelper.Parse(const S: string): TOperationPath;
+class function TBatchOperationTypeHelper.Parse(const S: string): TBatchOperationType;
 begin
-  Result := TEnumWire.Parse<TOperationPath>(S, OperationPaths);
+  Result := TEnumWire.Parse<TBatchOperationType>(S, BatchOperations);
 end;
 
-function TOperationPathHelper.ToString: string;
+function TBatchOperationTypeHelper.ToString: string;
 begin
-  Result := OperationPaths[Self];
+  Result := BatchOperations[Self];
 end;
 
 { TContentTypeHelper }
 
 class function TContentTypeHelper.Parse(const S: string): TContentType;
 begin
-  Result := TEnumWire.Parse<TContentType>(S, ContentTypes);
+  Result := TEnumWire.Parse<TContentType>(S);
 end;
 
 function TContentTypeHelper.ToString: string;
 begin
-  Result := ContentTypes[Self];
+  Result := TEnumWire.ToString<TContentType>(Self);
 end;
 
 { TContentTypeInterceptor }
@@ -2450,12 +2138,12 @@ end;
 class function TMediaResolutionHelper.Parse(
   const S: string): TMediaResolution;
 begin
-  Result := TEnumWire.Parse<TMediaResolution>(S, MediaResolutions);
+  Result := TEnumWire.Parse<TMediaResolution>(S);
 end;
 
 function TMediaResolutionHelper.ToString: string;
 begin
-  Result := MediaResolutions[Self];
+  Result := TEnumWire.ToString<TMediaResolution>(Self);
 end;
 
 { TAudioMimeTypeOptionHelper }
@@ -2501,24 +2189,24 @@ end;
 
 class function TUrlStatusHelper.Parse(const S: string): TUrlStatus;
 begin
-  Result := TEnumWire.Parse<TUrlStatus>(S, UrlStatus);
+  Result := TEnumWire.Parse<TUrlStatus>(S);
 end;
 
 function TUrlStatusHelper.ToString: string;
 begin
-  Result := UrlStatus[Self];
+  Result := TEnumWire.ToString<TUrlStatus>(Self);
 end;
 
 { TToolTypeHelper }
 
 class function TToolTypeHelper.Parse(const S: string): TToolType;
 begin
-  Result := TEnumWire.Parse<TToolType>(S, ToolTypes);
+  Result := TEnumWire.Parse<TToolType>(S);
 end;
 
 function TToolTypeHelper.ToString: string;
 begin
-  Result := ToolTypes[Self];
+  Result := TEnumWire.ToString<TToolType>(Self);
 end;
 
 { TComputerEnvironmentTypeHelper }
@@ -2526,36 +2214,36 @@ end;
 class function TComputerEnvironmentTypeHelper.Parse(
   const S: string): TComputerEnvironmentType;
 begin
-  Result := TEnumWire.Parse<TComputerEnvironmentType>(S, ComputerEnvironmentTypes);
+  Result := TEnumWire.Parse<TComputerEnvironmentType>(S);
 end;
 
 function TComputerEnvironmentTypeHelper.ToString: string;
 begin
-  Result := ComputerEnvironmentTypes[Self];
+  Result := TEnumWire.ToString<TComputerEnvironmentType>(Self);
 end;
 
 { ToolChoiceTypeHelper }
 
 class function ToolChoiceTypeHelper.Parse(const S: string): TToolChoiceType;
 begin
-  Result := TEnumWire.Parse<TToolChoiceType>(S, ToolChoiceTypes);
+  Result := TEnumWire.Parse<TToolChoiceType>(S);
 end;
 
 function ToolChoiceTypeHelper.ToString: string;
 begin
-  Result := ToolChoiceTypes[Self];
+  Result := TEnumWire.ToString<TToolChoiceType>(Self);
 end;
 
 { TThinkingLevelHelper }
 
 class function TThinkingLevelHelper.Parse(const S: string): TThinkingLevel;
 begin
-  Result := TEnumWire.Parse<TThinkingLevel>(S, ThinkingLevels);
+  Result := TEnumWire.Parse<TThinkingLevel>(S);
 end;
 
 function TThinkingLevelHelper.ToString: string;
 begin
-  Result := ThinkingLevels[Self];
+  Result := TEnumWire.ToString<TThinkingLevel>(Self);
 end;
 
 { TThinkingSummariesHelper }
@@ -2563,12 +2251,12 @@ end;
 class function TThinkingSummariesHelper.Parse(
   const S: string): TThinkingSummaries;
 begin
-  Result := TEnumWire.Parse<TThinkingSummaries>(S, ThinkingSummaries);
+  Result := TEnumWire.Parse<TThinkingSummaries>(S);
 end;
 
 function TThinkingSummariesHelper.ToString: string;
 begin
-  Result := ThinkingSummaries[Self];
+  Result := TEnumWire.ToString<TThinkingSummaries>(Self);
 end;
 
 { TAgentConfigTypeHelper }
@@ -2588,12 +2276,12 @@ end;
 class function TResponseModalityHelper.Parse(
   const S: string): TResponseModality;
 begin
-  Result := TEnumWire.Parse<TResponseModality>(S, ResponseModalities);
+  Result := TEnumWire.Parse<TResponseModality>(S);
 end;
 
 function TResponseModalityHelper.ToString: string;
 begin
-  Result := ResponseModalities[Self];
+  Result := TEnumWire.ToString<TResponseModality>(Self);
 end;
 
 class function TResponseModalityHelper.ToStringArray(
@@ -2609,12 +2297,12 @@ end;
 class function TInteractionStatusTypeHelper.Parse(
   const S: string): TInteractionStatusType;
 begin
-  Result := TEnumWire.Parse<TInteractionStatusType>(S, InteractionStatusTypes);
+  Result := TEnumWire.Parse<TInteractionStatusType>(S);
 end;
 
 function TInteractionStatusTypeHelper.ToString: string;
 begin
-  Result := InteractionStatusTypes[Self];
+  Result := TEnumWire.ToString<TInteractionStatusType>(Self);
 end;
 
 { TInteractionStatusTypeInterceptor }
@@ -2659,6 +2347,31 @@ procedure TEventTypeInterceptor.StringReverter(Data: TObject; Field,
 begin
   var V := TEventType.Parse(Arg);
   TRttiMemberAccess.SetValue<TEventType>(Data, Field, V);
+end;
+
+{ TVideoAspectRatioHelper }
+
+class function TVideoAspectRatioHelper.Parse(
+  const S: string): TVideoAspectRatio;
+begin
+  Result := TEnumWire.Parse<TVideoAspectRatio>(S, VideoAspectRatios);
+end;
+
+function TVideoAspectRatioHelper.ToString: string;
+begin
+  Result := VideoAspectRatios[Self];
+end;
+
+{ TVideoOperationHelper }
+
+class function TVideoOperationHelper.Parse(const S: string): TVideoOperation;
+begin
+  Result := TEnumWire.Parse<TVideoOperation>(S, VideoOperations);
+end;
+
+function TVideoOperationHelper.ToString: string;
+begin
+  Result := VideoOperations[Self];
 end;
 
 end.

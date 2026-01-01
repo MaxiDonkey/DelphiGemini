@@ -1,12 +1,4 @@
 unit Gemini.JsonPathHelper;
-
-{-------------------------------------------------------------------------------
-
-      Github repository :  https://github.com/MaxiDonkey/DelphiGemini
-      Visit the Github repository for the documentation and use examples
-
- ------------------------------------------------------------------------------}
-
 interface
 
 uses
@@ -27,12 +19,29 @@ type
 
   TJsonReader = record
   private
-    FRoot: TJSONValue;
+    type
+      IJsonRootHolder = interface
+        ['{0E6D8A89-2DA5-4A5A-8E1B-9C0C8F2D0C77}']
+        function Root: TJSONValue;
+      end;
+
+      TJsonRootHolder = class(TInterfacedObject, IJsonRootHolder)
+      private
+        FRoot: TJSONValue;
+      public
+        constructor Create(const JsonText: string);
+        destructor Destroy; override;
+        function Root: TJSONValue;
+      end;
+
+  private
+    FHolder: IJsonRootHolder;
+    function Root: TJSONValue; inline;
+
   public
     class function Parse(const JsonText: string): TJsonReader; static;
 
     class operator Initialize(out Dest: TJsonReader);
-    class operator Finalize(var Dest: TJsonReader);
 
     function IsValid: Boolean; inline;
 
@@ -62,19 +71,24 @@ begin
     Inc(Index);
 
   Result := S.Substring(Start - 1, Index - Start);
+
+  if (Index <= S.Length) and (S[Index] = '.') then
+    Inc(Index);
 end;
 
 function ParseArrayIndex(const Token: string; out Name: string; out HasIndex: Boolean; out Index: Integer): Boolean;
+var
+  Left, Right: Integer;
 begin
   Name := Token;
   HasIndex := False;
   Index := -1;
 
-  var Left := Token.IndexOf('[');
+  Left := Token.IndexOf('[');
   if Left < 0 then
     Exit(True);
 
-  var Right := Token.IndexOf(']', Left + 1);
+  Right := Token.IndexOf(']', Left + 1);
   if Right < 0 then
     Exit(False);
 
@@ -84,13 +98,16 @@ begin
   Result := TryStrToInt(IndexStr, Index) and (Index >= 0);
 end;
 
+{ TJSONValueHelper }
+
 function TJSONValueHelper.GetPathValue(const Path: string): TJSONValue;
 var
-  Index: Integer;
+  ArrIndex: Integer;
   Name: string;
   HasIndex: Boolean;
 begin
   Result := nil;
+
   var Current := Self;
   if (Current = nil) or Path.IsEmpty then
     Exit;
@@ -102,7 +119,7 @@ begin
       if Token.IsEmpty then
         Break;
 
-      if not ParseArrayIndex(Token, Name, HasIndex, Index) then
+      if not ParseArrayIndex(Token, Name, HasIndex, ArrIndex) then
         Exit(nil);
 
       if not Name.IsEmpty then
@@ -110,8 +127,8 @@ begin
           if not (Current is TJSONObject) then
             Exit(nil);
 
-          var JSONObjet := TJSONObject(Current);
-          Current := JSONObjet.GetValue(Name);
+          var Obj := TJSONObject(Current);
+          Current := Obj.GetValue(Name);
           if Current = nil then
             Exit(nil);
         end;
@@ -121,15 +138,15 @@ begin
           if not (Current is TJSONArray) then
             Exit(nil);
 
-          var JSONArray := TJSONArray(Current);
-          if (Index < 0) or (Index >= JSONArray.Count) then
+          var Arr := TJSONArray(Current);
+          if (ArrIndex < 0) or (ArrIndex >= Arr.Count) then
             Exit(nil);
 
-          Current := JSONArray.Items[Index];
+          Current := Arr.Items[ArrIndex];
           if Current = nil then
             Exit(nil);
         end;
-  end;
+    end;
 
   Result := Current;
 end;
@@ -153,39 +170,49 @@ end;
 
 function TJSONValueHelper.GetPathInteger(const Path: string; const Default: Integer): Integer;
 begin
-  var PathString := GetPathString(Path, '');
-  if not PathString.IsEmpty and TryStrToInt(PathString, Result) then
+  var S := GetPathString(Path, '');
+  if (S <> '') and TryStrToInt(S, Result) then
     Exit;
-
-  Result := Default;
-end;
-
-function TJSONValueHelper.GetPathArrayText(const Path, Default: string): string;
-begin
-  var JSONValue := GetPathValue(Path);
-  if (JSONValue <> nil) and (JSONValue is TJSONArray) then
-    Exit(TJSONArray(JSONValue).ToJSON);
-
-  Result := Default;
-end;
-
-function TJSONValueHelper.GetPathObjectText(const Path, Default: string): string;
-begin
-  var JSONValue := GetPathValue(Path);
-  if (JSONValue <> nil) and (JSONValue is TJSONObject) then
-    Exit(TJSONObject(JSONValue).ToJSON);
 
   Result := Default;
 end;
 
 function TJSONValueHelper.GetPathBoolean(const Path: string; const Default: Boolean): Boolean;
 begin
-  var PathString := GetPathString(Path, '');
-  if SameText(PathString, 'true') then
+  var S := GetPathString(Path, '');
+  if SameText(S, 'true') then
     Exit(True);
 
-  if SameText(PathString, 'false') then
+  if SameText(S, 'false') then
     Exit(False);
+
+ Result := Default;
+end;
+
+function TJSONValueHelper.GetPathDouble(const Path: string; const Default: Double): Double;
+begin
+  var S := GetPathString(Path, '');
+  var FS := TFormatSettings.Invariant;
+  if (S <> '') and TryStrToFloat(S, Result, FS) then
+    Exit;
+
+  Result := Default;
+end;
+
+function TJSONValueHelper.GetPathObjectText(const Path, Default: string): string;
+begin
+  var V := GetPathValue(Path);
+  if (V <> nil) and (V is TJSONObject) then
+    Exit(TJSONObject(V).ToJSON);
+
+  Result := Default;
+end;
+
+function TJSONValueHelper.GetPathArrayText(const Path, Default: string): string;
+begin
+  var V := GetPathValue(Path);
+  if (V <> nil) and (V is TJSONArray) then
+    Exit(TJSONArray(V).ToJSON);
 
   Result := Default;
 end;
@@ -205,109 +232,129 @@ begin
   Result := Default;
 end;
 
-function TJSONValueHelper.GetPathDouble(const Path: string; const Default: Double): Double;
-begin
-  var PathString := GetPathString(Path, '');
-  var FS := TFormatSettings.Invariant;
-  if (PathString <> '') and TryStrToFloat(PathString, Result, FS) then
-    Exit;
+{ TJsonReader.TJsonRootHolder }
 
-  Result := Default;
+constructor TJsonReader.TJsonRootHolder.Create(const JsonText: string);
+begin
+  inherited Create;
+  FRoot := TJSONObject.ParseJSONValue(JsonText);
+end;
+
+destructor TJsonReader.TJsonRootHolder.Destroy;
+begin
+  FRoot.Free;
+  inherited;
+end;
+
+function TJsonReader.TJsonRootHolder.Root: TJSONValue;
+begin
+  Result := FRoot;
 end;
 
 { TJsonReader }
 
-class function TJsonReader.Parse(const JsonText: string): TJsonReader;
-begin
-  Result.FRoot := TJSONObject.ParseJSONValue(JsonText);
-end;
-
 class operator TJsonReader.Initialize(out Dest: TJsonReader);
 begin
-  Dest.FRoot := nil;
+  Dest.FHolder := nil;
 end;
 
-class operator TJsonReader.Finalize(var Dest: TJsonReader);
+function TJsonReader.Root: TJSONValue;
 begin
-  Dest.FRoot.Free;
-  Dest.FRoot := nil;
+  if FHolder = nil then
+    Exit(nil);
+
+  Result := FHolder.Root;
 end;
 
-function TJsonReader.Format(const Format: Integer): string;
+class function TJsonReader.Parse(const JsonText: string): TJsonReader;
 begin
-  if FRoot = nil then
-    Exit('');
-
-  Result := FRoot.Format(Format);
+  Result.FHolder := TJsonRootHolder.Create(JsonText);
 end;
 
 function TJsonReader.IsValid: Boolean;
 begin
-  Result := FRoot <> nil;
+  Result := Root <> nil;
 end;
 
 function TJsonReader.Value(const Path: string): TJSONValue;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(nil);
 
-  Result := FRoot.GetPathValue(Path);
+  Result := R.GetPathValue(Path);
 end;
 
-function TJsonReader.AsString(const Path, Default: string): string;
+function TJsonReader.AsString(const Path: string; const Default: string): string;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(Default);
 
-  Result := FRoot.GetPathString(Path, Default);
+  Result := R.GetPathString(Path, Default);
 end;
 
 function TJsonReader.AsInteger(const Path: string; const Default: Integer): Integer;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(Default);
 
-  Result := FRoot.GetPathInteger(Path, Default);
+  Result := R.GetPathInteger(Path, Default);
 end;
 
 function TJsonReader.AsBoolean(const Path: string; const Default: Boolean): Boolean;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(Default);
 
-  Result := FRoot.GetPathBoolean(Path, Default);
+  Result := R.GetPathBoolean(Path, Default);
 end;
 
 function TJsonReader.AsDouble(const Path: string; const Default: Double): Double;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(Default);
 
-  Result := FRoot.GetPathDouble(Path, Default);
+  Result := R.GetPathDouble(Path, Default);
 end;
 
-function TJsonReader.ObjectText(const Path, Default: string): string;
+function TJsonReader.ObjectText(const Path: string; const Default: string): string;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(Default);
 
-  Result := FRoot.GetPathObjectText(Path, Default);
+  Result := R.GetPathObjectText(Path, Default);
 end;
 
-function TJsonReader.ArrayText(const Path, Default: string): string;
+function TJsonReader.ArrayText(const Path: string; const Default: string): string;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(Default);
 
-  Result := FRoot.GetPathArrayText(Path, Default);
+  Result := R.GetPathArrayText(Path, Default);
 end;
 
 function TJsonReader.Count(const Path: string; const Default: Integer): Integer;
 begin
-  if FRoot = nil then
+  var R := Root;
+  if R = nil then
     Exit(Default);
 
-  Result := FRoot.GetPathCount(Path, Default);
+  Result := R.GetPathCount(Path, Default);
+end;
+
+function TJsonReader.Format(const Format: Integer): string;
+begin
+  var R := Root;
+  if R = nil then
+    Exit('');
+
+  Result := R.Format(Format);
 end;
 
 end.

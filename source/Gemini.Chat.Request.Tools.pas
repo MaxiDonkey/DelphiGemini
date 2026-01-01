@@ -124,7 +124,17 @@ type
     /// string Key: the name of the parameter. Parameter names are case sensitive. Schema Value: the 
     /// Schema defining the type used for the parameter.  
     /// </summary>
-    function Parameters(const Value: TSchemaParams): TFunctionDeclarations;
+    function Parameters(const Value: TSchemaParams): TFunctionDeclarations; overload;
+
+    /// <summary>
+    /// Optional. Describes the parameters to this function. Reflects the Open API 3.03 Parameter Object
+    /// string Key: the name of the parameter. Parameter names are case sensitive. Schema Value: the
+    /// Schema defining the type used for the parameter.
+    /// </summary>
+    /// <param name="Value">
+    /// A JSON string  
+    /// </param>
+    function Parameters(const Value: string): TFunctionDeclarations; overload;
 
     /// <summary>
     /// Optional. Describes the parameters to the function in JSON Schema format. The schema must describe 
@@ -136,13 +146,25 @@ type
     /// Optional. Describes the parameters to the function in JSON Schema format. The schema must describe 
     /// an object where the properties are the parameters to the function. For example:  
     /// </summary>
+    /// <param name="Value">
+    /// A JSON string  
+    /// </param>
     function ParametersJsonSchema(const Value: string): TFunctionDeclarations; overload;
 
     /// <summary>
     /// Optional. Describes the output from this function in JSON Schema format. Reflects the Open API 3.03 
     /// Response Object. The Schema defines the type used for the response value of the function.  
     /// </summary>
-    function Response(const Value: TSchemaParams): TFunctionDeclarations;
+    function Response(const Value: TSchemaParams): TFunctionDeclarations; overload;
+
+    /// <summary>
+    /// Optional. Describes the output from this function in JSON Schema format. Reflects the Open API 3.03
+    /// Response Object. The Schema defines the type used for the response value of the function.
+    /// </summary>
+    /// <param name="Value">
+    /// A JSON string
+    /// </param>
+    function Response(const Value: string): TFunctionDeclarations; overload;
 
     /// <summary>
     /// Optional. Describes the output from this function in JSON Schema format. The value specified by 
@@ -157,6 +179,9 @@ type
     /// Optional. Describes the output from this function in JSON Schema format. The value specified by 
     /// the schema is the response value of the function.
     /// </summary>
+    /// <param name="Value">
+    /// A JSON string  
+    /// </param>
     /// <remarks>
     /// This field is mutually exclusive with response.    
     /// </remarks>
@@ -167,9 +192,14 @@ type
 
   TDynamicRetrievalConfig = class(TJSONParam)
     /// <summary>
-    /// The mode of the predictor to be used in dynamic retrieval.  
+    /// The mode of the predictor to be used in dynamic retrieval.
     /// </summary>
-    function Mode(const Value: TModeType): TDynamicRetrievalConfig;
+    function Mode(const Value: TModeType): TDynamicRetrievalConfig; overload;
+
+    /// <summary>
+    /// The mode of the predictor to be used in dynamic retrieval.
+    /// </summary>
+    function Mode(const Value: string): TDynamicRetrievalConfig; overload;
 
     /// <summary>
     /// The threshold to be used in dynamic retrieval. If not set, a system default value is used.  
@@ -297,7 +327,21 @@ type
     /// of these functions by populating FunctionCall in the response. The next conversation turn may contain 
     /// a FunctionResponse with the Content.role "function" generation context for the next model turn.  
     /// </remarks>
-    function FunctionDeclarations(const Value: TArray<TFunctionDeclarations>): TToolParams;
+    function FunctionDeclarations(const Value: TArray<TFunctionDeclarations>): TToolParams; overload;
+
+    /// <summary>
+    /// Optional. A list of FunctionDeclarations available to the model that can be used for function calling.
+    /// </summary>
+    /// <param name="Value>
+    /// A JSONArray string
+    /// </param>
+    /// <remarks>
+    /// The model or system does not execute the function. Instead the defined function may be returned as a
+    /// FunctionCall with arguments to the client side for execution. The model may decide to call a subset
+    /// of these functions by populating FunctionCall in the response. The next conversation turn may contain
+    /// a FunctionResponse with the Content.role "function" generation context for the next model turn.
+    /// </remarks>
+    function FunctionDeclarations(const Value: string): TToolParams; overload;
 
     /// <summary>
     /// Optional. Retrieval tool that is powered by Google search.  
@@ -338,10 +382,10 @@ type
 
     class function NewFunctionDeclarations(const Value: TArray<TFunctionDeclarations>): TToolParams;
     class function NewGoogleSearchRetrieval(const Value: TGoogleSearchRetrieval): TToolParams;
-    class function NewCodeExecution(const Value: TCodeExecution): TToolParams;
-    class function NewGoogleSearch(const Value: TGoogleSearch): TToolParams;
+    class function NewCodeExecution(const Value: TCodeExecution = nil): TToolParams;
+    class function NewGoogleSearch(const Value: TGoogleSearch = nil): TToolParams;
     class function NewComputerUse(const Value: TComputerUse): TToolParams;
-    class function NewUrlContext(const Value: TUrlContext): TToolParams;
+    class function NewUrlContext(const Value: TUrlContext = nil): TToolParams;
     class function NewFileSearch(const Value: TFileSearch): TToolParams;
     class function NewGoogleMaps(const Value: TGoogleMaps): TToolParams;
   end;
@@ -381,10 +425,26 @@ begin
   Result := TFunctionDeclarations(Add('parameters', Value.Detach));
 end;
 
+function TFunctionDeclarations.Parameters(
+  const Value: string): TFunctionDeclarations;
+var
+  JSONObject: TJSONObject;
+begin
+  if TJSONHelper.TryGetObject(Value, JSONObject) then
+    Exit(TFunctionDeclarations(Add('parameters', JSONObject)));
+
+  raise EGeminiException.Create('Invalid JSON Object');
+end;
+
 function TFunctionDeclarations.ParametersJsonSchema(
   const Value: string): TFunctionDeclarations;
+var
+  JSONObject: TJSONObject;
 begin
-  Result := ParametersJsonSchema(TJSONHelper.StringToJson(Value));
+  if TJSONHelper.TryGetObject(Value, JSONObject) then
+    Exit(TFunctionDeclarations(Add('parametersJsonSchema', JSONObject)));
+
+  raise EGeminiException.Create('Invalid JSON Object');
 end;
 
 function TFunctionDeclarations.ParametersJsonSchema(
@@ -399,10 +459,26 @@ begin
   Result := TFunctionDeclarations(Add('response', Value.Detach));
 end;
 
+function TFunctionDeclarations.Response(
+  const Value: string): TFunctionDeclarations;
+var
+  JSONObject: TJSONObject;
+begin
+  if TJSONHelper.TryGetObject(Value, JSONObject) then
+    Exit(TFunctionDeclarations(Add('response', JSONObject)));
+
+  raise EGeminiException.Create('Invalid JSON Object');
+end;
+
 function TFunctionDeclarations.ResponseJsonSchema(
   const Value: string): TFunctionDeclarations;
+var
+  JSONObject: TJSONObject;
 begin
-  Result := ResponseJsonSchema(TJSONHelper.StringToJson(Value))
+  if TJSONHelper.TryGetObject(Value, JSONObject) then
+    Exit(TFunctionDeclarations(Add('responseJsonSchema', JSONObject)));
+
+  raise EGeminiException.Create('Invalid JSON Object');
 end;
 
 function TFunctionDeclarations.ResponseJsonSchema(
@@ -423,6 +499,12 @@ function TDynamicRetrievalConfig.Mode(
   const Value: TModeType): TDynamicRetrievalConfig;
 begin
   Result := TDynamicRetrievalConfig(Add('mode', Value.ToString));
+end;
+
+function TDynamicRetrievalConfig.Mode(
+  const Value: string): TDynamicRetrievalConfig;
+begin
+  Result := Self.Mode(TModeType.Parse(Value));
 end;
 
 { TGoogleSearchRetrieval }
@@ -507,6 +589,16 @@ begin
   Result := TToolParams(Add('fileSearch', Value.Detach));
 end;
 
+function TToolParams.FunctionDeclarations(const Value: string): TToolParams;
+var
+  JSONArray: TJSONArray;
+begin
+  if TJSONHelper.TryGetArray(Value, JSONArray) then
+    Exit(TToolParams(Add('functionDeclarations', JSONArray)));
+
+  raise EGeminiException.Create('Invalid JSON Array');
+end;
+
 function TToolParams.FunctionDeclarations(const Value: TArray<TFunctionDeclarations>): TToolParams;
 begin
   Result := TToolParams(Add('functionDeclarations',
@@ -532,7 +624,10 @@ end;
 class function TToolParams.NewCodeExecution(
   const Value: TCodeExecution): TToolParams;
 begin
-  Result := TToolParams.Create.CodeExecution(Value);
+  if Value = nil then
+    Result := TToolParams.Create.CodeExecution(TCodeExecution.Create)
+  else
+    Result := TToolParams.Create.CodeExecution(Value);
 end;
 
 class function TToolParams.NewComputerUse(
@@ -560,7 +655,10 @@ end;
 class function TToolParams.NewGoogleSearch(
   const Value: TGoogleSearch): TToolParams;
 begin
-  Result := TToolParams.Create.GoogleSearch(Value);
+  if Value = nil then
+    Result := TToolParams.Create.GoogleSearch(TGoogleSearch.Create)
+  else
+    Result := TToolParams.Create.GoogleSearch(Value);
 end;
 
 class function TToolParams.NewGoogleSearchRetrieval(
@@ -571,7 +669,10 @@ end;
 
 class function TToolParams.NewUrlContext(const Value: TUrlContext): TToolParams;
 begin
-  Result := TToolParams.Create.UrlContext(Value);
+  if Value = nil then
+    Result := TToolParams.Create.UrlContext(TUrlContext.Create)
+  else
+    Result := TToolParams.Create.UrlContext(Value);
 end;
 
 function TToolParams.UrlContext(const Value: TUrlContext): TToolParams;

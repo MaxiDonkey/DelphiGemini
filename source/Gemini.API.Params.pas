@@ -137,7 +137,8 @@ type
   TJSONHelper = record
     class function StringToJson(const Value: string): TJSONObject; static;
     class function StringToJsonArray(const Value: string): TJSONArray; static;
-    class function ToJsonArray<T: TJSONParam>(const Value: TArray<T>): TJSONArray; static;
+    class function ToJsonArray<T: TJSONParam>(const Value: TArray<T>): TJSONArray; overload; static;
+    class function ToJsonArray(const Value: TArray<TJSONObject>): TJSONArray; overload; static;
 
     class function TryParse(const Value: string; out Json: TJSONValue): Boolean; static;
     class function TryGetObject(const Value: string; out Obj: TJSONObject): Boolean; static;
@@ -486,17 +487,35 @@ begin
   Result := TJSONArray(JSON);
 end;
 
+class function TJSONHelper.ToJsonArray(
+  const Value: TArray<TJSONObject>): TJSONArray;
+begin
+  Result := TJSONArray.Create;
+  try
+    for var Item in Value do
+      begin
+        if Item = nil then
+          Continue;
+
+        Result.Add(Item);
+      end;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
 class function TJSONHelper.ToJsonArray<T>(const Value: TArray<T>): TJSONArray;
 begin
   Result := TJSONArray.Create;
   try
-  for var Item in Value do
-    begin
-      if Item = nil then
-        Continue;
+    for var Item in Value do
+      begin
+        if Item = nil then
+          Continue;
 
-      Result.Add(Item.Detach);
-    end;
+        Result.Add(Item.Detach);
+      end;
   except
     Result.Free;
     raise;
