@@ -5,6 +5,7 @@
 - [Response generation](#response-generation)
   - [Non streamed](interactions-generation.md#text-generation-non-streamed-interactions) 
   - [SSE Streaming](interactions-sse.md#sse-streaming-interactions)
+- [Interactions CRUD](interactions-CRUD.md)
 - [Stateful conversation](interactions-conversations.md)
 - [Multimodal capabilities](#multimodal-capabilities)
 - [Agentic capabilities](#agentic-capabilities)
@@ -178,7 +179,7 @@ The Interactions API is designed to support the construction and execution of ag
 
 A specific JSON output structure can be enforced by providing a JSON schema via the `response_format` parameter, which is suitable for moderation, classification, and data extraction workflows.
 
-- [Structured output](interaction.json-format.md#structured-output-json-schema)
+- [Structured output](interactions.json-format.md#structured-output-json-schema)
 
 <br>
 
