@@ -5,8 +5,8 @@
 - [Response generation](#response-generation)
   - [Non streamed](interactions-generation.md#text-generation-non-streamed-interactions) 
   - [SSE Streaming](interactions-sse.md#sse-streaming-interactions)
-- [Interactions CRUD](interactions-CRUD.md)
 - [Stateful conversation](interactions-conversations.md)
+- [Interactions CRUD](#interactions-crud)
 - [Multimodal capabilities](#multimodal-capabilities)
 - [Agentic capabilities](#agentic-capabilities)
 - [Structured output (JSON schema)](#structured-output-json-schema)
@@ -157,12 +157,25 @@ ___
 
 <br>
 
+## Interactions CRUD
+
+The creation of an interaction is assumed to be complete; if necessary, please refer to the following sections:
+- [Response generation](interactions.md#response-generation)
+- [Stateful conversation](interactions-conversations.md#stateful-conversation)
+
+During this process, an identifier (ID) is returned. This ID can be used not only to provide context for a new turn in the conversation, but also to manage existing contexts.
+
+The contexts created in this way can be retrieved, deleted, or canceled by providing their ID. Retrieving one or more contexts makes it possible to build a new context, which can then be passed to a request to improve the relevance of the response.
+
+Refer to [this section](interactions-CRUD.md#interactions-crud) to understand how these APIs work through functional code snippets.
+
+<br>
+
 ## Multimodal capabilities
 
-The Interactions API supports multimodal use cases, including image understanding and video generation.
+The Interactions API supports multimodal use cases, including image understanding and video generation:
 
 - [Multimodal understanding](interactions-multimodal-understanding.md#multimodal-understanding)
-- [Multimodal generation](interactions-multimodal-generation.md#multimodal-generation)
 
 <br>
 

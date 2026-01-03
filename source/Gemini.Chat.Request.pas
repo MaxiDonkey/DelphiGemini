@@ -658,8 +658,6 @@ begin
   raise EGeminiException.Create('Invalid JSON Array');
 end;
 
-
-
 { TUsageMetadataParams }
 
 function TUsageMetadataParams.TotalTokenCount(const Value: Integer): TUsageMetadataParams;

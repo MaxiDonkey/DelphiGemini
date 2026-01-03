@@ -519,7 +519,7 @@ type
     /// </summary>
     function Status(const Value: TUrlStatus): TUrlContextResultIxParams;
 
-    class function New: TUrlContextResultIxParams;
+    class function New(const Value: TUrlContextResultIxParams): TUrlContextResultIxParams;
   end;
 
   TUrlContextResultContentIxParams = class(TContentIxParams)
@@ -736,10 +736,7 @@ type
     /// </summary>
     function FileSearchStore(const Value: string): TFileSearchResultIxParams;
 
-    class function New: TFileSearchResultIxParams; overload;
-    class function New(const Text: string): TFileSearchResultIxParams; overload;
-    class function New(const Text, Store: string): TFileSearchResultIxParams; overload;
-    class function New(const Title, Text, Store: string): TFileSearchResultIxParams; overload;
+    class function New(const Value: TFileSearchResultIxParams): TFileSearchResultIxParams;
   end;
 
   TFileSearchResultContentIxParams = class(TContentIxParams)
@@ -1462,9 +1459,9 @@ end;
 
 { TUrlContextResultIxParams }
 
-class function TUrlContextResultIxParams.New: TUrlContextResultIxParams;
+class function TUrlContextResultIxParams.New(const Value: TUrlContextResultIxParams): TUrlContextResultIxParams;
 begin
-  Result := TUrlContextResultIxParams.Create;
+  Result := Value;
 end;
 
 function TUrlContextResultIxParams.Status(
@@ -1716,27 +1713,9 @@ begin
   Result := TFileSearchResultIxParams(Add('file_search_store', Value));
 end;
 
-class function TFileSearchResultIxParams.New: TFileSearchResultIxParams;
+class function TFileSearchResultIxParams.New(const Value: TFileSearchResultIxParams): TFileSearchResultIxParams;
 begin
-  Result := TFileSearchResultIxParams.Create;
-end;
-
-class function TFileSearchResultIxParams.New(
-  const Text: string): TFileSearchResultIxParams;
-begin
-  Result := New.Text(Text);
-end;
-
-class function TFileSearchResultIxParams.New(const Text,
-  Store: string): TFileSearchResultIxParams;
-begin
-  Result := New(Text).FileSearchStore(Store);
-end;
-
-class function TFileSearchResultIxParams.New(const Title, Text,
-  Store: string): TFileSearchResultIxParams;
-begin
-  Result := New(Text, Store).Title(Title);
+  Result := Value;
 end;
 
 function TFileSearchResultIxParams.Text(

@@ -387,7 +387,7 @@ type
     class function NewComputerUse(const Value: TComputerUse): TToolParams;
     class function NewUrlContext(const Value: TUrlContext = nil): TToolParams;
     class function NewFileSearch(const Value: TFileSearch): TToolParams;
-    class function NewGoogleMaps(const Value: TGoogleMaps): TToolParams;
+    class function NewGoogleMaps(const Value: TGoogleMaps = nil): TToolParams;
   end;
 
 implementation
@@ -649,6 +649,9 @@ end;
 
 class function TToolParams.NewGoogleMaps(const Value: TGoogleMaps): TToolParams;
 begin
+  if Value = nil then
+    Result := TToolParams.Create.GoogleMaps(TGoogleMaps.Create)
+  else
   Result := TToolParams.Create.GoogleMaps(Value);
 end;
 

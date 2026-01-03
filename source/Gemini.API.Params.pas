@@ -153,7 +153,7 @@ const
 implementation
 
 uses
-  System.DateUtils, System.NetEncoding;
+  System.DateUtils, System.NetEncoding, System.Math;
 
 { TJSONInterceptorStringToString }
 
@@ -237,8 +237,11 @@ begin
 end;
 
 function TJSONParam.Add(const Key: string; const Value: Extended): TJSONParam;
+var
+  fs: TFormatSettings;
 begin
-  Add(Key, TJSONNumber.Create(Value));
+  fs := TFormatSettings.Create('en-US');
+  Add(Key, TJSONNumber.Create(FormatFloat('0.############', Value, fs)));
   Result := Self;
 end;
 
@@ -295,7 +298,9 @@ begin
   var JArr := TJSONArray.Create;
   try
     for var Item in Value do
-      JArr.Add(Item);
+      begin
+        JArr.Add(Item);
+      end;
     Add(Key, JArr);
   except
     JArr.Free;

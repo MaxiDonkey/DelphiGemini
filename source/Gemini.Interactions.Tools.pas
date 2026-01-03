@@ -106,7 +106,18 @@ type
     /// <summary>
     /// The environment being operated.
     /// </summary>
-    function Environment(const Value: TComputerEnvironmentType): TComputerUseIxParams;
+    /// <param name="Value">
+    /// Only TComputerEnvironmentType.browser
+    /// </param>
+    function Environment(const Value: TComputerEnvironmentType): TComputerUseIxParams; overload;
+
+    /// <summary>
+    /// The environment being operated.
+    /// </summary>
+    /// <param name="Value">
+    /// Only "browser"
+    /// </param>
+    function Environment(const Value: string): TComputerUseIxParams; overload;
 
     /// <summary>
     /// The list of predefined functions that are excluded from the model call.
@@ -292,6 +303,12 @@ function TComputerUseIxParams.Environment(
   const Value: TComputerEnvironmentType): TComputerUseIxParams;
 begin
   Result := TComputerUseIxParams(Add('environment', Value.ToString));
+end;
+
+function TComputerUseIxParams.Environment(
+  const Value: string): TComputerUseIxParams;
+begin
+  Result := Environment(TComputerEnvironmentType.Parse(Value));
 end;
 
 function TComputerUseIxParams.ExcludedPredefinedFunctions(

@@ -161,6 +161,8 @@ type
     /// </summary>
     function VoiceConfig(const Value: TVoiceConfig): TSpeakerVoiceConfig;
 
+    class function New(const Value: TSpeakerVoiceConfig): TSpeakerVoiceConfig;
+
     class function NewSpeakerVoiceConfig(const Speaker: string; const VoiceConfig: TVoiceConfig): TSpeakerVoiceConfig; overload;
     class function NewSpeakerVoiceConfig(const Speaker: string; const VoiceName: string): TSpeakerVoiceConfig; overload;
   end;
@@ -215,7 +217,19 @@ type
     /// </para>
     /// • Use with earlier models results in an error.
     /// </remarks>
-    function ThinkingLevel(const Value: TThinkingLevelType): TThinkingConfig;
+    function ThinkingLevel(const Value: TThinkingLevelType): TThinkingConfig; overload;
+
+    /// <summary>
+    /// Optional. Controls the maximum depth of the model's internal reasoning process before it produces
+    /// a response.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// • If not specified, the default is HIGH. Recommended for Gemini 3 or later models.
+    /// </para>
+    /// • Use with earlier models results in an error.
+    /// </remarks>
+    function ThinkingLevel(const Value: string): TThinkingConfig; overload;
   end;
 
   TImageConfig = class(TJSONParam)
@@ -664,6 +678,12 @@ begin
     .VoiceConfig(VoiceConfig)
 end;
 
+class function TSpeakerVoiceConfig.New(
+  const Value: TSpeakerVoiceConfig): TSpeakerVoiceConfig;
+begin
+  Result := Value;
+end;
+
 class function TSpeakerVoiceConfig.NewSpeakerVoiceConfig(const Speaker,
   VoiceName: string): TSpeakerVoiceConfig;
 begin
@@ -704,6 +724,11 @@ end;
 function TThinkingConfig.ThinkingBudget(const Value: Integer): TThinkingConfig;
 begin
   Result := TThinkingConfig(Add('thinkingBudget', Value));
+end;
+
+function TThinkingConfig.ThinkingLevel(const Value: string): TThinkingConfig;
+begin
+  Result := ThinkingLevel(TThinkingLevelType.Parse(Value));
 end;
 
 function TThinkingConfig.ThinkingLevel(
