@@ -192,11 +192,9 @@ and orchestration is available in:
 
 ## Building the JSON payload  
 
-Writing JSON payloads manually quickly becomes error-prone as requests grow
-more complex (multi-turn, multimodal, tools).
+Writing JSON payloads manually quickly becomes error-prone as requests grow more complex (multi-turn, multimodal, tools).
 
-For this reason, the library provides the `TGeneration` helper, which offers
-a typed and fluent way to construct generation payloads.
+For this reason, the [library](https://github.com/MaxiDonkey/DelphiGemini/blob/main/source/Gemini.Helpers.pas) provides the `TGeneration` helper, which offers a typed and fluent way to construct generation payloads.
 
 See: [generations-json-payload-builder.md](generations-json-payload-builder.md#building-json-payloads-for-the-generation-endpoint)
 

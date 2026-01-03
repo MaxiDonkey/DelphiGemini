@@ -294,7 +294,7 @@ This approach avoids nested callbacks and produces a linear, readable control fl
 >[!NOTE]
 >Using `TPromise<TChat>` requires adding the `Gemini.Async.Promise` unit to the `uses` clause. 
 
-<br>²
+<br>
 
 ## Quick selection guide
 - Blocking call, simplest usage → `Client.Chat.Create(ModelName, Params)`
