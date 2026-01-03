@@ -205,7 +205,7 @@ See: [generations-json-payload-builder.md](generations-json-payload-builder.md#b
 | Domain | supported* | payload patten | synchrone snippet | asynchrone snippet |   
 | :--- | :---: | :---: | :---: | :---: |
 | Text generation | ● | [**#section**](generations-json-payload-builder.md#expected-json-payload) | [**#non-streamed**](generations-generation.md#1-synchronous-text-generation) | [**#non-streamed**](generations-generation.md#2-asynchronous-text-generation-promise-based) |
-| Text generation streamed | ● | [**#section**](generations-json-payload-builder.md#expected-json-payload) | [**#streamied**](generations-sse.md#1-synchronous-streaming-direct-consumption) | [**#streamied**](generations-sse.md#2-asynchronous-streaming-with-session-callbacks) |
+| Text generation streamed | ● | [**#section**](generations-json-payload-builder.md#expected-json-payload) | [**#streamed**](generations-sse.md#1-synchronous-streaming-direct-consumption) | [**#streamed**](generations-sse.md#2-asynchronous-streaming-with-session-callbacks) |
 | Image generation | ● | [**#section**](generations-json-payload-image-builder.md#image-generation) | ✔ | ✔ |
 | Image understanding | ● | [**#section**](generations-json-payload-media-builder.md#construction-using-tgeneration) | ✔ | ✔ |) |  
 | Video understanding | ● | [**#section**](generations-json-payload-media-builder.md#construction-using-tgeneration) | ✔ | ✔ |
