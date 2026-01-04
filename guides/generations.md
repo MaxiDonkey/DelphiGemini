@@ -56,10 +56,10 @@ It starts with a minimal working example, then presents the available execution 
     procedure (Params: TChatParams)
     begin
       Params
-         .Contents( TGeneration.Contents
+         .Contents( Generation.Contents
              .AddText('Write a story about a magic backpack.') // AddText is a shortcut for a single text part
           )
-         .GenerationConfig( TGeneration.AddConfig
+         .GenerationConfig( Generation.AddConfig
              .Temperature(0.7)
           );
       TutorialHub.JSONRequest := Params.ToFormat();
