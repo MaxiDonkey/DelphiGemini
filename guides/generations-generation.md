@@ -151,6 +151,17 @@ The asynchronous API:
           Display(TutorialHub, E.Message);
         end);  
   ```
+
+>[!IMPORTANT]
+>The examples rely on **TutorialHub**, a utility component used exclusively for tutorial and demonstration purposes.
+>
+>- `TutorialHub` is used to centralize display, logging, and SSE request/response visualization.
+>- It is **not part of the core API** and is **not required** to use `Client.Chat`.
+>- These examples are **reproduced verbatim and fully runnable** in the provided **demonstration application**.
+>
+>In your own application, you are free to replace `TutorialHub` and the `Display...` / `DisplayStream...` helper methods with your own UI, logging, or tracing mechanisms.
+
+
 #### Key points
 - The returned `TChat` is owned by the promise chain.
 - You do not manually free the object.
@@ -209,6 +220,16 @@ This is useful when you want:
            Display(TutorialHub, E.Message);
          end);
    ```
+
+>[!IMPORTANT]
+>The examples rely on **TutorialHub**, a utility component used exclusively for tutorial and demonstration purposes.
+>
+>- `TutorialHub` is used to centralize display, logging, and SSE request/response visualization.
+>- It is **not part of the core API** and is **not required** to use `Client.Chat`.
+>- These examples are **reproduced verbatim and fully runnable** in the provided **demonstration application**.
+>
+>In your own application, you are free to replace `TutorialHub` and the `Display...` / `DisplayStream...` helper methods with your own UI, logging, or tracing mechanisms.
+
 
 #### Key points (callbacks variant)
 - The callback context (`TPromiseChat`) is optional: use it when you need start/success/error hooks.
