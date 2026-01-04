@@ -90,6 +90,17 @@ This section presents several ways to consume an SSE stream returned by `Client.
       Client.Chat.CreateStream(ModelName, Params, ChatEvent);
   ```
 
+>[!IMPORTANT]
+>The examples below rely on **TutorialHub**, a utility component used exclusively for tutorial and demonstration purposes.
+>
+>- `TutorialHub` is used to centralize display, logging, and SSE request/response visualization.
+>- It is **not part of the core API** and is **not required** to use `Client.Chat`.
+>- These examples are **reproduced verbatim and fully runnable** in the provided **demonstration application**.
+>
+>In your own application, you are free to replace `TutorialHub` and the `Display...` / `DisplayStream...` helper methods with your own UI, logging, or tracing mechanisms.
+
+<br>
+
 #### Key points
 - You can render incrementally as chunks arrive.
 - `Cancel := True` requests the stream to stop (cooperative).
@@ -172,6 +183,16 @@ This section presents several ways to consume an SSE stream returned by `Client.
             Display(TutorialHub, E.Message);
           end);
    ```
+>[!IMPORTANT]
+>The examples below rely on **TutorialHub**, a utility component used exclusively for tutorial and demonstration purposes.
+>
+>- `TutorialHub` is used to centralize display, logging, and SSE request/response visualization.
+>- It is **not part of the core API** and is **not required** to use `Client.Chat`.
+>- These examples are **reproduced verbatim and fully runnable** in the provided **demonstration application**.
+>
+>In your own application, you are free to replace `TutorialHub` and the `Display...` / `DisplayStream...` helper methods with your own UI, logging, or tracing mechanisms.
+
+<br>
 
 #### Key points
 - `OnProgress` is for incremental rendering (UI/log).
@@ -230,6 +251,16 @@ Because asynchronous streaming returns a promise, we can build a readable pipeli
 
 >[!NOTE]
 > The snippet above illustrates the pattern “stream → post-process → second request”. 
+
+>[!IMPORTANT]
+>The examples below rely on **TutorialHub**, a utility component used exclusively for tutorial and demonstration purposes.
+>
+>- `TutorialHub` is used to centralize display, logging, and SSE request/response visualization.
+>- It is **not part of the core API** and is **not required** to use `Client.Chat`.
+>- These examples are **reproduced verbatim and fully runnable** in the provided **demonstration application**.
+>
+>In your own application, you are free to replace `TutorialHub` and the `Display...` / `DisplayStream...` helper methods with your own UI, logging, or tracing mechanisms.
+
 
 <br>
 

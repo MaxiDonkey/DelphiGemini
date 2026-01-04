@@ -55,7 +55,10 @@ Use the synchronous API when:
 
   
    ```pascal
-     // uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+     // uses Gemini, Gemini.Types, Gemini.Helpers; 
+     // Client: IGemini;
+
+     Client := TGeminiFactory.CreateInstance('GEMINI_API_KEY');
 
      var ModelName := 'gemini-3-pro-preview';
 
@@ -64,15 +67,12 @@ Use the synchronous API when:
        procedure (Params: TChatParams)
        begin
          Params
-            .Contents( TGeneration.Contents
+            .Contents( Generation.Contents
                 .AddText('Write a story about a magic backpack.')
              )
             .GenerationConfig( TGeneration.AddConfig
                 .Temperature(0.7)
              );
-
-         //Displays the JSON payload
-         TutorialHub.JSONRequest := Params.ToFormat();
        end;
 
 
@@ -80,10 +80,9 @@ Use the synchronous API when:
      var Value := Client.Chat.Create(ModelName, Params);
 
      try
-       Display(Memo1, Value);
-
-       // Example: extract the first text part
-       Display(TutorialHub, Value.Candidates[0].Content.Parts[0].Text);
+       for var Candidate in Value.Candidates do
+         for var Part in Candidate.Content.Parts do
+           Memo1.Lines.Text := Memo1.Text + Part.Text;
      finally
        Value.Free;
      end;
@@ -110,11 +109,14 @@ The asynchronous API:
 - `&Catch` centralizes error handling.
 
   ```pascal
-    // uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
-  
+    // uses Gemini, Gemini.Types, Gemini.Helpers;
+    // Client: IGemini;
+
+    Client := TGeminiFactory.CreateInstance('GEMINI_API_KEY');    
+
     var ModelName := 'gemini-3-pro-preview';
 
-    var Document := '..\..\images\Invoice.png';
+    var Document := '..\..\media\Invoice.png';
     var base64 := TMediaCodec.EncodeBase64(Document);
     var mimeType := TMediaCodec.GetMimeType(Document);
 
@@ -123,13 +125,12 @@ The asynchronous API:
       procedure (Params: TChatParams)
       begin
         Params
-          .Contents( TGeneration.Contents
+          .Contents( Generation.Contents
               .AddParts( TGeneration.Parts
-                  .AddText('Décrire l''image en détails')
+                  .AddText('Discribe the image')
                   .AddInlineData(base64, mimeType)
                )
            );
-       TutorialHub.JSONRequest := Params.ToFormat();
       end;
 
     // Asynchronous generation (promise-based)
@@ -140,13 +141,15 @@ The asynchronous API:
         function (Value: TChat): string
         begin
           Result := Value.Candidates[0].Content.Parts[0].Text;
-          Display(TutorialHub, Value);
+          for var Candidate in Value.Candidates do
+            for var Part in Candidate.Content.Parts do
+              Memo1.Lines.Text := Memo1.Text + Part.Text;
         end)
       .&Catch(
         procedure (E: Exception)
         begin
           Display(TutorialHub, E.Message);
-        end);
+        end);  
   ```
 #### Key points
 - The returned `TChat` is owned by the promise chain.

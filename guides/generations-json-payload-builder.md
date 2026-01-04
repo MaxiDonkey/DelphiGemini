@@ -39,17 +39,21 @@ In the following examples, we first present the JSON structure expected by the A
 ]
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
+  
+  var Prompt := 'How does AI work?';
+  var Params := TChatParams.Create;
 
-  var Params := TChatParams.Create
-        .Contents( TGeneration.Contents
-            .AddParts( TGeneration.Parts
-                .AddText('How does AI work?')
+  with Generation do
+      Params
+        .Contents( Contents
+            .AddParts( Parts
+                .AddText(Prompt)
             )
         );
-  
+
   Memo1.Text := Params.ToFormat(True);
 ```
 
@@ -107,19 +111,20 @@ You can guide the behavior of Gemini models with system instructions. To do so, 
     ]
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
+  var Instructions := 'You are a cat. Your name is Neko.';
+  var Prompt := 'Hello there';
 
   with Generation do
       Params
-        .SystemInstruction('You are a cat. Your name is Neko.')
+        .SystemInstruction(Instructions)
         .Contents( Contents
             .AddParts( Parts
-                .AddText('How does AI work?')
+                .AddText(Prompt)
             )
         );
 
@@ -149,18 +154,18 @@ Other configuration
     }
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
+  var Prompt := 'How does AI work?';
 
   with Generation do
       Params
         .Contents( Contents
             .AddParts( Parts
-                .AddText('How does AI work?')
+                .AddText(Prompt)
             )
         )
         .GenerationConfig( AddConfig
@@ -197,18 +202,18 @@ ___
 }
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
+  var Prompt := 'How does AI work?';
 
   with Generation do
       Params
         .Contents( Contents
             .AddParts( Parts
-                .AddText('How does AI work?')
+                .AddText(Prompt)
             )
         )
         .GenerationConfig( AddConfig
@@ -243,18 +248,18 @@ ___
   }
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
+  var Prompt := 'How does AI work?';
 
   with Generation do
       Params
         .Contents( Contents
             .AddParts( Parts
-                .AddText('How does AI work?')
+                .AddText(Prompt)
             )
         )
         .GenerationConfig( AddConfig
@@ -264,7 +269,6 @@ ___
         );
 
   Memo1.Text := Params.ToFormat(True);
-
 ```
 
 <br>
@@ -299,22 +303,22 @@ The Gemini API supports multimodal inputs, allowing you to combine text with med
   ]
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
 
   var FileLocation := 'Z:\File\my_file.png';
   var Base64 := TMediaCodec.EncodeBase64(FileLocation);
   var MimeType := TMediaCodec.GetMimeType(FileLocation);
+  var Prompt := 'Tell me about this instrument';
 
   with Generation do
       Params
         .Contents( Contents
             .AddParts( Parts
-                .AddText('How does AI work?')
+                .AddText(Prompt)
                 .AddInlineData(Base64, MimeType)
             )
         );
@@ -355,12 +359,11 @@ The Gemini API supports multimodal inputs, allowing you to combine text with med
     ]
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
 
   with Generation do
       Params
@@ -389,7 +392,6 @@ When the multi-turn conversation consists exclusively of text:
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
 
   with Generation do
       Params

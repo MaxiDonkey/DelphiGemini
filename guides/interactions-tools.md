@@ -45,7 +45,34 @@ The example used throughout this section is: **"What’s the weather in Paris?"*
 
 ### Step1: Construct the JSON payload
 
-#### Approach using the `TSchemaParams` class.
+#### Expected JSON payload
+```Json
+{
+    "model": "gemini-3-flash-preview",
+    "input": "What is the weather in Paris?",
+    "tools": [
+        {
+            "type": "function",
+            "name": "get_weather",
+            "description": "Gets the weather for a given location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    }
+                },
+                "required": [
+                    "location"
+                ]
+            }
+        }
+    ]
+}
+```
+
+#### Approach using the `TSchemaParams` class and the `TInteractionTool` record helper.
 
 ```pascal
   var Params: TProc<TInteractionParams> :=
@@ -54,65 +81,60 @@ The example used throughout this section is: **"What’s the weather in Paris?"*
           Params
             .Model('gemini-3-flash-preview')
             .Input('What is the weather in Paris?' )
-            .Tools(
-              TToolIx.Create()
-                .AddFunction(
-                  TfunctionIxParams.New
-                    .Name('get_weather')
-                    .Description('Gets the weather for a given location.')
-                    .Parameters(
-                      TSchemaParams.New
-                        .&Type('object')
-                        .Properties(
-                          TSchemaParams.New
-                            .Properties('location',
-                              TSchemaParams.New
-                                .&Type('string')
-                                .Description('The city and state, e.g. San Francisco, CA')
-                             )
-                         )
-                        .Required(['location'])
-                     )
-                 )
-             );
+            .Tools( Interactions.Tools
+              .AddFunction( Interactions.Tool.AddFunction
+                .Name('get_weather')
+                .Description('Gets the weather for a given location.')
+                .Parameters( TSchemaParams.New
+                  .&Type('object')
+                  .Properties( TSchemaParams.New
+                    .Properties('location', TSchemaParams.New
+                      .&Type('string')
+                      .Description('The city and state, e.g. San Francisco, CA')
+                    )
+                  )
+                .Required(['location'])
+                )
+              )
+            );
         end;
 ```
 
 <br>
 
-#### Approach using the `TToolIX` record helper.
+#### Approach using the `TInteractionTool` record helper.
 
 ```pascal
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
-            .Input('What is the weather in Paris?' )
-            .Tools(
-              TToolIx.Create()
-                .AddFunction(
-                  TfunctionIxParams.New
-                    .Name('get_weather')
-                    .Description('Gets the weather for a given location.')
-                    .Parameters(
-                      '''
-                      {
-                          "type": "object",
-                          "properties": {
-                              "location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}
-                          },
-                          "required": ["location"]
-                      }
-                      '''
-                    )
-                 )
-             );
-
+          .Model('gemini-3-flash-preview')
+          .Input('What is the weather in Paris?' )
+          .Tools( Interactions.Tools
+              .AddFunction( Interactions.Tool.AddFunction
+                  .Name('get_weather')
+                  .Description('Gets the weather for a given location.')
+                  .Parameters(
+                    '''
+                    {
+                        "type": "object",
+                        "properties": {
+                            "location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}
+                        },
+                        "required": ["location"]
+                    }
+                    '''
+                  )
+               )
+           );
         end;
 ```
 
 With this approach, declaring multiple functions is both efficient and visually clear. Additional functions can be added easily by calling `.AddFunction(...)`.
+
+>[!IMPORTANT]
+> This multiline string–based approach is only applicable when using Delphi version 12 or later. Otherwise, you can still rely on an external string in which the JSON payload is explicitly defined.
 
 <br>
 
@@ -146,7 +168,8 @@ With this approach, declaring multiple functions is both efficient and visually 
         end;
 ```
 
-This multiline string–based approach is only applicable when using Delphi version 12 or later. Otherwise, you can still rely on an external string in which the JSON payload is explicitly defined.
+>[!IMPORTANT]
+> This multiline string–based approach is only applicable when using Delphi version 12 or later. Otherwise, you can still rely on an external string in which the JSON payload is explicitly defined.
 
 <br>
 
@@ -193,7 +216,7 @@ Now define the method that orchestrates the two promises required to retrieve th
 > Using `TPromise<TInteraction>` requires adding the `Gemini.Async.Promise` unit to the `uses` clause.
 
 ```pascal
-  // First pass. 
+  // First Pass. 
   var Promise := Client.Interactions.AsyncAwaitCreate(Params);
 
   Promise
@@ -209,7 +232,8 @@ Now define the method that orchestrates the two promises required to retrieve th
           Exit(TPromise<TInteraction>.Resolved(nil));
 
         var Weather := GetWeatherFromLocation(Arguments);
-
+         
+        // Second Pass
         Result := Client.Interactions.AsyncAwaitCreate(
           procedure (Params: TInteractionParams)
              begin
@@ -239,6 +263,9 @@ Now define the method that orchestrates the two promises required to retrieve th
       end);
 ```
  
+>[!NOTE]
+>The orchestration of the two asynchronous tasks aims to collapse the full request–execution–response flow into a single promise chain.
+
 <br>
 
 The JSON result.
@@ -324,8 +351,7 @@ Grounding enables applications to:
           Params
             .Model('gemini-3-flash-preview')
             .Input('Who won the last Super Bowl?')
-            .Tools(
-              TToolIx.Create()
+            .Tools( Interactions.Tools
                 .AddGoogleSearch()
             );
         end;
@@ -367,9 +393,8 @@ Gemini can only execute Python code. While the model can generate code in other 
           Params
             .Model('gemini-3-flash-preview')
             .Input('Calculate the 50th Fibonacci number.')
-            .Tools(
-              TToolIx.Create()
-                .AddCodeExecution()
+            .Tools( Interactions.Tools
+                 .AddCodeExecution()
             );
         end;
 ```
@@ -411,8 +436,7 @@ This tool is useful for tasks such as:
           Params
             .Model('gemini-3-flash-preview')
             .Input('Summarize the content of https://www.wikipedia.org/')
-            .Tools(
-              TToolIx.Create()
+            .Tools( Interactions.Tools
                 .AddUrlContext()
             );
         end;
@@ -455,8 +479,7 @@ Refer to the [document](https://modelcontextprotocol.io/docs/getting-started/int
           Params
             .Model('gemini-3-flash-preview')
             .Input('What is the weather like in New York today?')
-            .Tools(
-              TToolIx.Create()
+            .Tools( Interactions.Tools
                 .AddMcpServer(
                   TMcpServerIxParams.New
                     .Name('weather_service')

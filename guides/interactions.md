@@ -5,7 +5,7 @@
 - [Response generation](#response-generation)
   - [Non streamed](interactions-generation.md#text-generation-non-streamed-interactions) 
   - [SSE Streaming](interactions-sse.md#sse-streaming-interactions)
-- [Stateful conversation](interactions-conversations.md)
+- [Stateful conversation](interactions-conversations.md#stateful-conversation)
 - [Interactions CRUD](#interactions-crud)
 - [Multimodal capabilities](#multimodal-capabilities)
 - [Agentic capabilities](#agentic-capabilities)
@@ -38,121 +38,75 @@ We nonetheless provide two simple illustrative examples here for text generation
 ### Synchronous
 
 ```pascal
-// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+  // uses Gemini, Gemini.Types, Gemini.Helpers
+  // Client: IGemini;
 
-//Synchronous example (non streamed)
-  var Value := Client.Interactions.Create(
+  Client := TGeminiFactory.CreateInstance('GEMINI_API_KEY');
+
+  // Json Payload
+  var Params: TProc<TInteractionParams> :=
     procedure (Params: TInteractionParams)
-        begin
-          Params
-            .Model('gemini-3-flash-preview')
-            .Input('From which version of Delphi were multi-line strings introduced?' );
-        end);
+    begin
+       Params
+         .Model('gemini-3-flash-preview')
+         .Input('From which version of Delphi were multi-line strings introduced?' );
+    end;
+
+  Memo1.Lines.Add('Please wait...');
+
+  //Synchronous example (non streamed)
+  var Value := Client.Interactions.Create(Params);
 
   try
-    Display(TutorialHub, Value);
+    for var Output in Value.Outputs do
+      if Output.&Type = TContentType.text then
+        Memo1.Lines.Text := Memo1.Text + Output.Text;
   finally
     Value.Free;
   end;
 ```
-
-```pascal
-// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
-
-//Synchronous example (streamed)
-Client.Interactions.CreateStream(
-  procedure (Params: TInteractionParams)
-  begin
-    Params
-      .Model('gemini-3-flash-preview')
-      .Input('From which version of Delphi were multi-line strings introduced?' )
-      .Stream;
-  end,
-  procedure (var Event: TInteractionStream; IsDone: Boolean; var Cancel: Boolean)
-  begin
-    if (not IsDone) and Assigned(Event) then
-      begin
-        DisplayStream(TutorialHub, Event);
-      end;
-  end);
-```
+>[!NOTE]
+>```pascal 
+>  //JSON payload generation
+>  var Params: TProc<TChatParams> :=
+>```   
+>In this example, the request payload is defined as a procedure that receives a `TChatParams` instance, allowing deferred and reusable request construction. 
 
 <br>
 
-___
-
-### ASynchronous
-
 ```pascal
-// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
+  // uses Gemini, Gemini.Types, Gemini.Helpers;
+  // Client: IGemini;
 
-//Asynchronous (non streamed)
-  var Promise := Client.Interactions.AsyncAwaitCreate(
+  Client := TGeminiFactory.CreateInstance('GEMINI_API_KEY');
+
+  // Json Payload
+  var Params: TProc<TInteractionParams> :=
     procedure (Params: TInteractionParams)
+    begin
+       Params
+         .Model('gemini-3-flash-preview')
+         .Input('From which version of Delphi were multi-line strings introduced?' )
+         .Stream;
+    end;
+
+  // Stream Callback
+  var StreamCallBack: TInteractionEvent :=
+    procedure (var Event: TInteractionStream; IsDone: Boolean; var Cancel: Boolean)
+    begin
+      if (not IsDone) and Assigned(Event) then
         begin
-          Params
-            .Model('gemini-3-flash-preview')
-            .Input('From which version of Delphi were multi-line strings introduced?' );
-        end);
+          if Event.EventType = content_delta then
+            if Event.Delta.&Type = TContentType.Text then
+              begin
+                Memo1.Lines.Text := Memo1.Text + Event.Delta.Text;
+                Application.ProcessMessages;
+              end;
+        end;
+    end;
 
-  Promise
-    .&Then<string>(
-      function (Value: TInteraction): string
-      begin
-        Result := Value.Id;
-        Display(TutorialHub, Value);
-      end)
-    .&Catch(
-      procedure (E: Exception)
-      begin
-        Display(TutorialHub, E.Message);
-      end);
-``` 
-
-```pascal
-// uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*)
-
-//Asynchronous (Streamed)
-  var Promise := Client.Interactions.AsyncAwaitCreateStream(
-        procedure (Params: TInteractionParams)
-        begin
-          Params
-            .Model('gemini-3-flash-preview')
-            .Input('From which version of Delphi were multi-line strings introduced?' )
-            .GenerationConfig(
-              TGenerationConfigIxParams.Create
-                .ThinkingSummaries('auto') //Include "thougth"
-               )
-            .Stream;
-        end,
-        function : TStreamEventCallBack
-        begin
-          Result.Sender := TutorialHub;
-          Result.OnInteractionStart := DisplayInteractionStart;
-          Result.OnInteractionStatusUpdate := DisplayInteractionStatusUpdate;
-          Result.OnInteractionComplete := DisplayInteractionComplete;
-          Result.OnContentStart := DisplayContentStart;
-          Result.OnContentDelta := DisplayContentDelta;
-          Result.OnContentStop := DisplayContentStop;
-          Result.OnError := DisplayInteractionError;
-          Result.OnCancellation := Cancellation;
-          Result.OnDoCancel := DoCancellation;
-        end);
-
-  Promise
-    .&Then<TEventData>(
-      function (Value: TEventData): TEventData
-      begin
-        Result := Value;
-        ShowMessage(Value.Id);
-        ShowMessage(Value.Thought);
-        ShowMessage(Value.Text);
-      end)
-    .&Catch(
-      procedure (E: Exception)
-      begin
-        Display(TutorialHub, E.Message);
-      end);
+  //Synchronous example (streamed)
+  Client.Interactions.CreateStream(Params, StreamCallBack);
 ```
 
 <br>
@@ -206,7 +160,7 @@ Customize the model's behavior with `generation_config`.
 ## Supported models & agents
 
 | Model name | Type | Model ID |
-| :---: | :---: | :---: |
+| :--- | :---: | :--- |
 | Gemini 2.5 Pro | Model | gemini-2.5-pro |
 | Gemini 2.5 Flash | Model | gemini-2.5-flash |
 | Gemini 2.5 Flash-lite | Model | gemini-2.5-flash-lite |

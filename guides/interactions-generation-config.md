@@ -7,8 +7,7 @@
           Params
             .Model('gemini-3-flash-preview')
             .Input('Tell me a story about a brave knight.')
-            .GenerationConfig(
-               TGenerationConfigIxParams.Create
+            .GenerationConfig( TInteractions.AddConfig
                  .Temperature(0.7)
                  .MaxOutputTokens(500)
                  .ThinkingLevel('low')

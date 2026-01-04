@@ -7,12 +7,15 @@ To continue a conversation, provide the identifier from the previous interaction
 
 
 ```pascal
+ var Model := 'gemini-3-flash-preview';
+ var Prompt := 'new message in the conversation';
+
  var Params: TProc<TInteractionParams> :=
     procedure (Params: TInteractionParams)
     begin
       Params
-        .Model('gemini-3-flash-preview')
-        .Input('new message in the conversation')
+        .Model(Model)
+        .Input(Prompt)
         .PreviousInteractionId('INTERACTION_ID'); //INTERACTION_ID was obtained from a previous interaction turn. 
     end;
 
@@ -23,11 +26,13 @@ To continue a conversation, provide the identifier from the previous interaction
 
 (Delphi `version 12 or later`)
 ```pascal
+ var Model := 'gemini-3-flash-preview';
+
  var Params: TProc<TInteractionParams> :=
     procedure (Params: TInteractionParams)
     begin
       Params
-        .Model('gemini-3-flash-preview')
+        .Model(Model)
         .Input(
           '''
           [
@@ -63,19 +68,20 @@ This unit brings together numerous utility methods designed to simplify and make
 
 
 ```pascal
- var FileLocation := 'Z:\Images\Invoice.png';
+ var FileLocation := '..\..\media\Invoice.png';
  var Base64 := TMediaCodec.EncodeBase64(FileLocation);
  var MimeType := TMediaCodec.GetMimeType(FileLocation);
+ var Model := 'gemini-3-flash-preview';
 
  var Params: TProc<TInteractionParams> :=
        procedure (Params: TInteractionParams)
        begin
          Params
-           .Model('gemini-3-flash-preview')
-           .Input( TInteractionTurn.Turns
+           .Model(Model)
+           .Input( Interactions.Turns
              .AddUser(    'What are the three largest cities in Spain?')
              .AddModel(   'The three largest cities in Spain are Madrid, Barcelona, and Valencia.')
-             .AddUser(TInteractionInput.Inputs
+             .AddUser( Interactions.Inputs
                 .AddText( 'Describe this image')
                 .AddImage(Base64, Mimetype)
              )

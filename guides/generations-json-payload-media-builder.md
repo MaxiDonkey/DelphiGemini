@@ -29,8 +29,8 @@ In line with Google’s recommendations, a **text-after-media** structure is ado
 ```json
  "contents": [{
     "parts": [
-      { "inline_data": { "mime_type": "application/pdf", "data": "<BASE64_PDF>" } },
-      { "text": "Summarize this document" }
+      { "inline_data": { "mime_type": "mime_type", "data": "<BASE64F>" } },
+      { "text": "the prompt" }
     ]
   }]
 ```
@@ -40,10 +40,9 @@ In line with Google’s recommendations, a **text-after-media** structure is ado
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
   
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
-  var Base64 := 'base64'; //TMediaCodec.EncodeBase64('filename or stream');
-  var MimeType := 'application/pdf';  //TMediaCodec.GetMimeType('filename');
-  var Prompt := 'Summarize this document';
+  var Base64 := 'BASE64';       //TMediaCodec.EncodeBase64('filename or stream');
+  var MimeType := 'mime_type';  //TMediaCodec.GetMimeType('filename');
+  var Prompt := 'the prompt';
 ```
 
 ```pascal
@@ -90,7 +89,6 @@ This approach is recommended for large media files or when the same file is used
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
   
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
   var Uri := 'https://website/document.pdf';
   var MimeType := 'application/pdf';
   var Prompt := 'Summarize this document';
@@ -135,7 +133,6 @@ A single generation request may reference multiple media items. Media parts can 
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
 
   var LocationFile1 := 'Local_File';
   var Base64_1 := 'base64_1';  //TMediaCodec.EncodeBase64(LocationFile1);

@@ -52,12 +52,11 @@ Declaring the tool does not guarantee it will be used.
 > [!NOTE]
 > This section demonstrates **payload construction only**. Execution and response handling are covered elsewhere.
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
  
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
   var Prompt := 'What are the news stories of the day?';
 
   with Generation do
@@ -102,17 +101,17 @@ It enhances the user experience by delivering relevant and personalized content,
 > Tools can be combined with system instructions to constrain how and when
 > the model should rely on external data.
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
+  var Prompt := 'Restaurants near Times Square.';
 
   with Generation do
       Params
         .Contents( Contents
-            .AddText('Restaurants near Times Square.')
+            .AddText(Prompt)
         )
         .Tools( Tools
             .AddGoogleMaps
@@ -137,17 +136,17 @@ The `googleMaps` tool can also accept a **boolean** parameter named `enableWidge
 }
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
+  var Prompt := 'Restaurants near Times Square.';
 
   with Generation do
       Params
         .Contents( Contents
-            .AddText('Restaurants near Times Square.')
+            .AddText(Prompt)
         )
         .Tools( Tools
             .AddGoogleMaps( Tools.GoogleMaps
@@ -181,18 +180,17 @@ The `googleMaps` tool can also accept a **boolean** parameter named `enableWidge
   }
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
-  var ToolConfig := Generation.ToolConfig;
+  var Prompt := 'Restaurants near here.';
 
   with Generation, ToolConfig do
       Params
         .Contents( Contents
-            .AddText('Restaurants near here.')
+            .AddText(Prompt)
         )
         .Tools( Tools
             .AddGoogleMaps
@@ -246,12 +244,11 @@ The `googleMaps` tool can also accept a **boolean** parameter named `enableWidge
 > Declaring the `urlContext` tool makes URL retrieval available to the model,
 > but does not guarantee that all referenced URLs will be fetched or used.
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
   var Prompt := 'Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/21151/simple-whole-roast-chicken/';
 
   with Generation do
@@ -325,12 +322,11 @@ You can also use code execution as part of a chat.
 > [!NOTE]
 > From the payload builder perspective, code execution is enabled by declaring the corresponding tool. The client is only responsible for providing the request configuration, not for orchestrating execution.
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
 
   with Generation do
       Params

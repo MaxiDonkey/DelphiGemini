@@ -19,20 +19,22 @@ ___
 The wrapper provides full support for handling base64-encoded content as well as DATA URI formats. For more details, refer to the [`Gemini.Net.MediaCodec`](https://github.com/MaxiDonkey/DelphiGemini/blob/main/source/Gemini.Net.MediaCodec.pas) unit, which includes the `TMediaCodec` helper, or to the Codec management section.
 
 ```pascal
-  var ImageLocation := 'Z:\Images\Invoice.png';
+  var ImageLocation := '..\..\media\Invoice.png';
   var Base64 := TMediaCodec.EncodeBase64(ImageLocation);
   var MimeType := TMediaCodec.GetMimeType(ImageLocation);
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'Describe the image.';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
-            .Input(
-              TInput.Create()
-                .AddText('Describe the image.')
+            .Model(Model)
+            .Input( Interactions.Inputs
                 .AddImage(Base64, MimeType)
-             );
+                .AddText(Prompt)
+             )
+            //.Stream;  //Optional: only when streaming mode
         end;
 ```
 
@@ -40,13 +42,13 @@ The wrapper provides full support for handling base64-encoded content as well as
 
 ```pascal
   var ImageUri := 'https://assets.visitorscoverage.com/production/wp-content/uploads/2024/04/AdobeStock_626542468-min-1024x683.jpeg'; 
+  var Prompt := 'Compare images';
 
   ...
-    .Input(
-      TInput.Create()
-        .AddText('Compare the two images')
-        .AddImage(TMediaCodec.EncodeBase64(ImageLocation), TMediaCodec.GetMimeType(ImageLocation))
+    .Input( Interactions.Inputs
+        .AddImage(Base64, MimeType)
         .AddImage(ImageUri)
+        .AddText(Prompt)
      )
   ...
 ```
@@ -60,45 +62,49 @@ The wrapper provides full support for handling base64-encoded content as well as
 ```pascal
   var ImageLocation := 'Z:\Images\Invoice.png';
   var Base64 := TMediaCodec.EncodeBase64(ImageLocation);
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'Describe the image.';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
+            .Model(Model)
             .Input(
               Format(
                 '''
                 [
-                    {"type": "text", "text": "Describe the image."},
+                    {"type": "text", "text": "%s"},
                     {"type": "image", "data": "%s", "mime_type": "image/png"}
                 ]
                 ''',
-                [Base64])
+                [Prompt, Base64])
              )
             .Stream;
         end;
 ```
-
 
 <br>
 
 ## Audio understanding
 
 ```pascal
-  var AudioLocation := 'Z:\Audio\VoiceRecorded.wav';
+  var AudioLocation := '..\..\media\Sample.wav';
   var Base64 := TMediaCodec.EncodeBase64(AudioLocation);
+  var MimeType := TMediaCodec.GetMimeType(AudioLocation);
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'What does this audio say?';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
-            .Input(
-              TInput.Create()
-                .AddText('What does this audio say?')
-                .AddAudio(Base64, 'audio/wav')
-             );
+            .Model(Model)
+            .Input( Interactions.Inputs
+                .AddAudio(Base64, MimeType)
+                .AddText(Prompt)
+             )
+            //.Stream;  //Optional: only when streaming mode
         end;
 ```
 
@@ -107,25 +113,28 @@ The wrapper provides full support for handling base64-encoded content as well as
 ### Delphi `version 12 or later`
  
 ```pascal
-  var AudioLocation := 'Z:\Audio\VoiceRecorded.wav';
+  var AudioLocation := '..\..\media\Sample.wav';
   var Base64 := TMediaCodec.EncodeBase64(AudioLocation);
   var MimeType := TMediaCodec.GetMimeType(AudioLocation);
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'What does this audio say?';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
+            .Model(Model)
             .Input(
               Format(
                 '''
                 [
-                    {"type": "text", "text": "What does this audio say?"},
-                    {"type": "audio", "data": "%s", "mime_type": "%s"}
+                    {"type": "audio", "data": "%s", "mime_type": "%s"},
+                    {"type": "text", "text": "%s"}
                 ]
                 ''',
-                [Base64, Mimetype])
-             );
+                [Base64, Mimetype, Prompt])
+            )
+            //.Stream;  //Optional: only when streaming mode 
         end;
 ```
 
@@ -149,17 +158,19 @@ Limitations
 
 ```pascal
   var VideoUri := 'https://www.youtube.com/watch?v=9hE5-98ZeCg';
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'Please summarize the video in 3 sentences.';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
-            .Input(
-              TInput.Create()
-                .AddText('Please summarize the video in 3 sentences.')
+            .Model(Model)
+            .Input( Interactions.Inputs 
                 .AddVideo(VideoUri)
-             );
+                .AddText(Prompt)
+             )
+            //.Stream;  //Optional: only when streaming mode
         end;
 ```
 
@@ -168,31 +179,33 @@ Limitations
 ### Delphi `version 12 or later` by "inline_data" encoding
  
 ```pascal
-  var VideoUri := 'Z:\Audio\Video.mp4';
+  var VideoUri := '..\..\media\dialogue.mp4';
   var Base64 := TMediaCodec.EncodeBase64(VideoUri);
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'Please summarize the video in 3 sentences.';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
+            .Model(Model)
             .Input(
               Format(
                 '''
-                [{
-                  "parts":[
-                      {
-                        "inline_data": {
-                          "mime_type":"video/mp4",
-                          "data": "%s"
-                        }
-                      },
-                      {"text": "Please summarize the video in 3 sentences."}
-                  ]
-                }]
+                [
+                    {
+                        "type": "video",
+                        "mime_type": "video/mp4",
+                        "data": "%s"},
+                    {
+                        "type": "text",
+                        "text": "%s"
+                    }
+                ]
                 ''',
-                [Base64])
-             );
+                [Base64, Prompt])
+             )
+            //.Stream;  //Optional: only when streaming mode
         end;
 ```
 
@@ -220,21 +233,22 @@ Non-PDF documents can also be provided using the same mechanism; however, in thi
 Passing PDF data inline
 
 ```pascal
-  var FilePath := 'Z:\PDF\File_Search_file.pdf';
+  var FilePath := '..\..\media\File_Search_file.pdf';
   var Base64 := TMediaCodec.EncodeBase64(FilePath);
+  var MimeType := 'application/pdf';
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'What is this document about?';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
-            .Input(
-              TInput.Create()
-                .AddText('What is this document about?')
-                .AddDocument(Base64, 'application/pdf')
+            .Model(Model)
+            .Input( Interactions.Inputs
+                .AddDocument(Base64, MimeType)
+                .AddText(Prompt)
              )
-            .Stream;
-          TutorialHub.JSONRequest := Params.ToFormat();
+            //.Stream;  //Optional: only when streaming mode
         end;
 ```
 
@@ -246,21 +260,23 @@ Passing PDF by URI
 
 ```pascal
   var PDFUri := 'https://discovery.ucl.ac.uk/id/eprint/10089234/1/343019_3_art_0_py4t4l_convrt.pdf';
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'What is this document about?';
 
   var Params: TProc<TInteractionParams> :=
         procedure (Params: TInteractionParams)
         begin
           Params
-            .Model('gemini-3-flash-preview')
+            .Model(Model)
             .Input(
               Format(
                 '''
                 [
-                    {"type": "text", "text": "What is this document about?"},
-                    {"type": "document", "uri": "%s", "mime_type": "application/pdf"}
+                    {"type": "document", "uri": "%s", "mime_type": "application/pdf"},
+                    {"type": "text", "text": "%s"}
                 ]
                 ''',
-                [PDFUri])
+                [PDFUri, Prompt])
              )
             .Stream;
           TutorialHub.JSONRequest := Params.ToFormat();

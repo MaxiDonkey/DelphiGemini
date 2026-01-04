@@ -23,25 +23,17 @@ A specific JSON output structure can be enforced by supplying a JSON schema thro
           Params
             .Model('gemini-3-flash-preview')
             .Input('Moderate the following content: ''Congratulations! You''ve won a free cruise. Click here to claim your prize: www.definitely-not-a-scam.com')
-            .ResponseFormat(
-               TSchema.New
+            .ResponseFormat( TSchema.New
                  .&Type('object')
-                 .Properties(
-                   TSchemaParams.New
-                     .Properties('decision',
-
-                        TSchemaParams.New
+                 .Properties( TSchemaParams.New
+                     .Properties('decision', TSchemaParams.New
                           .&Type('object')
-                          .Properties(
-
-                             TJSONObject.Create
-                               .AddPair('reason',
-                                 TJSONObject.Create
+                          .Properties( TJSONObject.Create
+                               .AddPair('reason', TJSONObject.Create
                                    .AddPair('type', 'string')
                                    .AddPair('description', 'The reason why the content is considered spam.')
                                 )
-                               .AddPair('spam_type',
-                                 TJSONObject.Create
+                               .AddPair('spam_type', TJSONObject.Create
                                    .AddPair('type', 'string')
                                    .AddPair('description', 'The type of spam.')
                                 )

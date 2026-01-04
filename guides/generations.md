@@ -47,7 +47,9 @@ It starts with a minimal working example, then presents the available execution 
 
 #### Construction using `TGeneration`
 ```pascal
-  // uses Gemini, Gemini.Types, Gemini.Helpers ...  
+  // uses Gemini, Gemini.Types, Gemini.Helpers;
+
+  Client := TGeminiFactory.CreateInstance('GEMINI_API_KEY');
 
   //JSON payload generation
   var Params: TProc<TChatParams> :=
@@ -207,16 +209,16 @@ See: [generations-json-payload-builder.md](generations-json-payload-builder.md#b
 | Text generation | ● | [**#section**](generations-json-payload-builder.md#expected-json-payload) | [**#non-streamed**](generations-generation.md#1-synchronous-text-generation) | [**#non-streamed**](generations-generation.md#2-asynchronous-text-generation-promise-based) |
 | Text generation streamed | ● | [**#section**](generations-json-payload-builder.md#expected-json-payload) | [**#streamed**](generations-sse.md#1-synchronous-streaming-direct-consumption) | [**#streamed**](generations-sse.md#2-asynchronous-streaming-with-session-callbacks) |
 | Image generation | ● | [**#section**](generations-json-payload-image-builder.md#image-generation) | ✔ | ✔ |
-| Image understanding | ● | [**#section**](generations-json-payload-media-builder.md#construction-using-tgeneration) | ✔ | ✔ |) |  
-| Video understanding | ● | [**#section**](generations-json-payload-media-builder.md#construction-using-tgeneration) | ✔ | ✔ |
-| Document understanding | ● | [**#section**](generations-json-payload-media-builder.md#construction-using-tgeneration) | ✔ | ✔ |
-| Audio understanding | ● | [**#section**](generations-json-payload-media-builder.md#construction-using-tgeneration) | ✔ | ✔ |
+| Image understanding | ● | [**#section**](generations-json-payload-media-builder.md#inline-media-inline_data) | ✔ | ✔ |) |  
+| Video understanding | ● | [**#section**](generations-json-payload-media-builder.md#inline-media-inline_data) | ✔ | ✔ |
+| Document understanding | ● | [**#section**](generations-json-payload-media-builder.md#inline-media-inline_data) | ✔ | ✔ |
+| Audio understanding | ● | [**#section**](generations-json-payload-media-builder.md#inline-media-inline_data) | ✔ | ✔ |
 | Gemini thinking | ● | [**#section**](generations-json-payload-builder.md#reasoning-with-gemini-thinking) | ✔ | ✔ |
 | Speech generation | ● |  | ✔ | ✔ |
 | Structured Outputs | ● |  | ✔ | ✔ |
 | Function calling | ● |  | ✔ | ✔ |
 | Googgle search | ● | [**#section**](generations-json-payload-tools-builder.md#google-search) | ✔ | ✔ |
-| Googgle Maps | ● | [**#section**](generations-json-payload-tools-builder.md#google-maps-grounding) |  |  |
+| Googgle Maps | ● | [**#section**](generations-json-payload-tools-builder.md#google-maps-grounding) | ✔ | ✔ |
 | Code execution | ● | [**#section**](generations-json-payload-tools-builder.md#code-execution) | ✔ | ✔ |
 | URL context | ● | [**#section**](generations-json-payload-tools-builder.md#google-url) | ✔ |✔  |
 | File search | ● | interactions | ✔ | ✔ |

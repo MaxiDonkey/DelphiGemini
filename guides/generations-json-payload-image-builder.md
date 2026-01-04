@@ -38,16 +38,14 @@ ___
 > If you also want textual output alongside the generated image, use `responseModalities` (see the editing examples below)
 > and parse multiple parts in the response.
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
-  var Config := Generation.Config;
   var Prompt := 'Create a picture of a nano banana dish in a fancy restaurant with a Gemini theme';
 
-  with Generation, Config do
+  with Generation, Generation.Config do
       Params
         .Contents( Contents
             .AddParts( Parts
@@ -95,12 +93,11 @@ ___
     }
 ```
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
   var Prompt :=
          '''
          Create a vibrant infographic that explains photosynthesis as if it were a recipe for a plants
@@ -169,12 +166,11 @@ You can then use the same conversation to change the language of the graphic and
 > This reduces unintended changes when the model applies the transformation.
 
 
-#### Construction using `TGeneration`
+#### Construction using `TGeneration` helper.
 ```pascal
   // uses Gemini, Gemini.Types, Gemini.Helpers ...
 
   var Params := TChatParams.Create;
-  var Generation := Default(TGeneration);
   var Prompt := 'Create a vibrant infographic that explains ...';
   var Prompt2 := 'Update this infographic to be in Spanish. Do not change any other elements of the image.';
 

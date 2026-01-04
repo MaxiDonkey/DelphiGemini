@@ -608,7 +608,8 @@ type
     /// </summary>
     function RenderedContent(const Value: string): TGoogleSearchResultIxParams;
 
-    class function New: TGoogleSearchResultIxParams;
+    class function New: TGoogleSearchResultIxParams; overload;
+    class function New(const Value: TGoogleSearchResultIxParams): TGoogleSearchResultIxParams; overload;
   end;
 
   TGoogleSearchResultContentIxParams = class(TContentIxParams)
@@ -792,7 +793,8 @@ type
 
     class function AddUser(const Value: string): TTurnParams; overload;
     class function AddUser(const Content: TArray<TInputParams>): TTurnParams; overload;
-    class function AddAssistant(const Value: string): TTurnParams;
+    class function AddAssistant(const Value: string): TTurnParams; overload;
+    class function AddAssistant(const Content: TArray<TInputParams>): TTurnParams; overload;
   end;
 
  implementation
@@ -1576,6 +1578,12 @@ begin
   Result := TGoogleSearchResultIxParams.Create;
 end;
 
+class function TGoogleSearchResultIxParams.New(
+  const Value: TGoogleSearchResultIxParams): TGoogleSearchResultIxParams;
+begin
+  Result := Value;
+end;
+
 function TGoogleSearchResultIxParams.RenderedContent(
   const Value: string): TGoogleSearchResultIxParams;
 begin
@@ -1747,6 +1755,12 @@ begin
          TTextContentIxParams.New(Value)
        ])
     );
+end;
+
+class function TTurnParams.AddAssistant(
+  const Content: TArray<TInputParams>): TTurnParams;
+begin
+  Result := AddRole(TMessageRole.model, Content);
 end;
 
 class function TTurnParams.AddRole(const Role: TMessageRole;
