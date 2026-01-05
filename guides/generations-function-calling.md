@@ -39,7 +39,9 @@ For example, the callback function can be defined as follows:
 procedure TForm1.CallFunction(const Client: IGemini;
   const Value: TFunctionCallPart; Func: IFunctionCore);
 begin
-  var ArgResult := Func.Execute(Value.Args);
+
+  var ArgResult := Func.Execute(Value.Args); // Argument Processing by the Plugin
+
   Client.Chat.ASynCreateStream('gemini-2.5-flash-lite',
     procedure (Params: TChatParams)
     begin
