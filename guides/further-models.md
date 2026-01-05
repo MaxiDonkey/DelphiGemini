@@ -23,6 +23,8 @@ ___
 ```pascal
   //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);
 
+  TutorialHub.JSONRequestClear;
+
   //Asynchronous promise example
   var Promise := Client.Models.AsyncAwaitList;
 

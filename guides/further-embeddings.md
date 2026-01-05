@@ -66,3 +66,53 @@ ___
 <br>
 
 ## Batch Embeddings Creation
+
+```pascal
+  //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);
+
+  TutorialHub.JSONRequestClear;
+  var ModelName := 'text-embedding-004';  // or 'models/text-embedding-004';
+
+  //Asynchronous promise example
+  var Promise := Client.Embeddings.AsyncAwaitCreateBatch(ModelName,
+    procedure (Params: TEmbeddingBatchParams)
+    begin
+      Params
+        .Requests(
+          TEmbeddingsBatch.Contents
+            .AddItem(ModelName, ['Hello'])
+            .AddItem(ModelName, ['how', 'are you?'])
+          );
+      TutorialHub.JSONRequest := Params.ToFormat();
+    end);
+
+  Promise
+    .&Then<TArray<TArray<Double>>>(
+       function (Value: TEmbeddingList): TArray<TArray<Double>>
+       begin
+         Display(TutorialHub, Value);
+       end)
+    .&Catch(
+       procedure (E: Exception)
+       begin
+         Display(TutorialHub, E.Message);
+       end);
+  
+  //Synchronous example
+//  var Value := Client.Embeddings.CreateBatch(ModelName,
+//    procedure (Params: TEmbeddingBatchParams)
+//    begin
+//      Params
+//        .Requests(
+//          TEmbeddingsBatch.Contents
+//            .AddItem(ModelName, ['Hello'])
+//            .AddItem(ModelName, ['how', 'are you?'])
+//          );
+//      TutorialHub.JSONRequest := Params.ToFormat();
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+```
