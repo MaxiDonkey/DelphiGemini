@@ -214,7 +214,7 @@ See: [generations-json-payload-builder.md](generations-json-payload-builder.md#b
 | Document understanding | ● | [**#section**](generations-json-payload-media-builder.md#inline-media-inline_data) | ✔ | ✔ |
 | Audio understanding | ● | [**#section**](generations-json-payload-media-builder.md#inline-media-inline_data) | ✔ | ✔ |
 | Gemini thinking | ● | [**#section**](generations-json-payload-builder.md#reasoning-with-gemini-thinking) | ✔ | ✔ |
-| Speech generation | ● |  | ✔ | ✔ |
+| Speech generation |  |  |  |  |
 | Structured Outputs | ● |  | ✔ | ✔ |
 | Function calling | ● | [**Section**](generations-function-calling.md#generatecontent---function-calling) | ✔ | ✔ |
 | Googgle search | ● | [**#section**](generations-json-payload-tools-builder.md#google-search) | ✔ | ✔ |
