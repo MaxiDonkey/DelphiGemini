@@ -11,13 +11,14 @@
 - [Agentic capabilities](#agentic-capabilities)
 - [Structured output (JSON schema)](#structured-output-json-schema)
 - [Configuration](#configuration)
+- [Extended capabilities & support](#extended-capabilities--support)
 - [Supported models & agents](#supported-models--agents)
 - [Key Takeaways](#key-takeaways)
 
 ___
 
 ## Introduction
-The **Gemini Interactions API** is an experimental API designed for building applications based on Gemini models. These models are natively multimodal and can process, combine, and generate information from multiple data types, including text, code, audio, images, and video.
+The **Gemini `Interactions` API** is an experimental API designed for building applications based on Gemini models. These models are natively multimodal and can process, combine, and generate information from multiple data types, including text, code, audio, images, and video.
 
 The API supports a range of use cases such as joint text-and-image reasoning, content generation, conversational agents, and synthesis or classification pipelines. It provides a unified interface for accessing the multimodal reasoning and transformation capabilities of Gemini models.
 
@@ -167,6 +168,34 @@ Customize the model's behavior with `generation_config`.
 | Gemini 3 Pro Preview | Model | gemini-3-pro-preview |
 | Gemini 3 Flash Preview | Model | gemini-3-flash-preview |
 | Deep Research Preview | Agent | deep-research-pro-preview-12-2025 |
+
+<br>
+
+## Extended capabilities & support
+
+| Domain | supported* | constraints / remarks |
+|------|:---:|------------------------|
+| Text generation | ● | non-streamed by default |
+| Text generation (streamed) | ● | SSE |
+| Stateful conversation | ● | server-side state |
+| Stateless conversation | ● | client-managed turns |
+| Image understanding | ● | inline / URI |
+| Audio understanding | ● | inline / URI |
+| Video understanding | ● | inline / URI |
+| Document understanding | ● | inline / URI (PDF) |
+| Image generation | ● | non-streamed |
+| Gemini thinking | ● | configurable reasoning depth |
+| Structured outputs | ● | JSON Schema enforced |
+| Function calling | ● | 2-pass workflow |
+| Google Search grounding | ● | built-in tool |
+| Code execution | ● | Python only |
+| URL context | ● | external URLs |
+| File search | ● | vector store–backed |
+| Computer use | ● | agentic tool |
+| Deep Research | ● | background only |
+| Remote MCP tools | ● | external tools |
+
+- *supported\* : support fourni par DelphiGemini*
 
 <br>
 
