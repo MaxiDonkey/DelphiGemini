@@ -180,9 +180,10 @@ Some cross-cutting or advanced features are intentionally documented outside the
 A dedicated entry point groups these topics: [Going Further](guides/going-further.md)
 
 This section links to documents covering:
-- model discovery 
-- Batch processing
+- Model discovery 
+- Embeddings
 - Caching
+- Batch processing
 - Video generation (Veo)
 - Image generation (Imagen 4)
 - File management
