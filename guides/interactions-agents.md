@@ -53,7 +53,7 @@ Specialized agents, such as `deep-research-pro-preview-12-2025`, can be used to 
 
 Once the request has been submitted, wait for the `INTERACTION_ID` (e.g. v1_ChcybEZSYWJt...ZpUUU) to be returned, indicating that the request is being processed.
 
-This identifier must then be used to poll the status and retrieve the result using the `Client.Interactions.AsyncAwaitRetrieve(INTERACTION_ID)` method.
+This identifier must then be used to poll the status and retrieve the result using the [`Client.Interactions.AsyncAwaitRetrieve(INTERACTION_ID)`](interactions-CRUD.md#retrieving-an-interaction) method.
 
 Result : status in progress
 
