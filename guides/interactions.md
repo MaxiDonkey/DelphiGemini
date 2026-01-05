@@ -8,7 +8,7 @@
 - [Stateful conversation](interactions-conversations.md#stateful-conversation)
 - [Interactions CRUD](#interactions-crud)
 - [Multimodal capabilities](#multimodal-capabilities)
-- [Agentic capabilities](#agentic-capabilities)
+- [Tools & Agentic capabilities](#tools--agentic-capabilities)
 - [Structured output (JSON schema)](#structured-output-json-schema)
 - [Configuration](#configuration)
 - [Extended capabilities & support](#extended-capabilities--support)
@@ -115,31 +115,38 @@ We nonetheless provide two simple illustrative examples here for text generation
 ## Interactions CRUD
 
 The creation of an interaction is assumed to be complete; if necessary, please refer to the following sections:
-- [Response generation](interactions.md#response-generation)
-- [Stateful conversation](interactions-conversations.md#stateful-conversation)
+- Response generation[<sup>#1</sup>](interactions.md#response-generation)
+- Stateful conversation[<sup>#2</sup>](interactions-conversations.md#stateful-conversation)
 
 During this process, an identifier (ID) is returned. This ID can be used not only to provide context for a new turn in the conversation, but also to manage existing contexts.
 
 The contexts created in this way can be retrieved, deleted, or canceled by providing their ID. Retrieving one or more contexts makes it possible to build a new context, which can then be passed to a request to improve the relevance of the response.
 
-Refer to [this section](interactions-CRUD.md#interactions-crud) to understand how these APIs work through functional code snippets.
+To understand how these APIs work through functional code snippets, see the [Interactions CRUD section](interactions-CRUD.md#interactions-crud)
 
 <br>
 
 ## Multimodal capabilities
 
-The Interactions API supports multimodal use cases, including image understanding and video generation:
-
-- [Multimodal understanding](interactions-multimodal-understanding.md#multimodal-understanding)
+The Interactions API supports multimodal use cases, enabling the understanding of: 
+- images 
+- audio data 
+- video streams 
+- PDF documents
 
 <br>
 
-## Agentic capabilities
+- See [Multimodal understanding](interactions-multimodal-understanding.md#multimodal-understanding)
 
-The Interactions API is designed to support the construction and execution of agent-based workflows. It provides capabilities such as function calling, access to built-in tools, structured output generation, and integration with the Model Context Protocol (MCP).
+<br>
 
-- [Agents](interactions-agents.md#agents)
-- [Tools](interactions-tools.md#interactions-tools)
+## Tools & Agentic capabilities
+
+The Interactions API is designed to support the construction and execution of agent-based workflows. 
+It provides capabilities such as **function calling**, **access to built-in tools**, **structured output** generation, and integration with the **Model Context Protocol (MCP)**.
+
+- See [Tools](interactions-tools.md#interactions-tools)
+- See [Agents](interactions-agents.md#agents)
 
 <br>
 
@@ -147,14 +154,14 @@ The Interactions API is designed to support the construction and execution of ag
 
 A specific JSON output structure can be enforced by providing a JSON schema via the `response_format` parameter, which is suitable for moderation, classification, and data extraction workflows.
 
-- [Structured output](interactions.json-format.md#structured-output-json-schema)
+- See [Structured output](interactions.json-format.md#structured-output-json-schema)
 
 <br>
 
 ## Configuration
 Customize the model's behavior with `generation_config`.
 
-- [Generation config](interactions-generation-config.md#generation-config)
+- See [Generation config](interactions-generation-config.md#generation-config)
 
 <br>
 

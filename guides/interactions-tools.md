@@ -327,6 +327,8 @@ The JSON result.
 - Start a new interaction with `PreviousInteractionId`.
 - Handle errors via `Catch`.
 
+>[!TIP]
+>The plugin-based approach is described for the generateContent endpoint. It can be adapted to the interactions endpoint with minimal changes. The [following section](generations-function-calling.md#generatecontent---function-calling) outlines the underlying principles.
 ___
 
 <br>
