@@ -216,7 +216,7 @@ See: [generations-json-payload-builder.md](generations-json-payload-builder.md#b
 | Gemini thinking | ● | [**#section**](generations-json-payload-builder.md#reasoning-with-gemini-thinking) | ✔ | ✔ |
 | Speech generation | ● |  | ✔ | ✔ |
 | Structured Outputs | ● |  | ✔ | ✔ |
-| Function calling | ● | [**Section**](guides/generations-function-calling.md#generatecontent---function-calling) | ✔ | ✔ |
+| Function calling | ● | [**Section**](generations-function-calling.md#generatecontent---function-calling) | ✔ | ✔ |
 | Googgle search | ● | [**#section**](generations-json-payload-tools-builder.md#google-search) | ✔ | ✔ |
 | Googgle Maps | ● | [**#section**](generations-json-payload-tools-builder.md#google-maps-grounding) | ✔ | ✔ |
 | Code execution | ● | [**#section**](generations-json-payload-tools-builder.md#code-execution) | ✔ | ✔ |
