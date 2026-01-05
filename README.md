@@ -10,6 +10,7 @@ ___
 ### New
 - GetIt current version: 1.0.0
 - [Changelog v1.1.0](changelog.md) updated on January 7, 2026
+- [Interactions](interactions.md#interactions)
 - [Summary](#summary)
 
 ___
