@@ -1,17 +1,21 @@
 # Going Further
 
-model discovery and management
+<br>
 
-batch processing
+- [Model discovery](further-models.md#models)
+  - The models endpoint allows you to programmatically list available models and retrieve detailed metadata, such as supported capabilities and context window size.
 
-caching
+- [Batch processing]()
 
-video generation (Veo)
+- [Caching](further-caching.md#caching)
+  - Implicit Caching and Explicit Caching: Definitions and Explicit Cache Management
 
-image generation (Imagen 4)
+- [Video generation (Veo)]()
 
-file management
+- [Image generation (Imagen 4)]()
 
-vector stores
+- [file management]()
 
-vectorized documents and fileSearch (Interactions)
+- [Vector stores]()
+
+- [Vectorized documents and fileSearch (Interactions)]()
