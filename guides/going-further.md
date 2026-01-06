@@ -8,7 +8,7 @@
 - [Embeddings](further-embeddings.md#embeddings)
   - The Gemini API provides text embedding models that generate vector representations of words, expressions, sentences, and code.  
 
-- [file management](further-file-managment.md)
+- [File management](further-file-managment.md)
   - Files lets you upload multimodal files (audio, images, video, documents, etc.) and reuse them inside prompts sent to Gemini models.
 
 - [Caching](further-caching.md#caching)

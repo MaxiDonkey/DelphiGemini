@@ -40,7 +40,6 @@ Uploads a media file (audio, image, video, document) and returns a URI that can 
 ```pascal
   //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);
 
-  TutorialHub.JSONUIClear;
   var FilePath := '..\..\media\File_Search_file.pdf';
   var DisplayName := 'batch_file';
 
@@ -99,8 +98,6 @@ Lists all files currently stored for a project.
 ```pascal
   //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);
 
-  TutorialHub.JSONRequestClear;
-
 
   //Asynchronous promise example
   var Promise := Client.Files.AsyncAwaitList;
@@ -137,7 +134,6 @@ Retrieves metadata and status information for an uploaded file.
 ```pascal
   //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);  
 
-  TutorialHub.JSONUIClear;
   var Name := 'files/nst3vx34zemo';
 
 
@@ -205,7 +201,7 @@ Using the `uri` property value to reference the uploaded file in a JSON payload.
 
 
   // Json Payload
-  var Params: TProc<TChatParams> :=
+  var Payload: TProc<TChatParams> :=
     procedure (Params: TChatParams)
     begin
       Params
@@ -215,12 +211,11 @@ Using the `uri` property value to reference the uploaded file in a JSON payload.
                .AddFileData(Uri, TypeMime)
            )
         );
-      TutorialHub.JSONRequest := Params.ToFormat();
     end;
 
 
   //Synchronous example
-  var Chat := Client.Chat.Create(Model, Params);
+  var Chat := Client.Chat.Create(Model, Payload);
 
   try
     Display(Memo1, Chat);
@@ -237,8 +232,6 @@ Explicitly deletes an uploaded file before the automatic 48-hour expiration.
 
 ```pascal
   //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);  
-
-  TutorialHub.JSONUIClear;
 
   var Name := 'files/nst3vx34zemo';
 
