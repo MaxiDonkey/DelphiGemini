@@ -26,6 +26,7 @@ Its goal is to improve the relevance, reliability, and traceability of generated
 - [Upload](#upload)
 - [Import](#import)
 - [Asynchronous operation tracking](#asynchronous-operation-tracking)
+- [Cross-cutting warnings and recommendations](#cross-cutting-warnings-and-recommendations)
 
 ___
 
@@ -399,3 +400,10 @@ JSON Result
 }
 ```
 
+<br>
+
+## Cross-cutting warnings and recommendations
+
+- The effective backend size of a File Search store is typically about three times larger than the original input data due to stored embeddings.
+- The distinction between temporary raw files and persistent indexed data must be considered when managing document lifecycle.
+- Most costs are concentrated on initial indexing and on context tokens consumed during query-time retrieval.
