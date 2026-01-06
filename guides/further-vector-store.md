@@ -278,6 +278,10 @@ JSON Result
 }
 ```
 
+>[!IMPORTANT]
+>- The returned JSON provides an operation identifier:
+>   - name = 'fileSearchStores/first-vectorstore-hh58fgddzd0w/operations/k1lmltked3tp-d9144s0drobd'
+
 <br>
 
 ## Import
