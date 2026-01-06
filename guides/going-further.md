@@ -17,7 +17,8 @@
 - [Batch processing](further-batch.md#batch)
   - The **Batch API** is used to execute large volumes of non-urgent requests asynchronously, with a ***~50%*** cost reduction compared to the interactive API and a target completion time of ***≤24 hours***. 
 
-- [Video generation (Veo)]()
+- [Video generation (Veo)](further-video-veo.md#video-with-veo)
+  - **Veo** supports the generation of short videos with synchronized audio from *textual, image-based, or video-based inputs*, with an emphasis on photorealistic rendering.
 
 - [Image generation (Imagen 4)]()
 
