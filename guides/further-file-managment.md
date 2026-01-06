@@ -261,11 +261,11 @@ Explicitly deletes an uploaded file before the automatic 48-hour expiration.
 
 
   //Synchronous example
-  var Value := Client.Files.Delete(Name);
-
-  try
-    Display(TutorialHub, Value);
-  finally
-    Value.Free;
-  end;
+//  var Value := Client.Files.Delete(Name);
+//
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
 ```
