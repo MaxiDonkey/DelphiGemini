@@ -4,8 +4,9 @@ The Batch API is used to execute large volumes of non-urgent requests asynchrono
 
 You submit many requests together as a single batch job (either inline or via a JSONL file), then wait for the job to complete and retrieve the aggregated results.
 
-#### Restrictions
+#### Structural constraints and limitations
 - **Asynchronous / turnaround:** designed for non-urgent workloads, target completion ≤ 24h (often faster).
+
 - **Hard expiration:** if a job remains pending or running for > 48h, it enters JOB_STATE_EXPIRED ⇒ no results can be retrieved, and the job must be resubmitted (or split).
 - **Input limits:**
   - Inline: total batch request size ≤ 20 MB.
