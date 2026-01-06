@@ -284,6 +284,8 @@ end;
 
 procedure Display(Sender: TObject; Value: TFileContent);
 begin
+  TutorialHub.JSONResponse := Value.JSONResponse;
+
   Display(Sender, [
     Value.Name,
     F('• DisplayName', Value.DisplayName),

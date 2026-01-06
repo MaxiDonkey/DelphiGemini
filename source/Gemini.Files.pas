@@ -47,7 +47,7 @@ type
   /// <summary>
   /// The <c>TFileContent</c> class is responsible for handling files uploaded to the API.
   /// </summary>
-  TFileContent = class
+  TFileContent = class(TJSONFingerprint)
   private
     FName: string;
     FDisplayName: string;

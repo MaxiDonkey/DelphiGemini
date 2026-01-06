@@ -41,8 +41,10 @@ ___
         Display(TutorialHub, E.Message);
       end);
 
+
   //Synchronous example
 //  var Value := Client.Models.List;
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally
@@ -57,7 +59,7 @@ ___
 ```pascal
   //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);
 
-  var ModelName := Edit1.Text;
+  var ModelName := 'models/gemini-2.5-flash';
 
   //Asynchronous promise example
   var Promise := Client.Models.AsyncAwaitRetrieve(ModelName);
@@ -75,8 +77,10 @@ ___
         Display(TutorialHub, E.Message);
       end);
 
+
   //Synchronous example
 //  var Value := Client.Models.Retrieve(ModelName);
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally

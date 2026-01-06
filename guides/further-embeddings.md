@@ -25,15 +25,22 @@ ___
   
   TutorialHub.JSONRequestClear;
   var ModelName := 'text-embedding-004';
+  var StringArray: TArray<string> :=
+    ['Hello', 'how', 'are you?'];
 
-  //Asynchronous promise example
-  var Promise := Client.Embeddings.AsyncAwaitCreate(ModelName,
+
+  //Json Paylod
+  var Payload: TProc<TEmbeddingsParams> :=
     procedure (Params: TEmbeddingsParams)
     begin
       Params
-        .Content(['Hello', 'how', 'are you?']);
+        .Content(StringArray);
       TutorialHub.JSONRequest := Params.ToFormat();
-    end);
+    end;
+
+
+  //Asynchronous promise example
+  var Promise := Client.Embeddings.AsyncAwaitCreate(ModelName, Payload);
 
   Promise
     .&Then<TArray<TArray<Double>>>(
@@ -49,13 +56,8 @@ ___
 
 
   //Synchronous example
-//  var Value := Client.Embeddings.Create(ModelName,
-//    procedure (Params: TEmbeddingsParams)
-//    begin
-//      Params
-//        .Content(['Hello', 'how', 'are you?']);
-//      TutorialHub.JSONRequest := Params.ToFormat();
-//    end);
+//  var Value := Client.Embeddings.Create(ModelName, Payload);
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally
@@ -73,8 +75,9 @@ ___
   TutorialHub.JSONRequestClear;
   var ModelName := 'text-embedding-004';  // or 'models/text-embedding-004';
 
-  //Asynchronous promise example
-  var Promise := Client.Embeddings.AsyncAwaitCreateBatch(ModelName,
+
+  //Json Payload
+  var Payload: TProc<TEmbeddingBatchParams> :=
     procedure (Params: TEmbeddingBatchParams)
     begin
       Params
@@ -84,7 +87,11 @@ ___
             .AddItem(ModelName, ['how', 'are you?'])
           );
       TutorialHub.JSONRequest := Params.ToFormat();
-    end);
+    end;
+
+
+  //Asynchronous promise example
+  var Promise := Client.Embeddings.AsyncAwaitCreateBatch(ModelName, Payload);
 
   Promise
     .&Then<TArray<TArray<Double>>>(
@@ -98,18 +105,10 @@ ___
          Display(TutorialHub, E.Message);
        end);
   
+
   //Synchronous example
-//  var Value := Client.Embeddings.CreateBatch(ModelName,
-//    procedure (Params: TEmbeddingBatchParams)
-//    begin
-//      Params
-//        .Requests(
-//          TEmbeddingsBatch.Contents
-//            .AddItem(ModelName, ['Hello'])
-//            .AddItem(ModelName, ['how', 'are you?'])
-//          );
-//      TutorialHub.JSONRequest := Params.ToFormat();
-//    end);
+//  var Value := Client.Embeddings.CreateBatch(ModelName, Payload);
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally

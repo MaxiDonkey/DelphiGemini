@@ -202,7 +202,7 @@ type
     /// The returned <see cref="TImageGenRoute"/> instance is created lazily and reused for subsequent calls.
     /// </para>
     /// </remarks>
-    property ImageGen: TImageGenRoute read GetImageGenRoute;
+    property Imagen: TImageGenRoute read GetImageGenRoute;
 
     /// <summary>
     /// Provides access to the Interactions API route.

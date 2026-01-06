@@ -30,16 +30,22 @@ ___
 
   TutorialHub.JSONUIClear;
   var a11 := '..\..\media\a11.txt';
+  var systemInstruction := 'You are an expert on cache using with Claude (Anthropic).';
+  var ttl := '800s';
+  var Model := 'models/gemini-2.0-flash';
 
-  //Asynchronous promise example
-  var Promise := Client.Caching.AsyncAwaitCreate(
+  // Json Payload
+  var Payload: TProc<TCacheParams> :=
     procedure (Params: TCacheParams)
     begin
       Params.Contents([TPayload.User([a11])]);
-      Params.SystemInstruction('You are an expert on cache using with Claude (Anthropic).');
-      Params.ttl('800s');
-      Params.Model('models/gemini-2.0-flash');
-    end);
+      Params.SystemInstruction(systemInstruction);
+      Params.ttl(ttl);
+      Params.Model(Model);
+    end;
+
+  //Asynchronous promise example
+  var Promise := Client.Caching.AsyncAwaitCreate(Payload);
 
   Promise
     .&Then<string>(
@@ -55,14 +61,8 @@ ___
       end);
 
   //Synchronous example
-//  var Value := Client.Caching.Create(
-//    procedure (Params: TCacheParams)
-//    begin
-//      Params.Contents([TPayload.User([a11])]);
-//      Params.SystemInstruction('You are an expert on cache using with Claude (Anthropic).');
-//      Params.ttl('800s');
-//      Params.Model('models/gemini-2.0-flash');
-//    end);
+//  var Value := Client.Caching.Create(Payload);
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally
@@ -95,9 +95,10 @@ JSON Result
 To use the cache, simply trigger a content generation through the generateContent endpoint by calling Client.Chat.Create (*synchronous or asynchronous, non-streaming or streaming*) and providing the following minimum payload:
 
 ```pascal
+  var Model := 'models/gemini-2.0-flash';
   var Prompt := 'Provide a summary of cache management';
 
-  var Params: TProc<TChatParams> :=
+  var JsonChatPayload: TProc<TChatParams> :=
     procedure (Params: TChatParams)
     begin
       Params
@@ -106,7 +107,8 @@ To use the cache, simply trigger a content generation through the generateConten
     end;
 
   // Cache using 
-  var Caching := Client.Chat.Create('models/gemini-2.0-flash', Params);
+  var Caching := Client.Chat.Create(Model, JsonChatPayload);
+  ...
 ```
 
 >[!TIP]
@@ -141,6 +143,7 @@ Cached content cannot be retrieved or viewed. However, cache metadata can be acc
 
   //Synchronous example
 //  var Value := Client.Caching.List;
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally
@@ -178,6 +181,7 @@ It is entirely possible to retrieve a cache entry using its identifier.
 
   //Synchronous example
 //  var Value := Client.Caching.Retrieve(CacheName);
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally
@@ -198,9 +202,10 @@ The following example demonstrates how to update the cache `ttl`.
 
   TutorialHub.JSONUIClear;
   var CacheName := 'cachedContents/y3flvs2o4bc75v5esfc7gfbs1yqhgiujrtbsfo1w';
+  var TimeOut := '2700s';
 
   //Asynchronous promise example
-  var Promise := Client.Caching.AsyncAwaitUpdate(CacheName, '2700s');
+  var Promise := Client.Caching.AsyncAwaitUpdate(CacheName, TimeOut);
 
   Promise
     .&Then<string>(
@@ -216,7 +221,8 @@ The following example demonstrates how to update the cache `ttl`.
       end);
 
   //Synchronous example
-//  var Value := Client.Caching.Update(CacheName, '2700s');
+//  var Value := Client.Caching.Update(CacheName, TimeOut);
+//
 //  try
 //    Display(TutorialHub, Value);
 //  finally
@@ -254,6 +260,7 @@ Content can be manually removed from the cache using the delete operation. The f
 
   //Synchronous example
 //  var Value := Client.Caching.Delete(CacheName);
+//
 //  try
 //    Display(TutorialHub, 'deleted');
 //  finally

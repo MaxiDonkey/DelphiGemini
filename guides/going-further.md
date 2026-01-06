@@ -8,6 +8,8 @@
 - [Embeddings](further-embeddings.md#embeddings)
   - The Gemini API provides text embedding models that generate vector representations of words, expressions, sentences, and code.  
 
+- [file management](further-file-managment.md)
+
 - [Caching](further-caching.md#caching)
   - Implicit Caching and Explicit Caching: Definitions and Explicit Cache Management
 
@@ -16,8 +18,6 @@
 - [Video generation (Veo)]()
 
 - [Image generation (Imagen 4)]()
-
-- [file management]()
 
 - [Vector stores]()
 
