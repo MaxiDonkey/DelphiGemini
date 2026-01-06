@@ -24,5 +24,5 @@
 - [Vector stores](further-vector-store.md#vector-store)
   - The **File Search** tool of the Gemini API is a ***Retrieval Augmented Generation (RAG)*** mechanism that indexes documents as embeddings in order to provide relevant excerpts to the model during response generation.
 
-- [Vectorized documents and fileSearch (Interactions)]()
+- [Vectorized documents and fileSearch (Interactions)](further-vector-store-document.md#vector-store-document)
   - **Documents** are the persistent, File Search–side representations of imported files, broken into chunks that semantic retrieval can use.
