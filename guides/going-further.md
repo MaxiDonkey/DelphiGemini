@@ -14,7 +14,8 @@
 - [Caching](further-caching.md#caching)
   - Implicit Caching and Explicit Caching: Definitions and Explicit Cache Management
 
-- [Batch processing]()
+- [Batch processing](further-batch.md#batch)
+  - The Batch API is used to execute large volumes of non-urgent requests asynchronously, with a ~50% cost reduction compared to the interactive API and a target completion time of ≤24 hours. 
 
 - [Video generation (Veo)]()
 

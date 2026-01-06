@@ -16,7 +16,7 @@ uses
   Gemini.Operation, Gemini.Chat.Request, Gemini.Chat.Request.Content,
   Gemini.Chat.Request.Tools, Gemini.Chat.Request.ToolConfig, Gemini.Safety,
   Gemini.Chat.Request.GenerationConfig,
-  Gemini.Async.Support, Gemini.Async.Promise;
+  Gemini.Async.Support, Gemini.Async.Promise, Gemini.Net.MediaCodec;
 
 type
   TGenerateContentRequestParams = class(TChatParams)
@@ -106,6 +106,10 @@ type
   end;
 
   TJsonlDownload = class(TJSONFingerprint)
+  private
+    FDataEncoded64: string;
+  public
+    property DataEncoded64: string read FDataEncoded64 write FDataEncoded64;
     function SaveToJsonl(const FileName: string): Boolean;
   end;
 
@@ -798,7 +802,7 @@ begin
     var Version := API.Version;
     API.Version := 'download/v1beta';
     try
-      Result := API.Get<TJsonlDownload>(FileName + ':download?alt=media');
+      Result := API.GetMedia<TJsonlDownload>(FileName + ':download?alt=media', 'DataEncoded64');
     finally
       API.Version := Version;
     end;
@@ -821,11 +825,11 @@ end;
 
 function TJsonlDownload.SaveToJsonl(const FileName: string): Boolean;
 begin
-  if JSONResponse.IsEmpty then
+  if DataEncoded64.IsEmpty then
     raise EGeminiException.Create('No data to save');
 
   Result := True;
-  System.IOUtils.TFile.WriteAllLines(FileName, JSONResponse.Split([#10]), TEncoding.UTF8);
+  TMediaCodec.DecodeBase64ToFile(DataEncoded64, FileName);
 end;
 
 { TAsynchronousSupport }

@@ -220,7 +220,7 @@ type
     /// <param name="ResponseText">
     /// The response body as a JSON string (success payload or error payload).
     /// </param>
-    /// <param name="NullConversion">
+    /// <param name="DisabledShield">
     /// When <c>True</c>, disables metadata preprocessing and performs a direct JSON-to-object
     /// conversion (see <c>Parse{T}</c>). When <c>False</c> (default), parsing follows the global
     /// metadata configuration (<c>MetadataAsObject</c>/<c>MetadataManager</c>).
@@ -259,7 +259,7 @@ type
     /// parsing mode (for example metadata preprocessing requirements not satisfied).
     /// </exception>
     function Deserialize<T: class, constructor>(const Code: Int64;
-      const ResponseText: string; NullConversion: Boolean = False): T;
+      const ResponseText: string; DisabledShield: Boolean = False): T;
   public
     class constructor Create;
 
@@ -316,7 +316,7 @@ type
     /// <param name="Value">
     /// The JSON payload to parse.
     /// </param>
-    /// <param name="NullConversion">
+    /// <param name="DisabledShield">
     /// When <c>True</c>, performs a direct JSON-to-object conversion without applying the metadata
     /// preprocessing pipeline. When <c>False</c> (default), parsing follows the global metadata
     /// configuration (<see cref="MetadataAsObject"/> / <see cref="MetadataManager"/>).
@@ -355,7 +355,7 @@ type
     /// Raised when <see cref="MetadataAsObject"/> is <c>False</c> and <see cref="MetadataManager"/> is <c>nil</c>,
     /// or when the JSON payload cannot be mapped to <typeparamref name="T"/> under the active mode.
     /// </exception>
-    class function Parse<T: class, constructor>(const Value: string; NullConversion: Boolean = False): T;
+    class function Parse<T: class, constructor>(const Value: string; DisabledShield: Boolean = False): T;
   end;
 
   TGeminiAPI = class(TApiDeserializer)
@@ -2112,13 +2112,13 @@ begin
 end;
 
 function TApiDeserializer.Deserialize<T>(const Code: Int64;
-  const ResponseText: string; NullConversion: Boolean): T;
+  const ResponseText: string; DisabledShield: Boolean): T;
 begin
   Result := nil;
   case Code of
     200..299:
       try
-        Result := Parse<T>(ResponseText, NullConversion);
+        Result := Parse<T>(ResponseText, DisabledShield);
       except
         raise;
       end;
@@ -2150,7 +2150,7 @@ begin
   end;
 end;
 
-class function TApiDeserializer.Parse<T>(const Value: string; NullConversion: Boolean): T;
+class function TApiDeserializer.Parse<T>(const Value: string; DisabledShield: Boolean): T;
 {$REGION 'Dev note'}
   (*
     • If MetadataManager are to be treated as objects, a dedicated TMetadata class is required, containing
@@ -2182,7 +2182,7 @@ var
 begin
   Result := Default(T);
   try
-    if NullConversion then
+    if DisabledShield then
       begin
         Result := TJson.JsonToObject<T>(Value);
       end
@@ -2194,8 +2194,11 @@ begin
           begin
             if MetadataManager = nil then
               raise EInvalidResponse.Create('MetadataManager is nil while MetadataAsObject=False');
+            try
+              Result := TJson.JsonToObject<T>(MetadataManager.Convert(Value));
+            except
 
-            Result := TJson.JsonToObject<T>(MetadataManager.Convert(Value));
+            end;
           end;
       end;
 
