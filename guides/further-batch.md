@@ -20,7 +20,7 @@ You submit many requests together as a single batch job (either inline or via a 
 - [Retrieve results](#retrieve-results)
 - [Batch job Cancellation](#batch-job-cancellation)
 - [Batch job Deletion](#batch-job-deletion)
-- [Input file Uploading](#input-file-uploading)
+- [Result file Uploading](#result-file-uploading)
 
 ___
 
@@ -312,8 +312,8 @@ Deletes a job: stops processing and removes it from the batch job list.
 
 <br>
 
-## Input file Uploading
-Lance un chargement pouvant être repris et renvoie une URL de chargement (x-goog-upload-url) dans les en-têtes de réponse.
+## Result file Uploading
+Initiates a resumeable upload and returns an upload URL (x-goog-upload-url) in the response headers.
 
 ```pascal
   //uses Gemini, Gemini.Types, Gemini.Helpers, Gemini.Tutorial.VCL (*or Gemini.Tutorial.FMX*);
