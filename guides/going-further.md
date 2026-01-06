@@ -20,7 +20,8 @@
 - [Video generation (Veo)](further-video-veo.md#video-with-veo)
   - **Veo** supports the generation of short videos with synchronized audio from *textual, image-based, or video-based inputs*, with an emphasis on photorealistic rendering.
 
-- [Image generation (Imagen 4)]()
+- [Image generation (Imagen 4)](further-imagen.md#imagen)
+  - Imagen is a text-to-image generative model based on language-conditioned diffusion architectures.
 
 - [Vector stores](further-vector-store.md#vector-store)
   - The **File Search** tool of the Gemini API is a ***Retrieval Augmented Generation (RAG)*** mechanism that indexes documents as embeddings in order to provide relevant excerpts to the model during response generation.
