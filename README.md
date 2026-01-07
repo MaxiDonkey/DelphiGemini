@@ -218,7 +218,7 @@ Each topic is documented in its own Markdown file.
 | Code execution             | ● |
 | Computer Use               | ● |
 | Thinking and thought Signatures | ● |
-
+- supported*: *support provided by `DelphiGemini`*
 
 <br>
 
