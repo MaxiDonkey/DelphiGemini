@@ -182,11 +182,11 @@ A dedicated entry point groups these topics: [Going Further](guides/going-furthe
 This section links to documents covering:
 - Model discovery 
 - Embeddings
+- File management
 - Caching
 - Batch processing
 - Video generation (Veo)
 - Image generation (Imagen 4)
-- File management
 - Vector stores
 - Vectorized documents and fileSearch (Interactions)
 
@@ -196,19 +196,23 @@ Each topic is documented in its own Markdown file.
 
 ## Functional Coverage
 
-| Area | Supported |
-| :--- | :---: |
-| Text generation | ● |
+| Domain / Feature            | Supported |
+|----------------------------|:---------:|
+| Text generation            | ● |
 | Multimodal (image, audio, video, PDF) | ● |
-| SSE streaming | ● |
-| Persistent conversations | ● |
-| Agents | ● |
-| Structured outputs | ● |
-| Batch processing | ● |
-| File management | ● |
-| Vector search / fileSearch | ● |
-| Video generation (Veo) | ● |
-| Image generation (Imagen 4) | ● |
+| SSE streaming              | ● |
+| Persistent conversations   | ● |
+| Agents                     | ● |
+| Deep Research              | ● |
+| Structured outputs         | ● |
+| Model discovery            | ● |
+| Batch processing           | ● |
+| Caching                    | ● |
+| File management            | ● |
+| Embeddings                 | ● |
+| Vector search / FileSearch | ● |
+| Video generation (Veo)     | ● |
+| Image generation (Imagen) | ● |
 
 <br>
 
