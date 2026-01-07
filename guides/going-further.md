@@ -28,6 +28,9 @@
 - [Image generation (Nano Banana)](further-nano-banana.md)
   - **Nano Banana** refers to the set of image generation capabilities natively integrated into the *Gemini models*. 
 
+- [Speech generation](further-speech-generation.md#speech-generation-text-to-speech)
+  - The **Gemini TTS** is not a traditional parametric speech synthesis engine, but a language-driven voice rendering system designed for controlled audio production from fixed text.
+
 - [Vector stores](further-vector-store.md#vector-store)
   - The **File Search** tool of the Gemini API is a ***Retrieval Augmented Generation (RAG)*** mechanism that indexes documents as embeddings in order to provide relevant excerpts to the model during response generation.
 

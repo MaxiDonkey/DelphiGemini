@@ -191,7 +191,8 @@ type
     ///   end;
     /// </code>
     /// </remarks>
-    function Create(const ModelName: string; ParamProc: TProc<TChatParams>): TChat;
+    function Create(const ModelName: string;
+      const ParamProc: TProc<TChatParams>): TChat;
 
     /// <summary>
     /// Creates a chat message completion with a streamed response.
@@ -228,7 +229,8 @@ type
     ///   );
     /// </code>
     /// </remarks>
-    function CreateStream(const ModelName: string; ParamProc: TProc<TChatParams>; Event: TChatEvent): Boolean;
+    function CreateStream(const ModelName: string;
+      const ParamProc: TProc<TChatParams>; Event: TChatEvent): Boolean;
 
     /// <summary>
     /// Create an asynchronous completion for chat message
@@ -268,8 +270,9 @@ type
     ///   end);
     /// </code>
     /// </remarks>
-    procedure AsynCreate(const ModelName: string; ParamProc: TProc<TChatParams>;
-      CallBacks: TFunc<TAsynChat>);
+    procedure AsynCreate(const ModelName: string;
+      const ParamProc: TProc<TChatParams>;
+      const CallBacks: TFunc<TAsynChat>);
 
     /// <summary>
     /// Creates an asynchronous streaming chat completion request.
@@ -324,8 +327,9 @@ type
     ///   end);
     /// </code>
     /// </remarks>
-    procedure AsynCreateStream(const ModelName: string; ParamProc: TProc<TChatParams>;
-      CallBacks: TFunc<TAsynChatStream>);
+    procedure AsynCreateStream(const ModelName: string;
+      const ParamProc: TProc<TChatParams>;
+      const CallBacks: TFunc<TAsynChatStream>);
   end;
 
 implementation
@@ -409,7 +413,7 @@ begin
 end;
 
 procedure TChatRoute.AsynCreate(const ModelName: string;
-  ParamProc: TProc<TChatParams>; CallBacks: TFunc<TAsynChat>);
+  const ParamProc: TProc<TChatParams>; const CallBacks: TFunc<TAsynChat>);
 begin
   with TAsynCallBackExec<TAsynChat, TChat>.Create(CallBacks) do
   try
@@ -428,7 +432,7 @@ begin
 end;
 
 procedure TChatRoute.AsynCreateStream(const ModelName: string;
-  ParamProc: TProc<TChatParams>; CallBacks: TFunc<TAsynChatStream>);
+  const ParamProc: TProc<TChatParams>; const CallBacks: TFunc<TAsynChatStream>);
 begin
   var CallBackParams := TUseParamsFactory<TAsynChatStream>.CreateInstance(CallBacks);
 
@@ -539,12 +543,13 @@ begin
   Task.Start;
 end;
 
-function TChatRoute.Create(const ModelName: string; ParamProc: TProc<TChatParams>): TChat;
+function TChatRoute.Create(const ModelName: string; const ParamProc: TProc<TChatParams>): TChat;
 begin
   Result := API.Post<TChat, TChatParams>(SetModel(ModelName, ':generateContent'), ParamProc);
 end;
 
-function TChatRoute.CreateStream(const ModelName: string; ParamProc: TProc<TChatParams>;
+function TChatRoute.CreateStream(const ModelName: string;
+  const ParamProc: TProc<TChatParams>;
   Event: TChatEvent): Boolean;
 var
   Response: TLockedMemoryStream;

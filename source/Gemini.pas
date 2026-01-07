@@ -25,7 +25,7 @@ uses
   Gemini.Interactions.Request, Gemini.Interactions.ResponsesContent,
   Gemini.Interactions.Responses, Gemini.Interactions.Stream,
   Gemini.Interactions.StreamEngine, Gemini.Interactions.StreamCallbacks,
-  Gemini.Video, Gemini.ImageGen;
+  Gemini.Video, Gemini.ImageGen, Gemini.Audio.Transcription;
 
 const
   VERSION = 'Geminiv1.1.0';
@@ -75,6 +75,7 @@ type
     function GetInteractionsRoute: TInteractionsRoute;
     function GetVideoRoute: TVideoRoute;
     function GetImageGenRoute: TImageGenRoute;
+    function GetTranscriptionRoute: TTranscriptionRoute;
 
     /// <summary>
     /// The HTTP client used to send requests to the API.
@@ -239,6 +240,8 @@ type
     /// </returns>
     property Models: TModelsRoute read GetModelsRoute;
 
+    property Transcription: TTranscriptionRoute read GetTranscriptionRoute;
+
     /// <summary>
     /// Provides access to the File Search Store (vector files) API route.
     /// </summary>
@@ -390,6 +393,7 @@ type
     FInteractionsLock: TObject;
     FVideoLock: TObject;
     FImageGenLock: TObject;
+    FTranscriptionLock: TObject;
 
     function Lazy<T: class>(var AField: T; const ALock: TObject;
       const AFactory: TFunc<T>): T; inline;
@@ -426,6 +430,7 @@ type
     FInteractionsRoute: TInteractionsRoute;
     FVideoRoute: TVideoRoute;
     FImageGenRoute: TImageGenRoute;
+    FTranscriptionRoute: TTranscriptionRoute;
 
     function GetAPI: TGeminiAPI;
     function GetToken: string;
@@ -447,6 +452,7 @@ type
     function GetInteractionsRoute: TInteractionsRoute;
     function GetVideoRoute: TVideoRoute;
     function GetImageGenRoute: TImageGenRoute;
+    function GetTranscriptionRoute: TTranscriptionRoute;
 
   public
     property API: TGeminiAPI read GetAPI;
@@ -979,6 +985,14 @@ type
 
 {$ENDREGION}
 
+{$REGION 'Gemini.Audio.Transcription'}
+
+  TTranscription = Gemini.Audio.Transcription.TTranscription;
+  TAsynTranscription = Gemini.Audio.Transcription.TAsynTranscription;
+  TPromiseTranscription = Gemini.Audio.Transcription.TPromiseTranscription;
+
+{$ENDREGION}
+
 function HttpMonitoring: IRequestMonitor;
 function CurrentVersion: string;
 function NewBatchContent(const DisplayName: string; const FileURI: string): TBatchContentParams;
@@ -1023,6 +1037,7 @@ begin
   FInteractionsLock := TObject.Create;
   FVideoLock := TObject.Create;
   FImageGenLock := TObject.Create;
+  FTranscriptionLock := TObject.Create;
 end;
 
 destructor TLazyRouteFactory.Destroy;
@@ -1039,6 +1054,7 @@ begin
   FInteractionsLock.Free;
   FVideoLock.Free;
   FImageGenLock.Free;
+  FTranscriptionLock.Free;
   inherited;
 end;
 
@@ -1087,6 +1103,7 @@ begin
   FInteractionsRoute.Free;
   FVideoRoute.Free;
   FImageGenRoute.Free;
+  FTranscriptionRoute.Free;
   FAPI.Free;
   inherited;
 end;
@@ -1199,6 +1216,15 @@ end;
 function TGemini.GetToken: string;
 begin
   Result := FAPI.Token;
+end;
+
+function TGemini.GetTranscriptionRoute: TTranscriptionRoute;
+begin
+  Result := Lazy<TTranscriptionRoute>(FTranscriptionRoute, FTranscriptionLock,
+    function: TTranscriptionRoute
+    begin
+      Result := TTranscriptionRoute.CreateRoute(API);
+    end);
 end;
 
 function TGemini.GetVectorFilesRoute: TVectorFilesRoute;

@@ -3781,6 +3781,10 @@ function Generation: TGeneration;
 /// </remarks>
 function Interactions: TInteractions;
 
+function SingleSpeakerConfig(SpeakerVoice1: string): TGenerationConfig;
+
+function MultiSpeakerConfig(Speaker1, Voice1, Speaker2, Voice2: string): TGenerationConfig;
+
 implementation
 
 function Generation: TGeneration;
@@ -3791,6 +3795,31 @@ end;
 function Interactions: TInteractions;
 begin
   Result := TInteractions.Empty;
+end;
+
+function SingleSpeakerConfig(SpeakerVoice1: string): TGenerationConfig;
+begin
+  Result := TGenerationConfig.Create
+        .ResponseModalities([TModalityType.AUDIO])
+        .SpeechConfig( TSpeechConfig.Create
+            .VoiceConfig( TVoiceConfig
+                .NewVoiceConfig(SpeakerVoice1)
+            )
+        );
+end;
+
+function MultiSpeakerConfig(Speaker1, Voice1, Speaker2, Voice2: string): TGenerationConfig;
+begin
+  Result := TGenerationConfig.Create
+        .ResponseModalities([TModalityType.AUDIO])
+        .SpeechConfig( TSpeechConfig.Create
+            .MultiSpeakerVoiceConfig( TMultiSpeakerVoiceConfig.Create
+                .SpeakerVoiceConfigs( TGenerationSpeaker.Voices
+                    .AddItem(Speaker1, Voice1)
+                    .AddItem(Speaker2, Voice2)
+                )
+            )
+        );
 end;
 
 {$REGION 'dev note'}

@@ -1534,6 +1534,50 @@ type
 
   {$ENDREGION}
 
+  {$REGION 'Gemini.Audio.Transcription'}
+
+    {$SCOPEDENUMS OFF}
+
+    TTTSVoices = (
+      Zephyr,
+      Puck,
+      Charon,
+      Kore,
+      Fenrir,
+      Leda,
+      Orus,
+      Firm,
+      Callirrhoe,
+      Autonoe,
+      Enceladus,
+      Iapetus,
+      Umbriel,
+      Algieba,
+      Despina,
+      Erinome,
+      Algenib,
+      Rasalgethi,
+      Laomedeia,
+      Achernar,
+      Alnilam,
+      Schedar,
+      Gacrux,
+      Pulcherrima,
+      Achird,
+      Zubenelgenubi,
+      Vindemiatrix,
+      Sadachbia,
+      Sadaltager,
+      Sulafat
+    );
+
+    TTTSVoicesHelper = record Helper for TTTSVoices
+      function ToString: string; inline;
+      class function Parse(const S: string): TTTSVoices; static;
+    end;
+
+  {$ENDREGION}
+
 implementation
 
 uses
@@ -2372,6 +2416,18 @@ end;
 function TVideoOperationHelper.ToString: string;
 begin
   Result := VideoOperations[Self];
+end;
+
+{ TTTSVoicesHelper }
+
+class function TTTSVoicesHelper.Parse(const S: string): TTTSVoices;
+begin
+  Result := TEnumWire.Parse<TTTSVoices>(S);
+end;
+
+function TTTSVoicesHelper.ToString: string;
+begin
+  Result := TEnumWire.ToString<TTTSVoices>(Self);
 end;
 
 end.

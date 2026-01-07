@@ -11,13 +11,15 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Net.URLClient, System.Net.Mime, System.JSON,
-  System.SyncObjs, System.Net.HttpClient, System.NetEncoding,
+  System.SyncObjs, System.Net.HttpClient, System.NetEncoding, System.IOUtils,
   REST.Json,
   Gemini.API.Params, Gemini.Exceptions, Gemini.Errors, Gemini.API.SSEDecoder,
   Gemini.HttpClientInterface, Gemini.HttpClientAPI, Gemini.Monitoring,
   Gemini.API.Utils, Gemini.API.Url;
 
 type
+  TPcmToWavProc = reference to procedure(const InputPcmPath, OutputWavPath: string);
+
   /// <summary>
   /// Represents the configuration settings for the Gemini API.
   /// </summary>
@@ -77,13 +79,164 @@ type
   end;
 
   /// <summary>
+  /// Provides an injectable PCM-&gt;WAV conversion facility for audio workflows that require WAV containers.
+  /// </summary>
+  /// <remarks>
+  /// <para>
+  /// <c>TPCMConverter</c> does not implement audio transcoding itself. Instead, it exposes a developer-supplied
+  /// callback (<see cref="TPcmToWavProc"/>) that performs the conversion from a raw PCM file to a WAV file.
+  /// This design allows platform-specific implementations (e.g., invoking <c>ffmpeg</c> on Windows or using
+  /// native audio frameworks on other platforms) without coupling the wrapper to a particular backend.
+  /// </para>
+  /// <para>
+  /// Typical usage:
+  /// <para>
+  /// • Assign a converter once using <see cref="SetConverter"/> (stored internally).
+  /// </para>
+  /// <para>
+  /// • Call <see cref="ConvertPcmToWav(string,string)"/> to convert using the stored converter.
+  /// </para>
+  /// <para>
+  /// • Alternatively, call <see cref="ConvertPcmToWav(string,string,TPcmToWavProc)"/> to provide a converter per call.
+  /// </para>
+  /// </para>
+  /// <para>
+  /// Threading model: conversion is executed synchronously in the caller's thread. If you need asynchronous
+  /// conversion, perform the call from your own worker thread/task.
+  /// </para>
+  /// </remarks>
+  TPCMConverter = class(TGeminiSettings)
+  private
+    FPcmToWavProc: TPcmToWavProc;
+    function CreateGUID: string; overload;
+    function GetTempFileName: string;
+  public
+    /// <summary>
+    /// Assigns the PCM-&gt;WAV conversion callback used by this client.
+    /// </summary>
+    /// <param name="Value">
+    /// Anonymous procedure that performs the conversion from a PCM file on disk to a WAV file on disk.
+    /// The procedure is invoked with two filesystem paths:
+    /// <para>
+    /// • <c>InputPcmPath</c>: full path to the source PCM file (raw PCM, no container).
+    /// </para>
+    /// <para>
+    /// • <c>OutputWavPath</c>: full path where the resulting WAV file must be written.
+    /// </para>
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// This wrapper does not ship with a built-in audio converter. The conversion step is delegated to
+    /// user code so it can be implemented in a platform-specific way (e.g., invoking <c>ffmpeg</c> on Windows,
+    /// using native frameworks on macOS/iOS/Android, or a custom DSP pipeline).
+    /// </para>
+    /// <para>
+    /// After assignment, the callback is stored internally and used by the overload
+    /// <c>ConvertPcmToWav(InputPcmPath, OutputWavPath)</c>.
+    /// </para>
+    /// <para>
+    /// Contract:
+    /// <para>
+    /// • The callback must create/overwrite <c>OutputWavPath</c> with a valid WAV container.
+    /// </para>
+    /// <para>
+    /// • Any failure should be reported by raising an exception.
+    /// </para>
+    /// <para>
+    /// • The callback is executed synchronously in the caller's thread; this method does not provide
+    /// background execution or marshaling to a UI thread.
+    /// </para>
+    /// </para>
+    /// <para>
+    /// This method does not validate the callback. If no callback is assigned, calling
+    /// <c>ConvertPcmToWav</c> without providing an explicit converter will raise an exception.
+    /// </para>
+    /// </remarks>
+    procedure SetConverter(const Value: TPcmToWavProc);
+
+    /// <summary>
+    /// Converts a raw PCM audio file to a WAV file using the provided conversion callback.
+    /// </summary>
+    /// <param name="InputPcmPath">
+    /// Full path to the source PCM file on disk (raw PCM stream, no container).
+    /// </param>
+    /// <param name="OutputWavPath">
+    /// Full path to the destination WAV file to be created/overwritten.
+    /// </param>
+    /// <param name="Converter">
+    /// Conversion callback that performs the PCM-&gt;WAV transformation.
+    /// It is invoked synchronously with <paramref name="InputPcmPath"/> and <paramref name="OutputWavPath"/>.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// This overload allows callers to supply a conversion routine directly (per call), instead of relying on
+    /// the converter previously assigned via <c>SetConverter</c>.
+    /// </para>
+    /// <para>
+    /// The wrapper does not implement audio transcoding itself. The supplied callback may use any strategy
+    /// appropriate to the platform (e.g., invoking <c>ffmpeg</c>, calling OS multimedia APIs, or using a custom library).
+    /// </para>
+    /// <para>
+    /// Execution model:
+    /// <para>
+    /// • The callback is executed synchronously in the caller's thread.
+    /// </para>
+    /// <para>
+    /// • The callback is responsible for producing a valid WAV container at <paramref name="OutputWavPath"/>.
+    /// </para>
+    /// <para>
+    /// • Any error should be reported by raising an exception (which will propagate to the caller).
+    /// </para>
+    /// </para>
+    /// </remarks>
+    /// <exception cref="Exception">
+    /// Raised when <paramref name="Converter"/> is <c>nil</c>.
+    /// </exception>
+    procedure ConvertPcmToWav(const InputPcmPath, OutputWavPath: string;
+      const Converter: TPcmToWavProc); overload;
+
+    /// <summary>
+    /// Converts a raw PCM audio file to a WAV file using the converter previously assigned via <c>SetConverter</c>.
+    /// </summary>
+    /// <param name="InputPcmPath">
+    /// Full path to the source PCM file on disk (raw PCM stream, no container).
+    /// </param>
+    /// <param name="OutputWavPath">
+    /// Full path to the destination WAV file to be created/overwritten.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// This overload uses the internally stored converter callback (<c>FPcmToWavProc</c>) configured with
+    /// <c>SetConverter</c>. It is a convenience wrapper around:
+    /// <para>
+    /// <c>ConvertPcmToWav(InputPcmPath, OutputWavPath, FPcmToWavProc)</c>
+    /// </para>
+    /// </para>
+    /// <para>
+    /// The wrapper does not implement audio transcoding itself. The assigned callback is responsible for producing
+    /// a valid WAV container at <paramref name="OutputWavPath"/> and should raise an exception on failure.
+    /// </para>
+    /// <para>
+    /// Execution is synchronous and occurs in the caller's thread.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="Exception">
+    /// Raised when no converter has been assigned (i.e., <c>SetConverter</c> has not been called) and therefore
+    /// the internal converter callback is <c>nil</c>.
+    /// </exception>
+    procedure ConvertPcmToWav(const InputPcmPath, OutputWavPath: string); overload;
+
+    function PcmB64ToWavFile(const PcmBase64: string): string;
+  end;
+
+  /// <summary>
   /// Handles HTTP requests and responses for the Gemini API.
   /// </summary>
   /// <remarks>
   /// This class extends <c>TGeminiSettings</c> and provides a mechanism to
   /// manage HTTP client interactions for the API, including configuration and request execution.
   /// </remarks>
-  TApiHttpHandler = class(TGeminiSettings)
+  TApiHttpHandler = class(TPCMConverter)
   private
     /// <summary>
     /// The HTTP client interface used for making API calls.
@@ -1365,7 +1518,7 @@ type
 implementation
 
 uses
-  Gemini.Api.JsonFingerprintBinder;
+  Gemini.Api.JsonFingerprintBinder, Gemini.Net.MediaCodec;
 
 { TGeminiAPI }
 
@@ -2236,6 +2389,56 @@ begin
   else
     raise EGeminiException.Create(Code, Error);
   end;
+end;
+
+{ TPCMConverter }
+
+procedure TPCMConverter.ConvertPcmToWav(const InputPcmPath,
+  OutputWavPath: string);
+begin
+  ConvertPcmToWav(InputPcmPath, OutputWavPath, FPcmToWavProc);
+end;
+
+function TPCMConverter.GetTempFileName: string;
+begin
+  Result := TPath.Combine(TPath.GetTempPath, CreateGUID);
+end;
+
+function TPCMConverter.CreateGUID: string;
+var
+  G: TGUID;
+begin
+  System.SysUtils.CreateGUID(G);
+  Result := GUIDToString(G).Replace('{', '').Replace('}', '');
+end;
+
+function TPCMConverter.PcmB64ToWavFile(const PcmBase64: string): string;
+begin
+  var TempFileName := GetTempFileName;
+  var PcmTempFileName := TempFileName + '.pcm';
+  var WavTempFileName := TempFileName + '.wav';
+
+  //Save to pcm file
+  TMediaCodec.TryDecodeBase64ToFile(PcmBase64, PcmTempFileName);
+
+  //convert pcm to wav to the file nammed 'WavTempFileName'
+  ConvertPcmToWav(PcmTempFileName, WavTempFileName);
+
+  //Return wav content to string base-64 encoded
+  Result := TMediaCodec.EncodeBase64(WavTempFileName);
+end;
+
+procedure TPCMConverter.ConvertPcmToWav(const InputPcmPath,
+  OutputWavPath: string; const Converter: TPcmToWavProc);
+begin
+  if not Assigned(Converter) then
+    raise Exception.Create('PCM->WAV converter not provided.');
+  Converter(InputPcmPath, OutputWavPath);
+end;
+
+procedure TPCMConverter.SetConverter(const Value: TPcmToWavProc);
+begin
+  FPcmToWavProc := Value;
 end;
 
 end.
