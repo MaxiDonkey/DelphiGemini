@@ -212,7 +212,16 @@ Each topic is documented in its own Markdown file.
 | Embeddings                 | ● |
 | Vector search / FileSearch | ● |
 | Video generation (Veo)     | ● |
-| Image generation (Imagen) | ● |
+| Image generation (Imagen)  | ● |
+| Function calling           | ● |
+| Grounding with Google Search | ● |
+| Grounding with Google Map  | ● |
+| Url context                | ● |
+| File search                | ● |
+| Code execution             | ● |
+| Computer Use               | ● |
+| Thinking and thought Signatures | ● |
+
 
 <br>
 
