@@ -23,6 +23,9 @@
 - [Image generation (Imagen 4)](further-imagen.md#imagen)
   - Imagen is a text-to-image generative model based on language-conditioned diffusion architectures.
 
+- [Image generation (Nano Banana)](further-nano-banana.md)
+  - **Nano Banana** refers to the set of image generation capabilities natively integrated into the *Gemini models*. 
+
 - [Vector stores](further-vector-store.md#vector-store)
   - The **File Search** tool of the Gemini API is a ***Retrieval Augmented Generation (RAG)*** mechanism that indexes documents as embeddings in order to provide relevant excerpts to the model during response generation.
 

@@ -184,11 +184,7 @@ This section links to documents covering:
 - Embeddings
 - File management
 - Caching
-- Batch processing
-- Video generation (Veo)
-- Image generation (Imagen 4)
-- Vector stores
-- Vectorized documents and fileSearch (Interactions)
+- etc...
 
 Each topic is documented in its own Markdown file.
 
@@ -213,6 +209,7 @@ Each topic is documented in its own Markdown file.
 | Vector search / FileSearch | ● |
 | Video generation (Veo)     | ● |
 | Image generation (Imagen)  | ● |
+| Image generation (Nano Banana)  | ● |
 | Function calling           | ● |
 | Grounding with Google Search | ● |
 | Grounding with Google Map  | ● |
