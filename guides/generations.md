@@ -225,7 +225,7 @@ See: [generations-json-payload-builder.md](generations-json-payload-builder.md#b
 | Computer uses | ● | interactions | ✔ | ✔ |
 | Deep Research | ● | interactions | ✔ | ✔ |
 
-- supported* : supported*: support provided by DelphiGemini
-- ✔ : compatible with both streaming and non-streaming processing
+- supported*: *support provided by `DelphiGemini`*
+- ✔ : *compatible with both streaming and non-streaming processing*
 
 Please refer to the [detailed model specifications](https://ai.google.dev/gemini-api/docs/models) to identify the supported tools.
