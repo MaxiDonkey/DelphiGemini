@@ -2,6 +2,8 @@
 
 <br>
 
+- [Tips and Tricks](#tips-and-tricks) 
+
 - [Model discovery](further-models.md#models)
   - The **models endpoint** allows you to programmatically *list available models* and *retrieve detailed metadata*, such as supported capabilities and context window size.
 
@@ -31,3 +33,33 @@
 
 - [Vectorized documents and fileSearch (Interactions)](further-vector-store-document.md#vector-store-document)
   - **Documents** are the persistent, File Search–side representations of imported files, broken into chunks that semantic retrieval can use.
+
+___
+
+<br>
+
+## Tips and Tricks
+
+- [How to prevent an error when closing an application while requests are still in progress](#how-to-prevent-an-error-when-closing-an-application-while-requests-are-still-in-progress)
+
+<br>
+
+### How to prevent an error when closing an application while requests are still in progress
+
+Starting from version 1.1.0 of **DelphiGemini**, the `Gemini.Monitoring` unit is responsible for monitoring ongoing HTTP requests.
+
+The Monitoring interface is accessible by including the Gemini.Monitoring unit in the uses clause. Alternatively, you can access it via the HttpMonitoring function, declared in the `Gemini` unit.
+
+#### Usage Exemple
+```pascal
+//uses Gemini;
+
+procedure TForm1.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  CanClose := not HttpMonitoring.IsBusy;
+  if not CanClose then
+    MessageDLG(
+      'Requests are still in progress. Please wait for them to complete before closing the application."',
+      TMsgDlgType.mtInformation, [TMsgDlgBtn.mbOK], 0);
+end;
+```
