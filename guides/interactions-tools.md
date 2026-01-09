@@ -6,6 +6,7 @@
   - [Code execution](#code-execution)
   - [URL context](#url-context)
 - [Remote Model context protocol (MCP)](#remote-model-context-protocol-mcp)
+- [File search](#file-search)
 ___
 
 >[!NOTE]
@@ -561,4 +562,33 @@ JSON Result
         "total_tool_use_tokens": 0
     }
 }
+```
+
+<br>
+
+## File search
+
+The Gemini API supports Retrieval-Augmented Generation (RAG) through the use of the File Search tool. This tool is responsible for ingesting, segmenting, and indexing the provided data, enabling efficient retrieval of information relevant to a given prompt. The retrieved content is then incorporated into the model’s context, thereby enhancing the accuracy and relevance of the generated responses.
+
+The use of the File Search tool requires, as a prerequisite, uploading the files to be processed, creating a vector store, and importing the files into that vector store so that they can be indexed and subsequently queried.
+
+```pascal
+  var StoreName := TutorialHub.VectorID;
+  var Model := 'gemini-3-flash-preview';
+  var Prompt := 'What does the document contain?';
+
+  //JSON Payload
+  var Payload: TProc<TInteractionParams> :=
+        procedure (Params: TInteractionParams)
+        begin
+          Params
+            .Model(Model)
+            .Input(Prompt)
+            .Tools( Interactions.Tools
+                .AddFileSearch( TFileSearchIxParams.New
+                    .FileSearchStoreNames([StoreName])
+                )
+            )
+            //.Stream; //when streaming using
+        end;
 ```

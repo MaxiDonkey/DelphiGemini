@@ -42,7 +42,7 @@ resourcestring
   INVALID_DOCUMENT_NAME =
     'Expected: fileSearchStores/{storeId}/documents/{documentId}.';
   INVALID_OPERATION_NAME =
-    'Expected: fileSearchStores/{storeId}/operations/{operationId}.';
+    'Expected: fileSearchStores/{storeId}/upload/operations/{operationId}.';
 
 function Parts(const Value: string): TArray<string>;
 begin
@@ -83,11 +83,12 @@ class function TVectorEndpoints.IsOperationName(const Value: string): Boolean;
 begin
   var Items := Parts(Value);
   Result :=
-    (Length(Items) = 4) and
+    (Length(Items) = 5) and
     SameText(Items[0], 'fileSearchStores') and
     (not Items[1].IsEmpty) and
-    SameText(Items[2], 'operations') and
-    (not Items[3].IsEmpty);
+    SameText(Items[2], 'upload') and
+    SameText(Items[3], 'operations') and
+    (not Items[4].IsEmpty);
 end;
 
 class function TVectorEndpoints.StoreOf(const Value: string): string;

@@ -21,7 +21,7 @@ uses
   Gemini.Files, Gemini.Caching, Gemini.VectorFiles, Gemini.VectorFiles.Documents,
   Gemini.Operation, Gemini.Batch,
   Gemini.Interactions.ResponsesContent, Gemini.Interactions.Responses,
-  Gemini.Interactions.Stream;
+  Gemini.Interactions.Stream, Gemini.Types.EnumWire;
 
 type
   TToolProc = procedure (const Value: string) of object;
@@ -36,6 +36,12 @@ type
     FButton: TButton;
     FCancel: Boolean;
     FFileName: string;
+    FInteractionID: string;
+    FDeepResearchID: string;
+    FFileID: string;
+    FVectorID: string;
+    FOperationID: string;
+    FDocumentID: string;
     procedure OnButtonClick(Sender: TObject);
     procedure SetMemo1(const Value: TMemo);
     procedure SetMemo2(const Value: TMemo);
@@ -56,6 +62,12 @@ type
     property Button: TButton read FButton write SetButton;
     property Cancel: Boolean read FCancel write FCancel;
     property FileName: string read FFileName write FFileName;
+    property InteractionID: string read FInteractionID write FInteractionID;
+    property DeepResearchID: string read FDeepResearchID write FDeepResearchID;
+    property FileID: string read FFileID write FFileID;
+    property VectorID: string read FVectorID write FVectorID;
+    property OperationID: string read FOperationID write FOperationID;
+    property DocumentID: string read FDocumentID write FDocumentID;
 
     procedure JSONUIClear;
     procedure JSONRequestClear;
@@ -142,8 +154,7 @@ procedure Cancellation(Sender: TObject);
 begin
   if TutorialHub.Cancel then
     begin
-      Display(Sender, 'The operation was cancelled');
-      Display(Sender);
+      Display(Sender, sLineBreak + 'The operation was cancelled' + sLineBreak);
       TutorialHub.Cancel := False;
     end;
 end;
@@ -160,8 +171,7 @@ end;
 
 procedure Start(Sender: TObject);
 begin
-  Display(Sender, 'Please wait...');
-  Display(Sender);
+  Display(Sender, 'Please wait...' + sLineBreak);
   TutorialHub.Cancel := False;
   TutorialHub.JSONResponseClear;
 end;
@@ -178,8 +188,13 @@ begin
   if Sender is TMemo then
     M := Sender as TMemo else
     M := (Sender as TFMXTutorialHub).Memo1;
-  M.Lines.Add(Value);
-  M.ViewportPosition := PointF(M.ViewportPosition.X, M.Content.Height - M.Height);
+
+  M.Lines.BeginUpdate;
+  try
+    M.Lines.Text := M.Lines.Text + Value;
+  finally
+    M.Lines.EndUpdate;
+  end;
 end;
 
 procedure Display(Sender: TObject; Value: TArray<string>);
@@ -190,8 +205,9 @@ begin
       if not Item.IsEmpty then
         begin
           if index = 0 then
-            Display(Sender, Item) else
-            Display(Sender, '    ' + Item);
+            Display(Sender, Item + sLineBreak)
+          else
+            Display(Sender, '    ' + Item + sLineBreak);
         end;
       Inc(index);
     end;
@@ -242,7 +258,7 @@ begin
   TutorialHub.JSONResponse := Value.JSONResponse;
   for var Item in Value.Models do
     Display(Sender, Item.Name);
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TEmbedContent);
@@ -253,7 +269,7 @@ begin
       Display(Sender, F('[' + index.ToString + ']: ', Item.ToString));
       Inc(index);
     end;
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TEmbedding);
@@ -293,7 +309,7 @@ begin
     end;
   if Assigned(Value.VideoMetadata) then
     Display(Sender, F('• Source', Value.VideoMetadata.videoDuration));
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TFile);
@@ -307,6 +323,8 @@ begin
   TutorialHub.JSONResponse := Value.JSONResponse;
   for var Item in Value.Files do
     Display(Sender, Item);
+  if Length(Value.Files) = 0 then
+    Display(Sender, 'no file');
 end;
 
 procedure Display(Sender: TObject; Value: TFileDelete);
@@ -325,7 +343,7 @@ begin
     F('• CreateTime', Value.CreateTime),
     F('• ExpireTime', Value.ExpireTime)
   ]);
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TCacheContents);
@@ -349,14 +367,16 @@ begin
     F('• FailedDocumentsCount', Value.FailedDocumentsCount.ToString),
     F('• SizeBytes', Value.SizeBytes.ToString)
   ]);
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TFileSearchStoreList);
 begin
   TutorialHub.JSONResponse := Value.JSONResponse;
   for var Item in Value.FileSearchStores do
-      Display(Sender, Item);
+    Display(Sender, Item);
+  if Length(Value.FileSearchStores) = 0 then
+    Display(Sender, 'no vector store');
 end;
 
 procedure Display(Sender: TObject; Value: TOperation);
@@ -387,7 +407,7 @@ begin
     F('• ResponseFile', Value.ResponseFile)
   ]);
 
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TOperationList);
@@ -415,7 +435,7 @@ begin
     F('• SizeBytes', Value.SizeBytes.ToString),
     F('• MimeType', Value.MimeType)
   ]);
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TDocumentList);
@@ -425,25 +445,25 @@ begin
     Display(Sender, 'NextPageToken' + Value.NextPageToken);
   for var Item in Value.Documents do
     Display(Sender, Item);
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TDocumentDelete);
 begin
   Display(Sender, 'Deleted');
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TBatchCancel);
 begin
   Display(Sender, 'Batch cancelled');
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TBatchDelete);
 begin
   Display(Sender, 'Batch deleted');
-  Display(Sender);
+  Display(Sender, sLineBreak);
 end;
 
 procedure Display(Sender: TObject; Value: TJsonlDownload);
@@ -469,7 +489,7 @@ begin
                 Display(Sender, Item + #10);
               end;
 
-            Display(Sender);
+            Display(Sender, sLineBreak);
           end;
       end;
 
@@ -486,10 +506,10 @@ begin
                 Display(Sender, Item.Title);
                 Display(Sender, Item.Url);
 //                Display(Sender, Item.RenderedContent);
-                Display(Sender);
+                Display(Sender, sLineBreak);
               end;
 
-            Display(Sender);
+            Display(Sender, sLineBreak);
           end;
       end;
 
@@ -504,7 +524,7 @@ begin
 
         Display(Sender, '-------------> Text: '#10);
         Display(Sender, Value.Text);
-        Display(Sender);
+        Display(Sender, sLineBreak);
       end;
 
     TContentType.thought:
@@ -515,7 +535,7 @@ begin
         for var Item in Value.Summary do
           Display(Sender, Item.Text);
 
-        Display(Sender);
+        Display(Sender, sLineBreak);
       end;
 
     TContentType.image:
@@ -538,7 +558,9 @@ begin
   TutorialHub.JSONResponse := Value.JSONResponse;
   for var Item in Value.Outputs do
     Display(Sender, Item);
-  Display(Sender);
+  if Length(Value.Outputs) = 0 then
+    Display(Sender, F('Status', Value.Status.ToString));
+  Display(Sender, sLineBreak);
 end;
 
 function DisplayIx(Sender: TObject; Value: TInteraction): string;
@@ -559,36 +581,18 @@ end;
 procedure DisplayStream(Sender: TObject; Value: string);
 var
   M: TMemo;
-  CurrentLine: string;
-  Lines: TArray<string>;
 begin
   if Sender is TMemo then
     M := Sender as TMemo
   else
     M := (Sender as TFMXTutorialHub).Memo1;
-  var ShouldScroll := M.ViewportPosition.Y >= (M.Content.Height - M.Height - 16);
+
   M.Lines.BeginUpdate;
   try
-    Lines := Value.Replace(#13, '').Split([#10]);
-    if System.Length(Lines) > 0 then
-    begin
-      if M.Lines.Count > 0 then
-        CurrentLine := M.Lines[M.Lines.Count - 1]
-      else
-        CurrentLine := EmptyStr;
-      CurrentLine := CurrentLine + Lines[0];
-      if M.Lines.Count > 0 then
-        M.Lines[M.Lines.Count - 1] := CurrentLine
-      else
-        M.Lines.Add(CurrentLine);
-      for var i := 1 to High(Lines) do
-        M.Lines.Add(Lines[i]);
-    end;
+    M.Lines.Text := M.Text + Value;
   finally
     M.Lines.EndUpdate;
   end;
-  if ShouldScroll then
-    M.ViewportPosition := PointF(M.ViewportPosition.X, M.Content.Height - M.Height + 1);
 end;
 
 procedure DisplayStream(Sender: TObject; Value: TChat);
@@ -599,9 +603,7 @@ begin
 //      if (Length(Value.Candidates) > 0) and (Value.Candidates[0].FinishReason <> TFinishReason.SAFETY) then
 
   for var Item in Value.Candidates do
-    begin
-      DisplayStream(Sender, Item.Content.Parts[0].Text);
-    end;
+    DisplayStream(Sender, Item.Content.Parts[0].Text);
   DisplayChunk(Value);
 end;
 
@@ -634,13 +636,11 @@ begin
     Exit;
 
   var JSONValue := TJSONObject.ParseJSONValue(Value);
-  TutorialHub.Memo4.Lines.BeginUpdate;
-  try
-    Display(TutorialHub.Memo4, JSONValue.ToString);
-  finally
-    TutorialHub.Memo4.Lines.EndUpdate;
-    JSONValue.Free;
-  end;
+    try
+      Display(TutorialHub.Memo4, JSONValue.ToString + sLineBreak);
+    finally
+      JSONValue.Free;
+    end;
 end;
 
 procedure DisplayChunk(Value: TChat);
@@ -656,12 +656,7 @@ end;
 procedure DisplayInteractionStart(Sender: TObject; Chunk: TInteractionStream);
 begin
   DisplayChunk(Chunk);
-  Display(Sender, '-------------------------------------------');
-  Display(Sender, Chunk.EventType.ToString);
-  Display(Sender, Chunk.Interaction.Model);
-  Display(Sender, Chunk.Interaction.Status.ToString);
-  Display(Sender, F('ID', Chunk.Interaction.Id));
-  Display(Sender, '-------------------------------------------');
+   Display(Sender, F('ID', Chunk.Interaction.Id) + sLineBreak);
 end;
 
 procedure DisplayInteractionStart(Sender: TObject; EventData: TEventData);
@@ -672,10 +667,6 @@ end;
 procedure DisplayInteractionComplete(Sender: TObject; Chunk: TInteractionStream);
 begin
   DisplayChunk(Chunk);
-  Display(Sender, Chunk.EventType.ToString);
-  Display(Sender, Chunk.Interaction.Status.ToString);
-  Display(Sender, Chunk.Interaction.Updated);
-  Display(Sender, '-------------------------------------------> END');
 end;
 
 procedure DisplayInteractionComplete(Sender: TObject; EventData: TEventData);
@@ -706,14 +697,13 @@ end;
 procedure DisplayContentDelta(Sender: TObject; Chunk: TInteractionStream);
 begin
   DisplayChunk(Chunk);
-  var Value := Chunk.Delta;
 
-  case Value.&Type of
+  case Chunk.Delta.&Type of
     TContentType.Text:
-      DisplayStream(Sender, Value.Text);
+      DisplayStream(Sender, Chunk.Delta.Text);
 
     TContentType.thought_summary:
-      DisplayStream(Sender, Value.Content.Text);
+      DisplayStream(Sender, Chunk.Delta.Content.Text);
   end;
 
 end;
@@ -726,7 +716,6 @@ end;
 procedure DisplayContentStop(Sender: TObject; Chunk: TInteractionStream);
 begin
   DisplayChunk(Chunk);
-  Display(Sender, #10#10'-------------> Content stop'#10#10);
 end;
 
 procedure DisplayContentStop(Sender: TObject; EventData: TEventData);
@@ -738,8 +727,7 @@ procedure DisplayInteractionError(Sender: TObject; Chunk: TInteractionStream);
 begin
   DisplayChunk(Chunk);
   DisplayStream(Sender, Chunk.Error.Code);
-  DisplayStream(Sender, Chunk.Error.Message);
-  Display(Sender);
+  DisplayStream(Sender, Chunk.Error.Message + sLineBreak);
 end;
 
 procedure DisplayInteractionError(Sender: TObject; EventData: TEventData);
@@ -800,6 +788,8 @@ procedure TFMXTutorialHub.JSONUIClear;
 begin
   JSONRequestClear;
   JSONResponseClear;
+  Memo1.Lines.Clear;
+  Memo2.Lines.Clear;
 end;
 
 procedure TFMXTutorialHub.OnButtonClick(Sender: TObject);
@@ -811,7 +801,7 @@ procedure TFMXTutorialHub.SetButton(const Value: TButton);
 begin
   FButton := Value;
   FButton.OnClick := OnButtonClick;
-  FButton.Text := 'Cancel';
+  FButton.Text := 'Streaming Cancel';
 end;
 
 procedure TFMXTutorialHub.SetJSONRequest(const Value: string);
