@@ -4034,6 +4034,18 @@ object Form1: TForm1
               TabOrder = 26
               OnClick = Label108Click
             end
+            object Text6: TText
+              Anchors = [akTop]
+              Position.X = 56.000000000000000000
+              Position.Y = 680.000000000000000000
+              Size.Width = 353.000000000000000000
+              Size.Height = 50.000000000000000000
+              Size.PlatformDefault = False
+              Text = 
+                'To fully utilize the Speech Generation APIs, ffmpeg.exe must be ' +
+                'installed in the bin directory. Please refer to the Warning.md f' +
+                'ile located in that folder for additional details.'
+            end
           end
         end
       end

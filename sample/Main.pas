@@ -348,6 +348,7 @@ type
     VideoUri: TEdit;
     Label107: TLabel;
     Label108: TLabel;
+    Text6: TText;
     procedure FormCreate(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
