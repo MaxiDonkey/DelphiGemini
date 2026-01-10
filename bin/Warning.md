@@ -13,8 +13,8 @@ This script automates the installation of **ffmpeg** into the `bin` directory, a
 <br>
 
 ### Installation Procedure
-1. Navigate to the root directory of the project.
-2. Open a PowerShell console.
+1. Navigate to the **root directory** of the project.
+2. Open a **PowerShell** console.
 3. Temporarily allow script execution, then run the installation script:
 
 ```PowerShell
@@ -22,4 +22,4 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\script\install.ps1
 ```
 
-Once the script has completed, ffmpeg will be installed in the bin directory and ready for use by the application.
+Once the script has completed, **ffmpeg** will be installed in the bin directory and ready for use by the application.
