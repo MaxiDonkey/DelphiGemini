@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2025/10/21 14:10:40.000.080,=C:\Users\Pascal\Documents\Embarcadero\Studio\Projets\Unit1.pas</Transaction>
+    <Transaction>2025/11/29 16:16:18.000.684,=C:\Users\Pascal\Documents\Embarcadero\Studio\Projets\Unit1.pas</Transaction>
+    <Transaction>2026/01/07 19:38:24.000.182,=C:\Users\Pascal\Documents\Embarcadero\Studio\Projets\Unit1.pas</Transaction>
+    <Transaction>2026/01/07 19:39:24.000.974,D:\2025-developpement\Gemini\sample\Main.pas=C:\Users\Pascal\Documents\Embarcadero\Studio\Projets\Unit1.pas</Transaction>
+    <Transaction>2026/01/07 19:39:24.000.974,D:\2025-developpement\Gemini\sample\Main.fmx=C:\Users\Pascal\Documents\Embarcadero\Studio\Projets\Unit1.fmx</Transaction>
+    <Transaction>2026/01/07 19:39:38.000.985,D:\2025-developpement\Gemini\sample\Sample.dproj=C:\Users\Pascal\Documents\Embarcadero\Studio\Projets\Project1.dproj</Transaction>
+    <Transaction>2026/01/07 20:17:37.000.640,=D:\2025-developpement\Gemini\sample\Unit1.pas</Transaction>
+    <Transaction>2026/01/07 20:20:06.000.609,D:\2025-developpement\Gemini\sample\Sample.Key.Managment.pas=D:\2025-developpement\Gemini\sample\Unit1.pas</Transaction>
+    <Transaction>2026/01/07 21:15:09.000.726,D:\2025-developpement\Gemini\sample\Sample.Key.Managment.pas=</Transaction>
+    <Transaction>2026/01/07 21:27:07.000.522,=D:\2025-developpement\Gemini\sample\Unit1.pas</Transaction>
+    <Transaction>2026/01/08 11:01:26.000.667,=D:\2025-developpement\Gemini\sample\Unit1.pas</Transaction>
+    <Transaction>2026/01/08 11:02:18.000.690,D:\2025-developpement\Gemini\sample\Unit1.pas=D:\2025-developpement\Gemini\sample\Sample.UrlOpen.pas</Transaction>
+    <Transaction>2026/01/09 12:58:16.000.781,=D:\2025-developpement\Gemini\sample\Unit1.pas</Transaction>
+    <Transaction>2026/01/09 12:59:08.000.345,D:\2025-developpement\Gemini\sample\Unit1.pas=D:\2025-developpement\Gemini\sample\Sample.IniManagment.pas</Transaction>
+    <Transaction>2026/01/10 08:10:39.000.962,=D:\2025-developpement\Gemini\sample\Unit1.pas</Transaction>
+    <Transaction>2026/01/10 08:11:27.000.285,D:\2025-developpement\Gemini\sample\Unit1.pas=D:\2025-developpement\Gemini\sample\Sample.Audio.ConverterPcm2Wav.pas</Transaction>
+  </Transactions>
+</BorlandProject>

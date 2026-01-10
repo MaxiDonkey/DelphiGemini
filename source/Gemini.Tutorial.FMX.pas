@@ -42,6 +42,10 @@ type
     FVectorID: string;
     FOperationID: string;
     FDocumentID: string;
+    FCacheID: string;
+    FBatchID: string;
+    FVideoID: string;
+    FVideoUri: string;
     procedure OnButtonClick(Sender: TObject);
     procedure SetMemo1(const Value: TMemo);
     procedure SetMemo2(const Value: TMemo);
@@ -68,6 +72,10 @@ type
     property VectorID: string read FVectorID write FVectorID;
     property OperationID: string read FOperationID write FOperationID;
     property DocumentID: string read FDocumentID write FDocumentID;
+    property CacheID: string read FCacheID write FCacheID;
+    property BatchID: string read FBatchID write FBatchID;
+    property VideoID: string read FVideoID write FVideoID;
+    property VideoUri: string read FVideoUri write FVideoUri;
 
     procedure JSONUIClear;
     procedure JSONRequestClear;
@@ -111,8 +119,12 @@ type
   procedure Display(Sender: TObject; Value: TIxContent); overload;
   procedure Display(Sender: TObject; Value: TInteraction); overload;
   procedure Display(Sender: TObject; Value: TCRUDDeleted); overload;
+  procedure Display(Sender: TObject; Value: TVideoOpereration); overload;
+
   function DisplayIx(Sender: TObject; Value: TInteraction): string; overload;
   function DisplayIx(Sender: TObject; Value: string): string; overload;
+
+
 
   procedure DisplayStream(Sender: TObject; Value: string); overload;
   procedure DisplayStream(Sender: TObject; Value: TChat); overload;
@@ -156,6 +168,7 @@ begin
     begin
       Display(Sender, sLineBreak + 'The operation was cancelled' + sLineBreak);
       TutorialHub.Cancel := False;
+      TutorialHub.Button.Visible := False;
     end;
 end;
 
@@ -171,7 +184,8 @@ end;
 
 procedure Start(Sender: TObject);
 begin
-  Display(Sender, 'Please wait...' + sLineBreak);
+//  Display(Sender, 'Please wait...' + sLineBreak);
+  TutorialHub.Button.Visible := True;
   TutorialHub.Cancel := False;
   TutorialHub.JSONResponseClear;
 end;
@@ -257,7 +271,7 @@ procedure Display(Sender: TObject; Value: TModels);
 begin
   TutorialHub.JSONResponse := Value.JSONResponse;
   for var Item in Value.Models do
-    Display(Sender, Item.Name);
+    Display(Sender, Item.Name + sLineBreak);
   Display(Sender, sLineBreak);
 end;
 
@@ -266,8 +280,9 @@ begin
   var index := 0;
   for var Item in Value.Values do
     begin
-      Display(Sender, F('[' + index.ToString + ']: ', Item.ToString));
+      Display(Sender, F('[' + index.ToString + '] ', Item.ToString) + sLineBreak);
       Inc(index);
+      Application.ProcessMessages;
     end;
   Display(Sender, sLineBreak);
 end;
@@ -282,8 +297,16 @@ end;
 procedure Display(Sender: TObject; Value: TEmbeddingList);
 begin
   TutorialHub.JSONResponse := Value.JSONResponse;
+  var Index := 1;
   for var Item in Value.Embeddings do
-    Display(Sender, Item);
+    begin
+      Display(Sender,
+        '------------------------------------------------------------------> ' +
+        Format(' Vector[%d]'+ #10#10, [Index])
+      );
+      Display(Sender, Item);
+      Inc(Index);
+    end;
 end;
 
 procedure Display(Sender: TObject; Value: TFileContent);
@@ -351,6 +374,9 @@ begin
   TutorialHub.JSONResponse := Value.JSONResponse;
   for var Item in Value.CachedContents do
     Display(Sender, Item);
+  if Length(Value.CachedContents) = 0 then
+    Display(Sender, 'No cache');
+
 end;
 
 procedure Display(Sender: TObject; Value: TFileSearchStore);
@@ -415,6 +441,8 @@ begin
   TutorialHub.JSONResponse := Value.JSONResponse;
   for var Item in Value.Operations do
     Display(Sender, Item);
+  if Length(Value.Operations) = 0 then
+    Display(Sender, 'No batch');
 end;
 
 procedure Display(Sender: TObject; Value: TFileSearchStoreDelete);
@@ -576,6 +604,25 @@ end;
 procedure Display(Sender: TObject; Value: TCRUDDeleted);
 begin
   Display(Sender, 'Deleted'#10);
+end;
+
+procedure Display(Sender: TObject; Value: TVideoOpereration);
+begin
+  TutorialHub.JSONResponse := Value.JSONResponse;
+
+  var ErrorMsg := EmptyStr;
+  if Assigned(Value.Error) then
+    ErrorMsg := F('• Error', Format('(%d) %s', [Value.Error.Code, Value.Error.Message]));
+
+   Display(Sender, [
+    IfThen( ErrorMsg.IsEmpty,
+      F('• Name', Value.Name), ErrorMsg),
+      F('• Type', Value.&Type),
+      F('• Done', BoolToStr(Value.Done, True)),
+      F('• Uri count', Value.UriCount.ToString)
+  ]);
+
+  Display(Sender, sLineBreak);
 end;
 
 procedure DisplayStream(Sender: TObject; Value: string);
