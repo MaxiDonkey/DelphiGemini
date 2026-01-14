@@ -1,4 +1,4 @@
-### 2026, January 7 version 1.1.0
+### 2026, January 7 version 1.1.0 (GetIt version)
 - **Dual-endpoint architecture:** GenerateContent and Interactions
   The wrapper exposes two Gemini endpoints with clearly distinct roles:
 
