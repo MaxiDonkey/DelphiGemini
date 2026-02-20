@@ -10,7 +10,7 @@ unit Gemini.Interactions.StreamCallbacks;
 interface
 
 uses
-  System.SysUtils, System.Classes,
+  System.SysUtils, System.Classes, System.Threading,
   Gemini.Types, Gemini.Interactions.Stream;
 
 type
@@ -98,7 +98,16 @@ begin
     LocalSender := Self;
 
   if Assigned(LocalProc) then
-    LocalProc(LocalSender, Buffer);
+    begin
+      var  Task: ITask := TTask.Run(
+      procedure()
+      begin
+        TThread.Synchronize(nil, procedure
+          begin
+            LocalProc(LocalSender, Buffer);
+          end)
+      end);
+    end;
 end;
 
 constructor TStreamEventDispatcher.Create(

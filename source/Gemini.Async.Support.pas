@@ -9,7 +9,7 @@ unit Gemini.Async.Support;
 
 interface
 
-{$REGION  'Dev notes : GenAI.Async.Support'}
+{$REGION  'Dev notes : Gemini.Async.Support'}
 
 (*
       Unit containing  records for managing  asynchronous events related to

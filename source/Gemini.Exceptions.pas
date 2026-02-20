@@ -3,8 +3,7 @@ unit Gemini.Exceptions;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Net.HttpClient, System.Net.URLClient,
-  System.Net.Mime, System.JSON, Gemini.Errors;
+  System.SysUtils, Gemini.Errors;
 
 type
   EGeminiException = class(Exception)

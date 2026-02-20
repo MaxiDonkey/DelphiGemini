@@ -1,3 +1,8 @@
+#### 2026, February 20 version 1.1.1
+- Fixed an issue in `Gemini.Interactions.StreamCallbacks.TStreamEventDispatcher.Invoke` that could cause errors during streaming callbacks due to premature object destruction.
+
+<br>
+
 ### 2026, January 7 version 1.1.0 (GetIt version)
 - **Dual-endpoint architecture:** GenerateContent and Interactions
   The wrapper exposes two Gemini endpoints with clearly distinct roles:

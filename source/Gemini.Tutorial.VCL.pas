@@ -99,7 +99,6 @@ type
   procedure Display(Sender: TObject; Value: TCRUDDeleted); overload;
   procedure Display(Sender: TObject; Value: TVideoOpereration); overload; //new
 
-
   function DisplayIx(Sender: TObject; Value: TInteraction): string; overload;
   function DisplayIx(Sender: TObject; Value: string): string; overload;
 

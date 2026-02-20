@@ -749,13 +749,13 @@ begin
         if SameText(Trim(Data), '[DONE]') then
           begin
             if not DoneSent then
-            begin
-              DoneSent := True;
-              if Assigned(IxEvent) then
-                LocalEvent.AggregateStreamEvents(IxEvent, Buffer);
+              begin
+                DoneSent := True;
+                if Assigned(IxEvent) then
+                  LocalEvent.AggregateStreamEvents(IxEvent, Buffer);
 
-              Event(IxEvent, True, AAbort);
-            end;
+                Event(IxEvent, True, AAbort);
+              end;
             Exit;
           end;
 
@@ -913,6 +913,7 @@ begin
 
               if Assigned(Callbacks) and Assigned(Callbacks.OnProgress) then
                 Callbacks.OnProgress(Sender, Event);
+
             end;
 
           Result.OnSuccess :=

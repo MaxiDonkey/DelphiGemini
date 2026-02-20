@@ -28,7 +28,7 @@ uses
   Gemini.Video, Gemini.ImageGen, Gemini.Audio.Transcription;
 
 const
-  VERSION = 'Geminiv1.1.0';
+  VERSION = 'Geminiv1.1.1';
 
 type
   /// <summary>

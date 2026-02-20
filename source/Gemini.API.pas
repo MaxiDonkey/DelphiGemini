@@ -831,7 +831,7 @@ type
     /// Raised when the response cannot be wrapped/decoded as expected or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
     function GetMedia<TResult: class, constructor>(const Endpoint: string;
-      const JSONFieldName: string):TResult; overload;
+      const JSONFieldName: string):TResult;
 
     /// <summary>
     /// Sends a DELETE request to the specified API endpoint and deserializes the JSON response into a strongly typed object.
@@ -861,7 +861,7 @@ type
     /// Raised when the response is not compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
     function Delete<TResult: class, constructor>(const Path: string; const
-      Params: string = ''): TResult; overload;
+      Params: string = ''): TResult;
 
     /// <summary>
     /// Sends a PATCH request to the specified API endpoint using a JSON body built by a parameter object,
@@ -1301,7 +1301,7 @@ type
     /// Raised when the response is non-compliant or cannot be deserialized into <typeparamref name="TResult"/>.
     /// </exception>
     function PostForm<TResult: class, constructor; TParams: TMultipartFormData, constructor>(
-      const Path: string; ParamProc: TProc<TParams>): TResult; overload;
+      const Path: string; ParamProc: TProc<TParams>): TResult;
 
     /// <summary>
     /// Uploads a local file as raw bytes (<c>application/octet-stream</c>) and deserializes
